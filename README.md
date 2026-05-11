@@ -7,7 +7,7 @@ PolyGram is a certifying compiler for network forwarding policies. It takes a hi
 This artifact contains:
 - The HOL4 proof scripts for the PolyGram formalization
 - The verified CakeML compiler pipeline
-- Benchmark test cases reproducing the results from the paper (Tables I–IV)
+- Benchmark test cases reproducing the results from the paper (Tables I-IV)
 - Interactive examples for exploring and extending the pipeline
 
 ## Artifact Overview
@@ -756,7 +756,7 @@ The pipeline is assembled according to the use case as described in the paper:
 # Paper's Appendix B in MD format
 ## Formalization Correspondence
 
-This section maps the definitions, theorems, and algorithms from the paper to their HOL4 mechanization. Each entry is given as `File.sml, lines x–y`.
+This section maps the definitions, theorems, and algorithms from the paper to their HOL4 mechanization. Each entry is given as `File.sml, lines x-y`.
 
 > **Note:** The implementation may use different names for definitions and theorems than those used in the paper.
 
@@ -766,8 +766,8 @@ This section maps the definitions, theorems, and algorithms from the paper to th
 
 | Paper Item | File | Lines |
 |------------|------|-------|
-| Forwarding language structure | `bdd_genScript.sml` | 14–19 |
-| Forwarding language properties | `bdd_genScript.sml` | 455–495 |
+| Forwarding language structure | `bdd_genScript.sml` | 14-19 |
+| Forwarding language properties | `bdd_genScript.sml` | 455-495 |
 
 ---
 
@@ -775,17 +775,17 @@ This section maps the definitions, theorems, and algorithms from the paper to th
 
 | Paper Item | File | Lines |
 |------------|------|-------|
-| Policy syntax | `policy_arith_to_varScript.sml` | 20–51 |
-| Policy semantics | `policy_arith_to_varScript.sml` | 54–172 |
-| Policy ILR syntax | `policy_specScript.sml` | 19–20 |
-| | `pred_specScript.sml` | 9–17 |
-| Policy ILR semantics | `policy_specScript.sml` | 29–47 |
-| ILR policy instantiation | `policy_specScript.sml` | 50–106 |
-| ILR policy properties theorems | `policy_specScript.sml` | 115–771 |
-| Definition of trans▶ | `policy_arith_to_varScript.sml` | 207–263 |
-| Definition of trans◀ | `policy_var_to_arithScript.sml` | 22–60 |
-| Theorem 1 (Sound policy translation and retranslation) | `policy_arith_to_varScript.sml` | 311–424 |
-| | `policy_var_to_arithScript.sml` | 63–123 |
+| Policy syntax | `policy_arith_to_varScript.sml` | 20-51 |
+| Policy semantics | `policy_arith_to_varScript.sml` | 54-172 |
+| Policy ILR syntax | `policy_specScript.sml` | 19-20 |
+| | `pred_specScript.sml` | 9-17 |
+| Policy ILR semantics | `policy_specScript.sml` | 29-47 |
+| ILR policy instantiation | `policy_specScript.sml` | 50-106 |
+| ILR policy properties theorems | `policy_specScript.sml` | 115-771 |
+| Definition of trans▶ | `policy_arith_to_varScript.sml` | 207-263 |
+| Definition of trans◀ | `policy_var_to_arithScript.sml` | 22-60 |
+| Theorem 1 (Sound policy translation and retranslation) | `policy_arith_to_varScript.sml` | 311-424 |
+| | `policy_var_to_arithScript.sml` | 63-123 |
 
 ---
 
@@ -793,15 +793,15 @@ This section maps the definitions, theorems, and algorithms from the paper to th
 
 | Paper Item | File | Lines |
 |------------|------|-------|
-| Table syntax | `table_arith_to_intervalScript.sml` | 790–792 |
-| Table semantics | `table_arith_to_intervalScript.sml` | 979–1017 |
-| Table ILR syntax | `table_var_to_arithScript.sml` | 39–41 |
-| | `policy_arith_to_varScript.sml` | 30–37 |
-| Table ILR semantics | `tables_spec_oldScript.sml` | 133–167 |
-| ILR table instantiation | `tables_specScript.sml` | 41–187 |
-| ILR table properties theorems | `tables_specScript.sml` | 1920–2570 |
-| Definition of trans◀ | `table_arith_to_intervalScript.sml` | 1885–1974 |
-| Theorem 2 (Sound table retranslation) | `table_arith_to_intervalScript.sml` | 1979–2025 |
+| Table syntax | `table_arith_to_intervalScript.sml` | 790-792 |
+| Table semantics | `table_arith_to_intervalScript.sml` | 979-1017 |
+| Table ILR syntax | `table_var_to_arithScript.sml` | 39-41 |
+| | `policy_arith_to_varScript.sml` | 30-37 |
+| Table ILR semantics | `tables_spec_oldScript.sml` | 133-167 |
+| ILR table instantiation | `tables_specScript.sml` | 41-187 |
+| ILR table properties theorems | `tables_specScript.sml` | 1920-2570 |
+| Definition of trans◀ | `table_arith_to_intervalScript.sml` | 1885-1974 |
+| Theorem 2 (Sound table retranslation) | `table_arith_to_intervalScript.sml` | 1979-2025 |
 
 ---
 
@@ -809,28 +809,28 @@ This section maps the definitions, theorems, and algorithms from the paper to th
 
 | Paper Item | File | Lines |
 |------------|------|-------|
-| MTBDD syntax | `bdd_genScript.sml` | 21–35 |
-| MTBDD well-formedness definition | `bdd_genScript.sml` | 307–320 |
-| MTBDD semantics | `bdd_genScript.sml` | 45–85 |
-| MTBDD correctness definition | `bdd_genScript.sml` | 437–444 |
-| `mk_layer` definition | `bdd_genScript.sml` | 208–235 |
-| `mk_layer` correctness theorem | `bdd_gen_correctScript.sml` | 1514–1606 |
-| `mk_layer` well-formedness theorem | `bdd_gen_wfScript.sml` | 920–948 |
-| `merge` definition | `bdd_genScript.sml` | 640–646 |
-| `merge` correctness theorem | `bdd_gen_mergeScript.sml` | 799–814 |
-| `merge` well-formedness theorem | `bdd_gen_mergeScript.sml` | 2226–2265 |
-| `eliminate` definition | `bdd_genScript.sml` | 650–655 |
-| `eliminate` correctness theorem | `bdd_gen_eliminateScript.sml` | 553–570 |
-| `eliminate` well-formedness theorem | `bdd_gen_eliminateScript.sml` | 1319–1431 |
-| `optimize_mtbdd` definition | `bdd_genScript.sml` | 719–727 |
-| `optimize_mtbdd` correctness theorem | `bdd_gen_optimizationScript.sml` | 242–280 |
-| `optimize_mtbdd` well-formedness theorem | `bdd_gen_optimizationScript.sml` | 242–280 |
-| `mk_mtbdd_opt` definition | `bdd_genScript.sml` | 747–754 |
-| Theorem 3 (`mk_mtbdd_opt` correctness) | `bdd_gen_optimizationScript.sml` | 297–375 |
-| `mk_mtbdd_opt` well-formedness theorem | `bdd_gen_optimizationScript.sml` | 297–375 |
-| `is_isomorphic` definition | `bdd_isomorphScript.sml` | 124–129 |
-| Theorem 4 (Isomorphism implies semantic equivalence) | `bdd_isomorphScript.sml` | 502–531 |
-| End-to-end semantic equivalence theorem | `bdd_end_to_endScript.sml` | 858–939 |
+| MTBDD syntax | `bdd_genScript.sml` | 21-35 |
+| MTBDD well-formedness definition | `bdd_genScript.sml` | 307-320 |
+| MTBDD semantics | `bdd_genScript.sml` | 45-85 |
+| MTBDD correctness definition | `bdd_genScript.sml` | 437-444 |
+| `mk_layer` definition | `bdd_genScript.sml` | 208-235 |
+| `mk_layer` correctness theorem | `bdd_gen_correctScript.sml` | 1514-1606 |
+| `mk_layer` well-formedness theorem | `bdd_gen_wfScript.sml` | 920-948 |
+| `merge` definition | `bdd_genScript.sml` | 640-646 |
+| `merge` correctness theorem | `bdd_gen_mergeScript.sml` | 799-814 |
+| `merge` well-formedness theorem | `bdd_gen_mergeScript.sml` | 2226-2265 |
+| `eliminate` definition | `bdd_genScript.sml` | 650-655 |
+| `eliminate` correctness theorem | `bdd_gen_eliminateScript.sml` | 553-570 |
+| `eliminate` well-formedness theorem | `bdd_gen_eliminateScript.sml` | 1319-1431 |
+| `optimize_mtbdd` definition | `bdd_genScript.sml` | 719-727 |
+| `optimize_mtbdd` correctness theorem | `bdd_gen_optimizationScript.sml` | 242-280 |
+| `optimize_mtbdd` well-formedness theorem | `bdd_gen_optimizationScript.sml` | 242-280 |
+| `mk_mtbdd_opt` definition | `bdd_genScript.sml` | 747-754 |
+| Theorem 3 (`mk_mtbdd_opt` correctness) | `bdd_gen_optimizationScript.sml` | 297-375 |
+| `mk_mtbdd_opt` well-formedness theorem | `bdd_gen_optimizationScript.sml` | 297-375 |
+| `is_isomorphic` definition | `bdd_isomorphScript.sml` | 124-129 |
+| Theorem 4 (Isomorphism implies semantic equivalence) | `bdd_isomorphScript.sml` | 502-531 |
+| End-to-end semantic equivalence theorem | `bdd_end_to_endScript.sml` | 858-939 |
 
 ---
 
@@ -838,8 +838,8 @@ This section maps the definitions, theorems, and algorithms from the paper to th
 
 | Paper Item | File | Notes |
 |------------|------|-------|
-| MTBDD-to-tables algorithm | `bdd_utilsLib.sml` | Lines 850–874. Untrusted SML. |
-| Policy minimization algorithm | `bdd_utilsLib.sml` | Lines 1224–1594. Untrusted SML. |
+| MTBDD-to-tables algorithm | `bdd_utilsLib.sml` | Lines 850-874. Untrusted SML. |
+| Policy minimization algorithm | `bdd_utilsLib.sml` | Lines 1224-1594. Untrusted SML. |
 | Translation to CakeML (trusted part) | `bdd_cake_trans/bdd_trans_progScript.sml` | Trusted |
 | CakeML serialization & deserialization (TCB) | `bdd_cake_trans/common_parse_cakeml_ProgScript.sml` | Part of Unrusted Code Base. |
 | | `bdd_cake_trans/policy_parse_cakeml_ProgScript.sml` | Part of Unrusted Code Base. |
