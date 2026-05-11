@@ -6,18 +6,18 @@ ENV DEBCONF_NOWARNINGS="yes"
 
 USER root
 
-# ── 1. System dependencies ────────────────────────────────────────────────────
+# ---- 1. System dependencies --------------------------------------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y -q \
     build-essential git python3 file \
     zlib1g-dev libbz2-dev liblzma-dev wget sudo \
     opam make nano && \
     rm -rf /var/lib/apt/lists/*
 
-# ── 2. Copy the full project into the image ───────────────────────────────────
+# ---- 2. Copy the full project into the image ----------------------------------------------------------------------
 # (.dockerignore excludes the prebuilt cakeml/ folder)
 COPY . /HOL4P4
 
-# ── 3. Install Poly/ML 5.9.2 ─────────────────────────────────────────────────
+# ---- 3. Install Poly/ML 5.9.2 --------------------------------------------------------------------------------------------------
 WORKDIR /HOL4P4
 RUN wget https://github.com/polyml/polyml/archive/refs/tags/v5.9.2.tar.gz && \
     tar -xvf v5.9.2.tar.gz && \
@@ -27,7 +27,7 @@ RUN wget https://github.com/polyml/polyml/archive/refs/tags/v5.9.2.tar.gz && \
     make install && \
     cd .. && rm -rf polyml-5.9.2 v5.9.2.tar.gz
 
-# ── 4. Install HOL4 Trindemossen-2 ───────────────────────────────────────────
+# ---- 4. Install HOL4 Trindemossen-2 --------------------------------------------------------------------------------------
 WORKDIR /HOL4P4
 RUN git clone https://github.com/HOL-Theorem-Prover/HOL.git && \
     cd HOL && \
@@ -41,11 +41,11 @@ RUN git clone https://github.com/HOL-Theorem-Prover/HOL.git && \
 
 ENV PATH="/HOL4P4/HOL/bin:$PATH"
 
-# ── 5. Install OPAM + OCaml ───────────────────────────────────────────────────
+# ---- 5. Install OPAM + OCaml ------------------------------------------------------------------------------------------------------
 RUN opam init --disable-sandboxing -y && \
     eval $(opam env)
 
-# ── 6. Clone and build CakeML (vHOL-Trindemossen-2) fresh inside Docker ───────
+# ---- 6. Clone and build CakeML (vHOL-Trindemossen-2) fresh inside Docker --------------
 WORKDIR /HOL4P4
 RUN git clone https://github.com/CakeML/cakeml.git && \
     cd cakeml && \
@@ -56,18 +56,18 @@ RUN git clone https://github.com/CakeML/cakeml.git && \
     cd translator && Holmake && cd .. && \
     cd unverified/sexpr-bootstrap && Holmake && cd ../..
 
-# ── 7. Make preprocessing scripts executable ─────────────────────────────────
+# ---- 7. Make preprocessing scripts executable ------------------------------------------------------------------
 WORKDIR /HOL4P4
 RUN chmod +x hol/polygram/policy_test_cases*/prepp.sh
 
 
-# ── 8. Set working directory for reviewers ────────────────────────────────────
+# ---- 8. Set working directory for reviewers ------------------------------------------------------------------------
 WORKDIR /HOL4P4
 
-# Reviewers run in order:
-#   make hol
-#   make polygram
-#   make cake
-#   make test
+# ---- 9. Pre-build everything so reviewers can inspect immediately ----------------------------
+RUN make hol
+RUN make polygram
+RUN eval $(opam env) && make cake
+RUN eval $(opam env) && make test
 
 ENTRYPOINT ["/bin/bash", "--login"]

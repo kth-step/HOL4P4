@@ -2,7 +2,8 @@
 
 
 
-## Installations and pre-requists (Ubuntu 22.04) [SKIP IF YOU ARE USING DOCKER]
+## Installations and Prerequisites (Ubuntu 22.04)
+> ⚠️ **WARNING:** ⚠️ **Skip this section if you are using Docker.**
 
 This guide assumes a fresh install of Ubuntu 22.04.
 
@@ -82,58 +83,64 @@ First, navigate to the directory where you want to put the source code of Poly/M
 
 All commands listed here should be run from the root of the repository (HOL4P4/).
 
-### Build
+### 1. Build
 
-The build steps are incremental and must be run in order:
+> ⚠️ **WARNING:** ⚠️ The Docker contains a pre-built version. However, for reproducibility reasons, the following commands can be used after cleaning up with `make clean`. This is time consuomg as you cannot interrupt `make test`.
 
-- `make hol`  compiles the excerpt of HOL4P4 theories that we use in `hol/`
-- `make polygram`  compiles the Polygram theories in `hol/polygram/`
-- `make cake`  compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files, that we compile when testing next step
-- `make test`  runs the preprocessing and testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`
+The build steps of PolyGram are incremental and must be run in order:
+
+- `make hol` compiles the excerpt of HOL4P4 theories that we use in `hol/`, expected time: 30s.
+- `make polygram` compiles the Polygram theories in `hol/polygram/`, expected time: 1320s, (`table_bs_propertiesTheory` takes 10 minutes due to the long heavy proofs).
+- `make cake` compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files in the repository `bdd_cake_test`, that we compile when testing next step, expected time: 800s.
+- `make test` runs the testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`, expected time: 899s ??
 
 
-### For the Test Cases Inspection
+### 2. Inspecting the Test Cases
 
-The time logs for all tables are saved under `logs_for_tables_in_paper/` in the corresponding subfolder (`Table I`, `Table II`, `Table III`, `Table IV`).
+The time logs for all tables in the paper are saved under `logs_for_tables_in_paper/` in the corresponding subfolder (`Table I`, `Table II`, `Table III`, `Table IV`).
 
+
+#### General description:
 The test case folders and the scripts they run are as follows:
 
 | Table | Folder | Script(s) |
 |-------|--------|-----------|
 | Table I - MTBDD creation | `policy_test_cases_mtbdd/` | `bdd_policy_cakeLib.sml` |
-| Table II - Policy-to-table | `policy_test_cases/` | `fwd_proofLib.sml` or `fwd_proof_cakeLib.sml` (see commented lines in each file) |
+| Table II - Policy-to-table | `policy_test_cases_cakeml_best/` `policy_test_cases_cakeml_worst/` `policy_test_cases_hol4_best/` `policy_test_cases_hol4_worst/`| `fwd_proofLib.sml` or `fwd_proof_cakeLib.sml` (see commented lines in each file) |
 | Table III - Policy equivalence | `policy_test_cases_eq/` | `fwd_proof_policies_cakeLib.sml` |
 | Table IV - Policy minimization | `policy_test_cases_gen_policy/` | `fwd_proof_gen_eq_cakeLib.sml` |
 
-
+To inspect the files, we exemplify using `policy_test_cases/internet_firewall_1.sml`, we add further instructions for other test case folders when needed:
 
 ---
 
 #### Step 1 - Run the test cases
 
-If you did not `make test` in the build, navigate to the folder of the test cases of interest e.g., `policy_test_cases/` and run:
+If you did not `make test` in the build, navigate to the folder of the test cases of interest e.g., `policy_test_cases_cakeml_best/` and run:
 
-	cd hol/polygram/policy_test_cases
+	cd hol/polygram/policy_test_cases_cakeml_best
 	./prepp.sh
 
-Repeat for any other folder you want to test (`policy_test_cases_mtbdd`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`).
+Repeat for any other folder you want to test/inspect later (`policy_test_cases_mtbdd`, `policy_test_cases_eq`, `policy_test_cases_gen_policy`...`policy_test_cases_*`).
 
 ---
 
 #### Step 2 - View the time logs
 
-Once the run completes, the time logs are stored in `.hol/logs/` inside the test case folder. For example (you can also see the theorems names being stored there):
+Once the run completes, the time logs being generated are stored in `.hol/logs/` inside the test case folder. For example (you can also see the *theorems names* being stored in HOL4 there):
 
 	cd .hol/logs
 	cat internet_firewall_1Theory
+
+For each successfully compiled `.sml` file (e.g., `internet_firewall_1Script.sml`), a corresponding theory file (`internet_firewall_1Theory`) is generated.
 
 ---
 
 #### Step 3 - View the theorems
 
-Only test cases that completed successfully will have a generated theory file. To inspect a theorem, first launch HOL from the test case folder:
+Only test cases `filenameTheory` that completed successfully will have a generated theory file. To inspect a theorem, first launch HOL from the test case folder:
 
-	cd hol/polygram/policy_test_cases
+	cd hol/polygram/policy_test_cases_cakeml_best
 	hol
 
 Then, inside the HOL environment, load and open the theory of interest:
@@ -142,32 +149,56 @@ Then, inside the HOL environment, load and open the theory of interest:
 	open internet_firewall_1Theory;
 	show_tags := true;
 
-The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names. For reference:
+Display a theorem:
 
-**`policy_test_cases`** (Table II):
+	internet_firewall_1Theory.policy_trans_fwd_proof;
+	
+This will show the translation proof between input policy forwarding and its ILR representation.
+Note: it is easy to miss the semi-colon at the end, please do not forget to add it.
 
-	internet_firewall_1Theory.policy_trans_fwd
-	internet_firewall_1Theory.policy_trans_fwd_proof
-	internet_firewall_1Theory.policy_BDD
-	internet_firewall_1Theory.table_BDD
-	internet_firewall_1Theory.table_trans_back
-	internet_firewall_1Theory.final_proof
+The available theorems differ by folder. Check `.hol/logs/` for lines beginning with `saved theorem` to confirm valid theorem names or here we have a reference:
 
-**`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** (Tables III & IV):
+In folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`** (Table II):
+- `internet_firewall_1Theory.policy_trans_fwd` : trans-fwd result
+- `internet_firewall_1Theory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
+- `internet_firewall_1Theory.policy_BDD` : MTBDD1 result 
+- `internet_firewall_1Theory.table_BDD` : MTBDD2 result 
+- `internet_firewall_1Theory.table_trans_back` : trans-back soundness (Theorem 2)
+- `internet_firewall_1Theory.final_proof` : end-to-end equivalence proof between policy and a table
 
-	internet_firewall_1Theory.policy_trans_fwd_1
-	internet_firewall_1Theory.policy_trans_fwd_2
-	internet_firewall_1Theory.policy_trans_fwd_proof_1
-	internet_firewall_1Theory.policy_trans_fwd_proof_2
-	internet_firewall_1Theory.policy_BDD_1
-	internet_firewall_1Theory.policy_BDD_2
-	internet_firewall_1Theory.final_thm
+In folder **`policy_test_cases_eq`** and **`policy_test_cases_gen_policy`** (Tables III & IV):
+- `internet_firewall_1Theory.policy_trans_fwd_1` : trans-fwd result for policy 1 (Theorem 1)
+- `internet_firewall_1Theory.policy_trans_fwd_2` : trans-fwd result for policy 2 (Theorem 1)
+- `internet_firewall_1Theory.policy_trans_fwd_proof_1` : soundness of trans-fwd for policy 1 (Theorem 1)
+- `internet_firewall_1Theory.policy_trans_fwd_proof_2` : soundness of trans-fwd for policy 2 (Theorem 1)
+- `internet_firewall_1Theory.policy_BDD_1` : MTBDD1 from policy 1 
+- `internet_firewall_1Theory.policy_BDD_2` : MTBDD2 from policy 2 
+- `internet_firewall_1Theory.final_thm` : end-to-end equivalence between the two policies
 
-**`policy_test_cases_mtbdd`** (Table I):
+In folder **`policy_test_cases_mtbdd`** (Table I):
+- `internet_firewall_1Theory.policy_trans_fwd` : trans-fwd result (Theorem 1)
+- `internet_firewall_1Theory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
+- `internet_firewall_1Theory.policy_BDD` : MTBDD result
 
-	internet_firewall_1Theory.policy_trans_fwd
-	internet_firewall_1Theory.policy_trans_fwd_proof
-	internet_firewall_1Theory.policy_BDD
+
+
+> **Note on Table II (folders **`policy_test_cases_cakeml_best`**, **`policy_test_cases_cakeml_worst`**, **`policy_test_cases_hol4_best`** and **`policy_test_cases_hol4_worst`**):**
+
+| Combination | Pipeline used | Ordering |
+|-------------|----------|----------|
+| **`policy_test_cases_cakeml_best`** | CakeML (+ serialization trusted oracle) - `convert_arith_policy_to_interval_tables_cake` in(`fwd_proof_cakeLib.sml`) | Best order |
+| **`policy_test_cases_cakeml_worst`**  | CakeML (+ serialization trusted oracle) - `convert_arith_policy_to_interval_tables_cake` in (`fwd_proof_cakeLib.sml`) | Worst order |
+| **`policy_test_cases_hol4_best`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Best order |
+| **`policy_test_cases_hol4_worst`** | HOL4 fully verifiedL - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
+
+> **Note:** For evaluation purposes, the timeout is set to 600 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update:
+> ```
+> timeout 600s Holmake "internet_firewall_${i}Theory.uo"
+> ```
+
+---
+
+#### Step 4 - Exit HOL4
 
 To exit the HOL environment:
 
@@ -175,24 +206,119 @@ To exit the HOL environment:
 
 ---
 
+## Try Polygram Yourself
+### Using the paper's running example
+we have the 4 variants of the running example
+cakeml_best
+cakeml_worst
+hol4_best
+hol4_worst
+
+in folder ...
+
+to go there cd
+
+to run their theorem
+
+./prepp.sh
+
+you can open them via 
+
+nano ....
+
+you will see tehre the instansiations of the policy language...
+notice that it is in hol4 deep embedding as we did not want to take it from an untrusted compiler. this of course can be a bit hard to work with initially, but we want to keep the pipeline free from other dependencies
+
+the declarations of the predicates and their mappings are there
+
+### Checking the output
+
+to start with the cakeml:
+now cakeml (best or worst) both will provide a verified binary.
+
+You can inspect the results using the hol interactive mode (as described in here 2. Inspecting the Test Cases )
 
 
-> **Note on Table II (`policy_test_cases`):** To replicate the full Table II results from the paper,  each test case file must be run four times - once per combination of pipeline and variable ordering. Each file contains clearly marked lines for all four combinations; simply comment/uncomment the relevant lines before each run:
 
-| Combination | Pipeline | Ordering |
-|-------------|----------|----------|
-| ✅ Default (as shipped) | CakeML - `convert_arith_policy_to_interval_tables_cake` in(`fwd_proof_cakeLib.sml`) | Best order |
-| | CakeML - `convert_arith_policy_to_interval_tables_cake` in (`fwd_proof_cakeLib.sml`) | Worst order |
-| | HOL4 EVAL - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Best order |
-| | HOL4 EVAL - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
+## Reproducing and Extending the Running Example
 
-> **Note:** For evaluation purposes, the timeout is set to 300 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update:
-> ```
-> timeout 300s Holmake "internet_firewall_${i}Theory.uo"
-> ```
+The running example from the paper (Figures 1, 4, and 5) is in
+`reviewers_test_here/`. To run it:
+
+```bash
+cd reviewers_test_here
+./run_paper_example.sh
+```
+
+### Adding a rule
+Open `paper_example_cakeml_worstScript.sml` (or the variant you are using).
+You need to update five things: the predicate, the rule, the policy list,
+the mapping m, and the variable order and grouping.
+
+For example, to add a rule that drops traffic with ip.ttl <= 1:
+
+**1. Define the atomic predicate and lift it:**
+```sml
+val ttl_low = "(arithm_le (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^(bdd_utilsLib.make_bv 1 8))";
+val a_ttl_low = "arith_a ^ttl_low";
+```
+
+**2. Define the rule:**
+```sml
+val arith_policy_rule_ttl = "(^a_ttl_low, action ("drop", [])):single_rule";
+```
+
+**3. Add it to the policy list before the default rule:**
+```sml
+val arith_policy_figure1 = "[
+    ^arith_policy_rule1;
+    ^arith_policy_rule2;
+    ^arith_policy_rule3;
+    ^arith_policy_rule4;
+    ^arith_policy_rule_ttl;      (* new rule *)
+    ^arith_policy_rule_default
+]:single_rule list";
+```
+
+**4. Add the predicate to the mapping m:**
+```sml
+val atoms_map = "[
+    ("x1", ^x1);
+    ("x2", ^x2);
+    ("x3", ^x3);
+    ("x4", ^x4);
+    ("y1", ^y1);
+    ("y2", ^y2);
+    ("z",  ^z);
+    ("ttl_low", ^ttl_low);       (* new predicate *)
+]";
+```
+
+**5. Add the variable to the order and grouping:**
+```sml
+val policy_order = "["x1";"x2";"x3";"x4";"y1";"y2";"z";"ttl_low"]";
+
+val policy_full_order = "[
+  ("ip_dst", ["x1";"x2";"x3";"x4"]);
+  ("tcp_dst", ["y1";"y2"]);
+  ("ip_ttl",  ["z";"ttl_low"])     (* added to the ttl group *)
+]";
+```
+
+### Removing a rule
+Remove the corresponding entry from `arith_policy_figure1`. If the rule
+introduced a predicate not used by any other rule, also remove it from
+`atoms_map`, `policy_order`, and `policy_full_order`. The pipeline will
+automatically produce a proof for the updated policy.
+
+### Checking the output
 
 
-### Pipeline Library Files
+
+
+
+
+## Pipeline Library Files
 
 The pipeline is assembled according to the use case as described in the paper:
 
@@ -200,12 +326,12 @@ The pipeline is assembled according to the use case as described in the paper:
 | File | Description | Used in |
 |------|-------------|---------|
 | **`fwd_proofLib.sml`** | (End to End verified) Policy-to-table pipeline that uses HOL4 `EVAL` for MTBDD construction. | `policy_test_cases` |
-| **`fwd_proof_cakeLib.sml`** | Policy-to-table pipeline using CakeML (i.e., serialization is TBB) for MTBDD construction. | `policy_test_cases` |
+| **`fwd_proof_cakeLib.sml`** | Policy-to-table pipeline using CakeML (i.e., serialization is TCB) for MTBDD construction. | `policy_test_cases` |
 | **`fwd_proof_policies_cakeLib.sml`** | Takes two policies as input and checks their equivalence. | `policy_test_cases_eq` |
 | **`fwd_proof_gen_eq_cakeLib.sml`** | Generates a minimized policy from a given input policy. | `policy_test_cases_gen_policy` |
 
 
-> `bdd_policy_cakeLib.sml` is not a pipeline but contains a script to run MTBDD creation only for testing (Table I)
+> Note: `bdd_policy_cakeLib.sml` is not a pipeline but contains a script to run MTBDD creation only for testing (Table I)
 
 
 
