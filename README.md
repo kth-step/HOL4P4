@@ -1,5 +1,113 @@
 # PolyGram
 
+This is the artifact for the paper **"PolyGram: A Certifying Compiler for Network Policies"** submitted to FMCAD 2026.
+
+PolyGram is a certifying compiler for network forwarding policies. It takes a high-level policy as input and produces equivalent P4 match-action tables (or minimized policies), together with a machine-checked proof of semantic equivalence between the input policy and the generated foreardings. The proofs are mechanized in HOL4 and the MTBDD construction is additionally compiled to a verified CakeML binary.
+
+This artifact contains:
+- The HOL4 proof scripts for the PolyGram formalization
+- The verified CakeML compiler pipeline
+- Benchmark test cases reproducing the results from the paper (Tables I–IV)
+- Interactive examples for exploring and extending the pipeline
+
+## Artifact Overview
+
+### Structure and Content
+
+```
+HOL4P4/
+├── Dockerfile                        # Builds the self-contained artifact environment
+├── LICENSE-APACHE                    # Apache 2.0 license
+├── LICENSE-BSD                       # BSD 3-Clause license
+├── COPYRIGHT                         # Copyright notice
+├── Makefile                          # Top-level build file (make hol/polygram/cake/test)
+├── cakeml/                           # CakeML installation (vHOL-Trindemossen-2)
+├── hol/
+│   ├── Holmakefile                   # HOL4 build file for HOL4P4 excerpt
+│   ├── p4Script.sml                  # HOL4P4 dependency
+│   ├── p4_auxScript.sml              # HOL4P4 dependency
+│   └── polygram/
+│       ├── Holmakefile               # HOL4 build file for PolyGram
+│       ├── bdd_genScript.sml         # Generalized BDD framework
+│       ├── ...					      # Other files
+│       ├── bdd_gen_eliminateScript.sml # Elimination operation proofs
+│       ├── fwd_proofLib.sml          # HOL4 EVAL pipeline
+│       ├── fwd_proof_cakeLib.sml     # CakeML pipeline
+│       ├── fwd_proof_policies_cakeLib.sml # Policy equivalence checker
+│       ├── fwd_proof_gen_eq_cakeLib.sml   # Policy minimization
+│       ├── bdd_cake_trans/           # CakeML translation scripts (trusted)
+│       ├── bdd_cake_test/            # CakeML compiled binaries
+│       ├── logs_for_tables_in_paper/ # Pre-run logs matching paper tables
+│       ├── policy_test_cases*/       # Benchmark test case folders
+│       └── reviewers_test_here/      # Interactive examples for reviewers
+│           ├── paper_example_cakeml_bestScript.sml
+│           ├── paper_example_cakeml_worstScript.sml
+│           ├── paper_example_hol4_bestScript.sml
+│           ├── paper_example_hol4_worstScript.sml
+│           ├── policy_equiv_exampleScript.sml
+│           ├── policy_min_exampleScript.sml
+│           └── prepp.sh
+```
+
+---
+
+## Resource Requirements
+
+- **RAM:** 16 GB recommended (8 GB minimum)
+- **CPU cores:** 4+ cores recommended
+- **Disk:** ~20 GB for the full Docker image (HOL4 + CakeML + artifact)
+- **Time estimates (inside Docker):**
+
+| Step | Command | Expected time |
+|------|---------|---------------|
+| HOL4P4 theories | `make hol` | ~30s |
+| PolyGram theories | `make polygram` | ~1320s (`table_bs_propertiesTheory` alone takes ~10 min) |
+| CakeML translation | `make cake` | ~800s |
+| Benchmark test cases | `make test` | ~2000s |
+| Reviewer examples | `./prepp.sh` | ~5s |
+
+---
+
+## Setup: Using Docker (Recommended)
+
+Docker provides a fully pre-installed environment ; you do **not** need to install HOL4, CakeML, or Poly/ML yourself.
+
+### Step 1: Install Docker
+
+If you do not have Docker installed, run:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io
+```
+
+Verify Docker is installed:
+
+```bash
+docker --version
+```
+
+### Step 2: Load the artifact image
+
+```bash
+docker load < polygram-artifact.tar
+```
+
+You should see: `Loaded image: polygram-artifact:fmcad2026`
+
+### Step 3: Run the container
+
+```bash
+docker run -it polygram-artifact:fmcad2026
+```
+
+You will land inside the container at `/HOL4P4`, with HOL4, CakeML, and all dependencies ready. The theories are pre-built ; you can start inspecting immediately.
+
+> **Note for Apple Silicon (M1/M2/M3) users:** Run with:
+> ```bash
+> docker run --platform linux/amd64 -it polygram-artifact:fmcad2026
+> ```
+
 
 
 ## Installations and Prerequisites (Ubuntu 22.04)
@@ -92,7 +200,7 @@ The build steps of PolyGram are incremental and must be run in order:
 - `make hol` compiles the excerpt of HOL4P4 theories that we use in `hol/`, expected time: 30s.
 - `make polygram` compiles the Polygram theories in `hol/polygram/`, expected time: 1320s, (`table_bs_propertiesTheory` takes 10 minutes due to the long heavy proofs).
 - `make cake` compiles the CakeML translation in `hol/polygram/bdd_cake_trans/`, after this command, there should be 2 sexp files in the repository `bdd_cake_test`, that we compile when testing next step, expected time: 800s.
-- `make test` runs the testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`, expected time: 899s ??
+- `make test` runs the testing scripts for the policy test cases in `hol/polygram/policy_test_cases*/`, expected time: at least 3000s
 
 
 ### 2. Inspecting the Test Cases
@@ -191,11 +299,11 @@ In folder **`policy_test_cases_mtbdd`** (Table I):
 | **`policy_test_cases_cakeml_best`** | CakeML (+ serialization trusted oracle) - `convert_arith_policy_to_interval_tables_cake` in(`fwd_proof_cakeLib.sml`) | Best order |
 | **`policy_test_cases_cakeml_worst`**  | CakeML (+ serialization trusted oracle) - `convert_arith_policy_to_interval_tables_cake` in (`fwd_proof_cakeLib.sml`) | Worst order |
 | **`policy_test_cases_hol4_best`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Best order |
-| **`policy_test_cases_hol4_worst`** | HOL4 fully verifiedL - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
+| **`policy_test_cases_hol4_worst`** | HOL4 fully verified - `convert_arith_policy_to_interval_tables` in (`fwd_proofLib.sml`) | Worst order |
 
 > **Note:** For evaluation purposes, the timeout is set to 600 seconds (vs. 1200 seconds in the paper). To change it, edit `prepp.sh` and update:
 > ```
-> timeout 600s Holmake "internet_firewall_${i}Theory.uo"
+> timeout 500 Holmake "internet_firewall_${i}Theory.uo"
 > ```
 
 ---
