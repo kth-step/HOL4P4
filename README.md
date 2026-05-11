@@ -145,11 +145,13 @@ Only test cases `filenameTheory` that completed successfully will have a generat
 
 Then, inside the HOL environment, load and open the theory of interest:
 
+```sml
 	load "internet_firewall_1Theory";
 	open internet_firewall_1Theory;
 	show_tags := true;
+```
 
-Display a theorem:
+Display a theorem (type this):
 
 	internet_firewall_1Theory.policy_trans_fwd_proof;
 	
@@ -206,116 +208,147 @@ To exit the HOL environment:
 
 ---
 
-## Try Polygram Yourself
-### Using the paper's running example
-we have the 4 variants of the running example
-cakeml_best
-cakeml_worst
-hol4_best
-hol4_worst
+## Try PolyGram Yourself
 
-in folder ...
+### Running the Paper Example
 
-to go there cd
+The running example from the paper (Figures 1, 4, and 5) is in `hol/polygram/reviewers_test_here/`. It contains four variants combining two pipeline types (CakeML binary or HOL4 EVAL) and two variable orders (best or worst):
 
-to run their theorem
+- `paper_example_cakeml_bestScript.sml`
+- `paper_example_cakeml_worstScript.sml`
+- `paper_example_hol4_bestScript.sml`
+- `paper_example_hol4_worstScript.sml`
 
-./prepp.sh
-
-you can open them via 
-
-nano ....
-
-you will see tehre the instansiations of the policy language...
-notice that it is in hol4 deep embedding as we did not want to take it from an untrusted compiler. this of course can be a bit hard to work with initially, but we want to keep the pipeline free from other dependencies
-
-the declarations of the predicates and their mappings are there
-
-### Checking the output
-
-to start with the cakeml:
-now cakeml (best or worst) both will provide a verified binary.
-
-You can inspect the results using the hol interactive mode (as described in here 2. Inspecting the Test Cases )
+To run all four variants:
 
 
+	cd hol/polygram/reviewers_test_here
+	./prepp.sh
 
-## Reproducing and Extending the Running Example
 
-The running example from the paper (Figures 1, 4, and 5) is in
-`reviewers_test_here/`. To run it:
+This compiles the CakeML binary and runs all four variants. Each variant produces a HOL4 theory file with the verified theorems.
 
-```bash
-cd reviewers_test_here
-./run_paper_example.sh
+### Inspecting the Example Files
+
+To open and inspect a variant:
+
+
+	nano hol/polygram/reviewers_test_here/paper_example_cakeml_bestScript.sml
+
+
+Inside, you will find:
+
+- **Packet type descriptor** : encodes the bit-vector width of each header field
+- **Atomic predicates** : e.g. `x1` for `ip.dst >= 10.0.0.0`, declared as HOL4 deep embeddings
+- **Mapping m** (`atoms_map`) : maps variable names to atomic predicates (Figure 4)
+- **Policy rules** : the five rules from Figure 1, in order
+- **Variable order and grouping** : controls MTBDD construction (Section V)
+- **Pipeline invocation** : calls either `fwd_proof_cakeLib` (CakeML) or `fwd_proofLib` (HOL4 EVAL)
+
+> **Note:** The policy is encoded as a HOL4 deep embedding. This keeps the pipeline free from untrusted compiler dependencies, at the cost of some verbosity.
+
+### Checking the Output
+
+After `./prepp.sh` completes, inspect the generated theorems interactively:
+
+
+	cd hol/polygram/reviewers_test_here
+	hol
+
+
+Then inside the HOL4 interactive session:
+
+```sml
+load "paper_example_cakeml_worstTheory";
+open paper_example_cakeml_worstTheory;
+show_tags := true;
 ```
 
-### Adding a rule
-Open `paper_example_cakeml_worstScript.sml` (or the variant you are using).
-You need to update five things: the predicate, the rule, the policy list,
-the mapping m, and the variable order and grouping.
+You should see the following theorems:
 
-For example, to add a rule that drops traffic with ip.ttl <= 1:
+- `paper_example_cakeml_worstTheory.policy_trans_fwd` : trans-fwd result
+- `paper_example_cakeml_worstTheory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
+- `paper_example_cakeml_worstTheory.policy_BDD` : MTBDD1 result 
+- `paper_example_cakeml_worstTheory.table_BDD` : MTBDD2 result 
+- `paper_example_cakeml_worstTheory.table_trans_back` : trans-back soundness (Theorem 2)
+- `paper_example_cakeml_worstTheory.final_proof` : end-to-end equivalence proof between policy and a table
+
+
+To exit HOL4:
+
+ctrl + d
+
+
+### Extending the Running Example
+
+#### Adding a Rule
+
+Open the variant you want to modify:
+
+```bash
+nano hol/polygram/reviewers_test_here/paper_example_cakeml_bestScript.sml
+```
+
+You need to update five things. For example, to add a rule that drops traffic with `ip.ttl <= 1`:
 
 **1. Define the atomic predicate and lift it:**
 ```sml
-val ttl_low = "(arithm_le (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^(bdd_utilsLib.make_bv 1 8))";
-val a_ttl_low = "arith_a ^ttl_low";
+val ttl_low = ``(arithm_le (lv_acc (lv_acc (lv_x "h") "ip") "ttl") ^(bdd_utilsLib.make_bv 1 8))``;
+val a_ttl_low = ``arith_a ^ttl_low``;
 ```
 
 **2. Define the rule:**
 ```sml
-val arith_policy_rule_ttl = "(^a_ttl_low, action ("drop", [])):single_rule";
+val arith_policy_rule_ttl = ``(^a_ttl_low, action ("drop", [])):single_rule``;
 ```
 
 **3. Add it to the policy list before the default rule:**
 ```sml
-val arith_policy_figure1 = "[
+val arith_policy_figure1 = “[
     ^arith_policy_rule1;
     ^arith_policy_rule2;
     ^arith_policy_rule3;
     ^arith_policy_rule4;
-    ^arith_policy_rule_ttl;      (* new rule *)
+    ^arith_policy_rule_ttl;  (* add here *)
     ^arith_policy_rule_default
-]:single_rule list";
+]:single_rule list”;
 ```
 
 **4. Add the predicate to the mapping m:**
 ```sml
-val atoms_map = "[
-    ("x1", ^x1);
-    ("x2", ^x2);
-    ("x3", ^x3);
-    ("x4", ^x4);
-    ("y1", ^y1);
-    ("y2", ^y2);
-    ("z",  ^z);
-    ("ttl_low", ^ttl_low);       (* new predicate *)
-]";
+val atoms_map = ``[
+    ("x1", ^x1); 
+	("x2", ^x2); 
+	("x3", ^x3); 
+	("x4", ^x4);
+    ("y1", ^y1); 
+	("y2", ^y2); 
+	("z", ^z);
+    ("ttl_low", ^ttl_low)
+]``;
 ```
 
 **5. Add the variable to the order and grouping:**
 ```sml
-val policy_order = "["x1";"x2";"x3";"x4";"y1";"y2";"z";"ttl_low"]";
+val policy_order = “["y1";"x1";"x2";"x3";"x4";"y2";"z";"ttl_low"]”;
 
-val policy_full_order = "[
-  ("ip_dst", ["x1";"x2";"x3";"x4"]);
-  ("tcp_dst", ["y1";"y2"]);
-  ("ip_ttl",  ["z";"ttl_low"])     (* added to the ttl group *)
-]";
+val variables_grouping = “[
+  ("tcp_dst1" ,["y1"]);
+  ("ip_dst",["x1";"x2";"x3";"x4"]);
+  ("tcp_dst2" ,["y2"]);
+  ("ip_ttl" ,["z";"ttl_low"])
+]”;
 ```
 
-### Removing a rule
-Remove the corresponding entry from `arith_policy_figure1`. If the rule
-introduced a predicate not used by any other rule, also remove it from
-`atoms_map`, `policy_order`, and `policy_full_order`. The pipeline will
-automatically produce a proof for the updated policy.
-
-### Checking the output
+Then rerun:
+```bash
+./prepp.sh
+```
 
 
 
 
+---
 
 
 ## Pipeline Library Files
