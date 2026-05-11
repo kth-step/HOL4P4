@@ -303,8 +303,18 @@ ls
 cat internet_firewall_1Theory
 ```
 
-For each successfully compiled `.sml` file (e.g., `internet_firewall_1Script.sml`), a corresponding theory file (`internet_firewall_1Theory`) is generated.
+For each successfully compiled `.sml` file, a corresponding theory file is generated. 
+The available theory names depend on which folder you are in. For example, in 
+`policy_test_cases_cakeml_best/`, first check what test cases exist:
 
+```bash
+ls /HOL4P4/hol/polygram/policy_test_cases_cakeml_best/
+# you should see files like: internet_firewall_1Script.sml, internet_firewall_2Script.sml, ...
+```
+
+Each `internet_firewall_NScript.sml` produces a corresponding `internet_firewall_NTheory`. 
+So if you see `internet_firewall_3Script.sml`, you can inspect `internet_firewall_3Theory`.
+Please do **not** assume the same theory names exist across different folders, always check first.
 
 
 #### Step 3 - View the theorems
