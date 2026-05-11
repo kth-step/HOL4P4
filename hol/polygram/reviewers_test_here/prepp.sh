@@ -13,5 +13,11 @@ cd ../reviewers_test_here
 
 
 
-Holmake "internet_firewall_${i}Theory.uo"
-
+for target in \
+    "paper_example_cakeml_bestTheory.uo" \
+    "paper_example_cakeml_worstTheory.uo" \
+    "paper_example_hol4_worstTheory.uo" \
+    "paper_example_hol4_bestTheory.uo"; do
+    echo "Running Holmake $target..."
+    Holmake "$target"
+done
