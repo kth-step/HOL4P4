@@ -270,7 +270,7 @@ You should see the following theorems:
 - `paper_example_cakeml_worstTheory.policy_trans_fwd_proof` : soundness of trans-fwd (Theorem 1)
 - `paper_example_cakeml_worstTheory.policy_BDD` : MTBDD1 result 
 - `paper_example_cakeml_worstTheory.table_BDD` : MTBDD2 result 
-- `paper_example_cakeml_worstTheory.table_trans_back` : trans-back soundness (Theorem 2)
+- `paper_example_cakeml_worstTheory.table_trans_back` : trans-back soundness (Theorem 2, you will see the tables here)
 - `paper_example_cakeml_worstTheory.final_proof` : end-to-end equivalence proof between policy and a table
 
 
@@ -401,7 +401,97 @@ The theorem will show the equivelnce.
 
 
 
+### Policy Minimization Example
 
+The policy minimization example is in `hol/polygram/reviewers_test_here/policy_min_exampleScript.sml`.
+
+It demonstrates PolyGram's policy minimization on a bloated policy defined over three predicates.
+
+The input policy has 9 rules with several issues that are hard to spot by hand:
+
+- **Rule 2** : unsatisfiable . `y1 AND y2` is always false (disjoint port ranges)
+- **Rule 4** : unsatisfiable . `y1 AND NOT y1` is always false
+- **Rule 7** : unsatisfiable . `z AND NOT z` is always false
+- **Rule 9** : unreachable . Rule 8 (`NOT z → fwd(2)`) always fires first due to match-first semantics
+- **Rules 1, 3, 5, 6** : overlapping conditions that can be simplified
+
+PolyGram automatically generates a minimized policy and produces a certified proof that the minimized policy is semantically equivalent to the original.
+
+#### Running the Example
+
+```bash
+cd hol/polygram/reviewers_test_here
+./prepp.sh
+```
+
+#### Inspecting the Result
+
+```bash
+cd hol/polygram/reviewers_test_here
+hol
+```
+
+Then inside the HOL4 interactive session:
+
+```sml
+load "policy_min_exampleTheory";
+open policy_min_exampleTheory;
+show_tags := true;
+```
+
+The theorem to inspect is:
+
+- `policy_min_exampleTheory.final_thm` : end-to-end equivalence between the original and minimized policy (there you can also see the minimized policy)
+
+The theorem will show:
+
+```
+[oracles: CakeML_policy_TCB, DISK_THM] [axioms: ] []
+⊢ THM_CONTENT
+```
+
+We can modify the pipeline to get a non-oracle theorem. It is like Lego!
+
+
+#### Reproducing the Minimization
+
+To modify the input policy and observe how PolyGram minimizes it, open the script:
+
+```bash
+nano hol/polygram/reviewers_test_here/policy_min_exampleScript.sml
+```
+
+You can add new rules, introduce unsatisfiable conditions, or reorder rules. For example, to add a redundant rule that is subsumed by Rule 1:
+
+```sml
+(* New redundant rule: y1 AND z AND NOT y2 -> fwd(1)
+   This is subsumed by Rule 1 since NOT y2 is always true when y1 holds *)
+val rule_new = "(arith_and ^a_y1 (arith_and ^a_z (arith_not ^a_y2)),
+                action ("fwd",[1])):single_rule";
+```
+
+Add it to the policy list:
+
+```sml
+val arith_policy = "[
+    ^rule1;
+    ^rule_new;   (* add here *)
+    ^rule2;
+    ...
+]:single_rule list";
+```
+
+Then rerun:
+
+```bash
+./prepp.sh
+```
+
+PolyGram will produce the same minimized policy and a new equivalence proof, showing it correctly identified and removed the redundant rule.
+
+To exit HOL4:
+
+	ctrl+d
 
 
 ---

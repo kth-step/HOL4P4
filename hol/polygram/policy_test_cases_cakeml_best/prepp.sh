@@ -18,7 +18,7 @@ echo "Done!"
 
 cd ../policy_test_cases_cakeml_best
 
-Holmake "paper_exampleTheory.uo"
+
 
 
 for i in {1..7}; do

@@ -23,3 +23,7 @@ for target in \
 done
 
 Holmake "policy_equiv_exampleTheory.uo"
+
+
+Holmake "policy_min_exampleTheory.uo"
+
