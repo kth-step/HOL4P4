@@ -10,7 +10,6 @@ cd petr4
 git checkout 0.1.2
 
 #Includes
-#TODO: VSS also?
 mkdir -p ${INSTALL_DIR}/hol/p4_from_json/p4include;
 cp examples/core.p4 ${INSTALL_DIR}/hol/p4_from_json/p4include/
 cp examples/ebpf_model.p4 ${INSTALL_DIR}/hol/p4_from_json/p4include/
