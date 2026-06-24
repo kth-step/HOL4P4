@@ -19,6 +19,10 @@ This guide assumes a fresh install of Ubuntu 22.04.
 * Petr4
 * Git
 
+## For the verified software switch
+
+* CakeML
+
 ### Optional, for generating HOL4 definitions and documentation
 
 * Python 3
@@ -44,16 +48,14 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		sudo make install
 		cd ..
 
-3. Install HOL4 Trindemossen-1
+3. Install HOL4 Trindemossen-2
 
 		git clone https://github.com/HOL-Theorem-Prover/HOL.git
 		cd HOL
-		git checkout trindemossen-1
+		git checkout trindemossen-2
 		poly < tools/smart-configure.sml
 		bin/build
 		cd ..
-	
-	If you are annoyed that bin/build gives errors when compiling SAT solvers, you may add the `gcc` flag `-std=c++14` to their respective `Makefile`s. However, these errors should not affect this project.
 
 	If you want to be able to persistently compile HOL4 theories from anywhere, edit `~/.bashrc`, now adding:
 
@@ -100,7 +102,16 @@ First, navigate to the directory where you want to put the source code of Poly/M
 		
 	This will build the HOL4 theories and associated libraries.
 	
-6. (Optional) Install Python 3 and the latest version of Ott
+6. Clone and compile CakeML
+
+	Navigate to the HOL4P4 directory, and do the following:
+	
+        git clone https://github.com/CakeML/cakeml
+        cd cakeml
+        git checkout vHOL-Trindemossen-2
+        Holmake
+	
+7. (Optional) Install Python 3 and the latest version of Ott
 
 		sudo apt-get install python3
 		opam repo add coq-extra-dev https://coq.inria.fr/opam/extra-dev
