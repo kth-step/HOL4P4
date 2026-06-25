@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ -z "${POLYML_VERSION}" ]]; then
-  POLYML_VERSION="5.9.1"
+  POLYML_VERSION="5.9.2"
 fi
 
 # If Poly/ML version is 5.7.1, use the one pre-packaged by Ubuntu instead
@@ -13,7 +13,7 @@ else
     tar -xvf v${POLYML_VERSION}.tar.gz
 #  fi
   cd polyml-${POLYML_VERSION}
-  ./configure --prefix=/usr
+  ./configure --prefix=/usr --enable-intinf-as-int
   make
   sudo make install
   cd ..
