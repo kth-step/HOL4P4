@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 LABEL description="This is a docker image for HOL4P4"
 ARG DEBIAN_FRONTEND=noninteractive
 ENV DEBCONF_NOWARNINGS="yes"

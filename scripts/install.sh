@@ -1,8 +1,7 @@
 #!/bin/bash
-#This script is used as a quick-and-dirty way to install all prerequisites and compile HOL4P4 on a fresh Ubuntu 22.04 installation.
+#This script is used as a quick-and-dirty way to install all prerequisites and compile HOL4P4 on a fresh Ubuntu 24.04 installation.
 
 sudo apt-get update
-#TODO Remove git when no longer needed
 sudo apt-get install -y build-essential git python3 file zlib1g-dev libbz2-dev liblzma-dev wget
 
 #Path to where this file is located
@@ -19,7 +18,6 @@ FILEPATH=$(dirname "$FILE")
 
 . ${FILEPATH}/install_hol4.sh ${PWD} ${PWD}
 
-#TODO Tested with OCaml 4.13.1 - fix version?
 . ${FILEPATH}/install_opam.sh
 
 . ${FILEPATH}/install_ott.sh

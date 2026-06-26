@@ -9,9 +9,9 @@ Then, build and run the Docker image (in the root directory of this repo contain
 	docker build -t hol4p4 .
 	docker run -it hol4p4
 
-# Manual Installation for Ubuntu 22.04
+# Manual Installation for Ubuntu 24.04
 
-This guide assumes a fresh install of Ubuntu 22.04.
+This guide assumes a fresh install of Ubuntu 24.04.
 
 ## Dependencies
 
@@ -72,8 +72,9 @@ First, navigate to the directory where you want to put the source code of Poly/M
 4. Install OPAM
 
 		sudo apt-get install opam
-		opam init
+		opam init --compiler=4.13.1
 	
+	Version 4.13.1 of the OCaml compiler is used to enable compilation of petr4.
 	When prompted, make a choice whether to let OPAM set environment variables or not. Then run
 
 		eval $(opam env --switch=default)
@@ -120,7 +121,7 @@ You can also use `make docs/semantics/main.pdf` to build the documentation of th
 
 The same tools used to edit HOL4 theories and run the HOL4 REPL can also be used for this project. Specifically, we recommend Emacs - a full guide for using HOL4 with Emacs can be found [here](https://hol-theorem-prover.org/HOL-interaction.pdf).
 
-# Automatic installation scripts for Ubuntu 22.04
+# Automatic installation scripts for Ubuntu 24.04
 
 The `scripts` directory contains installation scripts. These may be run when installing HOL4P4 e.g. on a fresh virtual machine by
 
