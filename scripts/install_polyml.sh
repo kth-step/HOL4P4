@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 if [[ -z "${POLYML_VERSION}" ]]; then
   POLYML_VERSION="5.9.2"

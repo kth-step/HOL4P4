@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 #This script is used as a quick-and-dirty way to install all prerequisites and compile HOL4P4 on a fresh Ubuntu 24.04 installation.
 
 sudo apt-get update
