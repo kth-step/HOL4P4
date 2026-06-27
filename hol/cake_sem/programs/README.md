@@ -1,0 +1,1 @@
+Using `build_cake.sh` first requires setting everything up in the `compilation` directory: run `setup_cake.sh` that can be found there to download the CakeML compiler.
