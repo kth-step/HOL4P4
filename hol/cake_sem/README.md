@@ -9,3 +9,5 @@ This directory contains a version of the HOL4P4 executable semantics that has be
 `programs` contains some P4 programs for evaluation purposes (for convenience, already imported to HOL4P4).
 
 Note that the `Holmakefile` assumes that the cakeml directory is located in a certain place. You may need to change this depending on how your installation looks like.
+
+To perform validation of the semantics, first ensure that `validation_tests` contains the .p4 and .stf files needed. Running `get_validation_tests.sh` sorts that for you. Then, just run `validate_cake_sem.sh`.
