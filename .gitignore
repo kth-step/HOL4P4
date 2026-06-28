@@ -21,6 +21,13 @@ hol/p4_from_json/validation_tests/*.sml
 hol/p4_from_json/validation_tests/*.sig
 hol/p4_from_json/validation_tests/*-heap
 hol/p4_from_json/p4include
+hol/cake_sem/validation_tests/*.p4
+hol/cake_sem/validation_tests/*.stf
+hol/cake_sem/validation_tests/*.json
+hol/cake_sem/validation_tests/*.sml
+hol/cake_sem/validation_tests/*.sig
+hol/cake_sem/validation_tests/*-heap
+hol/cake_sem/p4include
 
 petr4/
 

@@ -51,7 +51,7 @@ fi
 
 ./petr4_json_export.sh validation_tests/ p4include/
 
-./petr4_to_hol4p4_dir.sh validation_tests/ ${NTHREADS}
+./petr4_to_hol4p4_dir.sh validation_tests/ ${NTHREADS} concrete_stf
 
 cd validation_tests
 

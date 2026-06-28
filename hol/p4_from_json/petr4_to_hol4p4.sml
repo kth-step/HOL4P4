@@ -410,7 +410,7 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
 (*
                   "((\\e_l. e_l = ", term_to_string keys, "), ", priority, ":num) \"",
 *)
-                  "((match_all_e_alt ", term_to_string keys, "), ", priority, ":num) \"",
+                  "((", term_to_string keys, "), ", priority, ":num) \"",
                   action_name, "\" ",
                   args, "”;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -520,6 +520,12 @@ fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(i
      ()
     end
 
+val proof =
+    String.concat ["p4_eval_test_tac", if hol4p4exe then "'" else "", " ",
+		   (ascope_of_arch arch_opt hol4p4exe), " ",
+		   if hol4p4exe then actx' else actx, " ",
+		   if hol4p4exe then astate' else astate]
+
   val theorem =
    String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
                   terms_to_string out_vars, ".\n",
@@ -531,10 +537,7 @@ fun output_test_list_theorem hol4p4exe outstream valname arch_opt (input_list:(i
                   " n =\n", " SOME ((ab_index', [], ", (term_to_string out_packets),
                   ", ascope'), g_scope_list', arch_frame_list', status')\n",
                   "Proof\n",
-                  "p4_eval_test_tac", if hol4p4exe then "'" else "", " ",
-                  (ascope_of_arch arch_opt hol4p4exe), " ",
-                  if hol4p4exe then actx' else actx, " ",
-                  if hol4p4exe then astate' else astate,
+                  proof,
                   "\nQED\n\n"];
   val _ = TextIO.output (outstream, theorem);
  in

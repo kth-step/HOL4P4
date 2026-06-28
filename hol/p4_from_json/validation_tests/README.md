@@ -1,0 +1,22 @@
+
+This directory is intended for contains validation tests. For instructions on how to perform the validation, check the README in the directory above.
+
+Example of debugging a proof that does not go through:
+
+```
+val aenv_ty = ``:v1model_ascope``;
+val actx = issue1768_bmv2_actx;
+val astate = issue1768_bmv2_astate;
+
+val ascope_ty = aenv_ty;
+
+(* All info *)
+ val ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map), ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" actx astate 50
+
+(* Non-static *)
+ val (_, ((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" actx astate 40
+
+(* Basic info *)
+ val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" actx astate 36
+```
+

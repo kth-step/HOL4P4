@@ -1,7 +1,7 @@
 # Import Tool
 
 This directory contains an import tool to obtain HOL4P4 representations of P4 programs and STF specifications.
-The simplest way to try this out is to use the `Makefile` in the root directory of this repository: `make validate`. You can also run them directly from this directory via `.validate.sh`.
+The simplest way to try this out is to use the `Makefile` in the root directory of this repository: `make validate`. You can also run them directly from this directory via `.validate.sh`. If you are missing the .p4 files necessary for the validation tests in `validation_tests`, run `get_validation_tests.sh`.
 
 ## Shell scripts
 
