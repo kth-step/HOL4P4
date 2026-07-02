@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 INSTALL_DIR=$1
 CURR_DIR=$2
