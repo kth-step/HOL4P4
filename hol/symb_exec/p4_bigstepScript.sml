@@ -6656,38 +6656,60 @@ eq_tac >> (
 )
 QED
 
-(* TODO: Perform other type of induction? *)
 Theorem bigstep_e_exec'_split_alt:
-!e n emctx top_scope scope_list g_scope1 g_scope2 i e''.
-bigstep_e_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) = SOME (e'',SUC n) ==>
+!e_in e n emctx top_scope scope_list g_scope1 g_scope2 i e_in'' l.
+bigstep_e_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) e_in = SOME (e_in'',SUC n) ==>
+(e_in = INL e ==>
 ?e'.
-(* Since non-zero steps were taken, there must have been one standard reduction *)
 e_exec (add_oracle_index emctx i) [g_scope1; g_scope2] (top_scope::scope_list) e = SOME (e', [], NONE) /\
-(* Then, bigstep_f_arg_exec' continues reduction until finished *)
-bigstep_e_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e') = SOME (e'', n)
+bigstep_e_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e') = SOME (e_in'', n)) /\
+(e_in = INR (MAP SND l) ==>
+?l'.
+e_exec (add_oracle_index emctx i) [g_scope1; g_scope2] (top_scope::scope_list) (e_struct l) = SOME (e_struct l', [], NONE) /\
+bigstep_e_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INR (MAP SND l')) = SOME (e_in'', n))
 Proof
-Induct >- (
- rpt strip_tac >>
- gs[bigstep_e_exec'_def]
-) >- (
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, e_exec_def, AllCaseEqs()] >>
- qexists_tac ‘e_v v'’ >>
- gs[bigstep_e_exec'_def, lookup_vexp_def, lookup_vexp2_def]
-) >- (
- rpt strip_tac >>
- gs[bigstep_e_exec'_def]
-) >- (
- (* acc *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[e_exec_def] >>
-   imp_res_tac e_exec_acc_v >>
-   gvs[bigstep_e_exec'_def]
+measureInduct_on ‘( \ e_in. case e_in of
+                           | (INL e) => e_size e
+                           | (INR e_l) => e3_size e_l) e_in’ >>
+ Cases_on ‘e_in’ >- (
+  Cases_on ‘x’ >- (
+   rpt strip_tac >>
+   gs[bigstep_e_exec'_def]
+  ) >- (
+   rpt strip_tac >>
+   gvs[bigstep_e_exec'_def, e_exec_def, AllCaseEqs()] >>
+   qexists_tac ‘e_v v'’ >>
+   gs[bigstep_e_exec'_def, lookup_vexp_def, lookup_vexp2_def]
+  ) >- (
+   rpt strip_tac >>
+   gs[bigstep_e_exec'_def]
+  ) >- (
+  (* acc *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[e_exec_def] >>
+    imp_res_tac e_exec_acc_v >>
+    gvs[bigstep_e_exec'_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>   
+   simp[e_exec_def] >>
+   ‘~is_v e’ by (
+    Cases_on ‘e’ >> (
+     gs[bigstep_e_exec'_def, is_v_def]
+    )
+   ) >>
+   gs[] >>
+   simp[bigstep_e_exec'_def]
   ) >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
   res_tac >>
   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
   FULL_SIMP_TAC pure_ss [] >>
@@ -6697,136 +6719,203 @@ Induct >- (
     gs[bigstep_e_exec'_def, is_v_def]
    )
   ) >>
-  gs[] >>
-  simp[bigstep_e_exec'_def]
- ) >>
- res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- simp[e_exec_def] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec'_def, is_v_def]
-  )
- ) >>
- gs[bigstep_e_exec'_def]
-) >- (
- (* unop *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[e_exec_def] >>
-   imp_res_tac e_exec_acc_v >>
-   gvs[bigstep_e_exec'_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec'_def, is_v_def]
-   )
-  ) >>
   gs[bigstep_e_exec'_def]
- ) >>
- res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- simp[e_exec_def] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec'_def, is_v_def]
-  )
- ) >>
- gs[bigstep_e_exec'_def]
-) >- (
- (* cast *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[e_exec_def] >>
-   imp_res_tac e_exec_acc_v >>
-   gvs[bigstep_e_exec'_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec'_def, is_v_def]
-   )
-  ) >>
-  gs[bigstep_e_exec'_def]
- ) >>
- res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- simp[e_exec_def] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec'_def, is_v_def]
-  )
- ) >>
- gs[bigstep_e_exec'_def]
-) >- (
- (* binop *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_binop_REWR] >- (
-  (* short circuit *)
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[e_exec_def] >>
-   gs[bigstep_e_exec'_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec'_def, is_v_def]
-  )
- ) >- ( 
-  (* Both args fully red *)
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[] >>
-   Cases_on ‘e’ >> (
-    gvs[is_v_def]
-   ) >>
-   Cases_on ‘n''’ >- (
+ ) >- (
+  (* unop *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
+   Cases_on ‘n'’ >- (
     gvs[] >>
     imp_res_tac bigstep_e_exec'_unchanged >>
-    gvs[] >>
-    Cases_on ‘e'’ >> (
-     gvs[is_v_def]
-    ) >>
-    simp[e_exec_def, is_v_def] >>
-    gs[bigstep_e_exec'_def]
+    gvs[e_exec_def] >>
+    imp_res_tac e_exec_acc_v >>
+    gvs[bigstep_e_exec'_def]
    ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
    res_tac >>
-   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
    FULL_SIMP_TAC pure_ss [] >>
-   ‘~is_v e'’ by (
-    Cases_on ‘e'’ >> (
+   simp[e_exec_def] >>
+   ‘~is_v e’ by (
+    Cases_on ‘e’ >> (
      gs[bigstep_e_exec'_def, is_v_def]
     )
    ) >>
-   gs[e_exec_def, bigstep_e_exec'_def, is_v_def]
+   gs[bigstep_e_exec'_def]
   ) >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
   res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
   FULL_SIMP_TAC pure_ss [] >>
+  simp[e_exec_def] >>
   ‘~is_v e’ by (
    Cases_on ‘e’ >> (
     gs[bigstep_e_exec'_def, is_v_def]
+   )
+  ) >>
+  gs[bigstep_e_exec'_def]
+ ) >- (
+  (* cast *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[e_exec_def] >>
+    imp_res_tac e_exec_acc_v >>
+    gvs[bigstep_e_exec'_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>
+   simp[e_exec_def] >>
+   ‘~is_v e’ by (
+    Cases_on ‘e’ >> (
+     gs[bigstep_e_exec'_def, is_v_def]
+    )
+   ) >>
+   gs[bigstep_e_exec'_def]
+  ) >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
+  res_tac >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+  FULL_SIMP_TAC pure_ss [] >>
+  simp[e_exec_def] >>
+  ‘~is_v e’ by (
+   Cases_on ‘e’ >> (
+    gs[bigstep_e_exec'_def, is_v_def]
+   )
+  ) >>
+  gs[bigstep_e_exec'_def]
+ ) >- (
+  (* binop *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_binop_REWR] >- (
+   (* short circuit *)
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[e_exec_def] >>
+    gs[bigstep_e_exec'_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>
+   simp[e_exec_def] >>
+   Cases_on ‘e’ >> (
+    gs[bigstep_e_exec'_def, is_v_def]
+   )
+  ) >- ( 
+   (* Both args fully red *)
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[] >>
+    Cases_on ‘e’ >> (
+     gvs[is_v_def]
+    ) >>
+    Cases_on ‘n''’ >- (
+     gvs[] >>
+     imp_res_tac bigstep_e_exec'_unchanged >>
+     gvs[] >>
+     Cases_on ‘e0’ >> (
+      gvs[is_v_def]
+     ) >>
+     simp[e_exec_def, is_v_def] >>
+     gs[bigstep_e_exec'_def]
+    ) >>
+    qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e0’ thm) >>
+    gs[] >>
+    res_tac >>
+    qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+    FULL_SIMP_TAC pure_ss [] >>
+    ‘~is_v e0’ by (
+     Cases_on ‘e0’ >> (
+      gs[bigstep_e_exec'_def, is_v_def]
+     )
+    ) >>
+    gs[e_exec_def, bigstep_e_exec'_def, is_v_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>
+   ‘~is_v e’ by (
+    Cases_on ‘e’ >> (
+     gs[bigstep_e_exec'_def, is_v_def]
+    )
+   ) >>
+   gs[e_exec_def] >>
+   Cases_on ‘e’ >> (
+    gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
+   ) >> (
+    Cases_on ‘e1'’ >> (
+     gs[is_v_def]
+    )
+   )
+  ) >- (
+   (* 1st arg only fully red *)
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[] >>
+    qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e0’ thm) >>
+    gs[] >>
+    res_tac >>
+    qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+    FULL_SIMP_TAC pure_ss [] >>
+    Cases_on ‘e’ >> (
+     gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
+    ) >>
+    gs[e_exec_def] >>
+    ‘~is_v e0’ by (
+     Cases_on ‘e0’ >> (
+      gvs[e_exec_def, is_v_def]
+     )
+    ) >>
+    gs[bigstep_e_exec'_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>
+   ‘~is_v e’ by (
+    Cases_on ‘e’ >> (
+     gvs[e_exec_def, is_v_def]
+    )
+   ) >>
+   ‘~is_v e0’ by (
+    Cases_on ‘e0’ >> (
+     gvs[e_exec_def, bigstep_e_exec'_def, is_v_def]
+    )
+   ) >>
+   gs[e_exec_def] >>
+   Cases_on ‘e’ >> (
+    gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
+   ) >> (
+    Cases_on ‘e1'’ >> (
+     gs[is_v_def]
+    )
+   )
+  ) >>
+  (* No arg fully red *)
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
+  res_tac >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+  FULL_SIMP_TAC pure_ss [] >>
+  ‘~is_v e’ by (
+   Cases_on ‘e’ >> (
+    gvs[e_exec_def, is_v_def]
    )
   ) >>
   gs[e_exec_def] >>
@@ -6838,390 +6927,253 @@ Induct >- (
    )
   )
  ) >- (
-  (* 1st arg only fully red *)
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[] >>
-   res_tac >>
-   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-   FULL_SIMP_TAC pure_ss [] >>
-   Cases_on ‘e’ >> (
-    gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
-   ) >>
-   gs[e_exec_def] >>
-   ‘~is_v e'’ by (
-    Cases_on ‘e'’ >> (
-     gvs[e_exec_def, is_v_def]
-    )
-   ) >>
-   gs[bigstep_e_exec'_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gvs[e_exec_def, is_v_def]
-   )
-  ) >>
-  ‘~is_v e'’ by (
-   Cases_on ‘e'’ >> (
-    gvs[e_exec_def, bigstep_e_exec'_def, is_v_def]
-   )
-  ) >>
-  gs[e_exec_def] >>
-  Cases_on ‘e’ >> (
-   gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
-  ) >>
-  Cases_on ‘e1'’ >> (
-   gs[is_v_def]
-  )
- ) >>
- (* No arg fully red *)
- res_tac >> 
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gvs[e_exec_def, is_v_def]
-  )
- ) >>
- gs[e_exec_def] >>
- Cases_on ‘e’ >> (
-  gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
- ) >>
- Cases_on ‘e1'’ >> (
-  gs[is_v_def]
- )
-) >- (
- (* concat *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[] >>
-   Cases_on ‘e’ >> (
-    gvs[is_v_bit_def]
-   ) >>
-   Cases_on ‘n''’ >- (
+  (* concat *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
+   Cases_on ‘n'’ >- (
     gvs[] >>
     imp_res_tac bigstep_e_exec'_unchanged >>
     gvs[] >>
-    Cases_on ‘e'’ >> (
+    Cases_on ‘e’ >> (
      gvs[is_v_bit_def]
     ) >>
-    simp[e_exec_def, is_v_def] >>
-    gs[bigstep_e_exec'_def]
+    Cases_on ‘n''’ >- (
+     gvs[] >>
+     imp_res_tac bigstep_e_exec'_unchanged >>
+     gvs[] >>
+     Cases_on ‘e0’ >> (
+      gvs[is_v_bit_def]
+     ) >>
+     simp[e_exec_def, is_v_def] >>
+     gs[bigstep_e_exec'_def]
+    ) >>
+    qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e0’ thm) >>
+    gs[] >>
+    res_tac >>
+    qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+    FULL_SIMP_TAC pure_ss [] >>
+    ‘~is_v_bit e0’ by (
+     Cases_on ‘e0’ >> (
+      gs[bigstep_e_exec'_def, is_v_bit_def]
+     )
+    ) >>
+    gs[e_exec_def, bigstep_e_exec'_def, is_v_def]
    ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
    res_tac >>
-   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
    FULL_SIMP_TAC pure_ss [] >>
-   ‘~is_v_bit e'’ by (
-    Cases_on ‘e'’ >> (
+   ‘~is_v_bit e’ by (
+    Cases_on ‘e’ >> (
      gs[bigstep_e_exec'_def, is_v_bit_def]
     )
    ) >>
-   gs[e_exec_def, bigstep_e_exec'_def, is_v_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  ‘~is_v_bit e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec'_def, is_v_bit_def]
-   )
-  ) >>
-  gs[e_exec_def] >>
-  Cases_on ‘e’ >> (
-   gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
-  )
- ) >- (
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec'_unchanged >>
-   gvs[] >>
-   res_tac >>
-   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-   FULL_SIMP_TAC pure_ss [] >>
-   Cases_on ‘e’ >> (
-    gvs[bigstep_e_exec'_def, is_v_bit_def, AllCaseEqs()]
-   ) >>
    gs[e_exec_def] >>
-   ‘~is_v_bit e'’ by (
-    Cases_on ‘e'’ >> (
-     gvs[e_exec_def, is_v_bit_def]
+   Cases_on ‘e’ >> (
+    gvs[bigstep_e_exec'_def, is_v_def, AllCaseEqs()]
+   )
+  ) >- (
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[] >>
+    qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e0’ thm) >>
+    gs[] >>
+    res_tac >>
+    qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+    FULL_SIMP_TAC pure_ss [] >>
+    Cases_on ‘e’ >> (
+     gvs[bigstep_e_exec'_def, is_v_bit_def, AllCaseEqs()]
+    ) >>
+    gs[e_exec_def] >>
+    ‘~is_v_bit e0’ by (
+     Cases_on ‘e0’ >> (
+      gvs[e_exec_def, is_v_bit_def]
+     )
+    ) >>
+    gs[bigstep_e_exec'_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>
+   ‘~is_v_bit e’ by (
+    Cases_on ‘e’ >> (
+     gvs[e_exec_def, is_v_def, is_v_bit_def]
     )
    ) >>
-   gs[bigstep_e_exec'_def]
+   ‘~is_v_bit e0’ by (
+    Cases_on ‘e0’ >> (
+     gvs[e_exec_def, bigstep_e_exec'_def, is_v_bit_def, is_v_bit_def]
+    )
+   ) >>
+   gs[e_exec_def] >>
+   Cases_on ‘e’ >> (
+    gvs[bigstep_e_exec'_def, is_v_def, is_v_bit_def, AllCaseEqs()]
+   )
   ) >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
   res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
   FULL_SIMP_TAC pure_ss [] >>
   ‘~is_v_bit e’ by (
    Cases_on ‘e’ >> (
-    gvs[e_exec_def, is_v_def, is_v_bit_def]
-   )
-  ) >>
-  ‘~is_v_bit e'’ by (
-   Cases_on ‘e'’ >> (
-    gvs[e_exec_def, bigstep_e_exec'_def, is_v_bit_def, is_v_bit_def]
+    gvs[e_exec_def, is_v_bit_def]
    )
   ) >>
   gs[e_exec_def] >>
   Cases_on ‘e’ >> (
    gvs[bigstep_e_exec'_def, is_v_def, is_v_bit_def, AllCaseEqs()]
   )
+ ) >- (
+  (* slice *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >- (
+   Cases_on ‘n'’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    gvs[e_exec_def, is_v_def, bigstep_e_exec'_def]
+   ) >>
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+   gs[] >>
+   res_tac >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+    FULL_SIMP_TAC pure_ss [] >>
+   ‘~is_v_bit e’ by (
+    Cases_on ‘e’ >> (
+     gs[bigstep_e_exec'_def, is_v_bit_def]
+    )
+   ) >>
+   gs[e_exec_def, bigstep_e_exec'_def, is_v_def]
+  ) >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
+  res_tac >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+  FULL_SIMP_TAC pure_ss [] >>
+  ‘~is_v_bit e’ by (
+   Cases_on ‘e’ >> (
+    gs[bigstep_e_exec'_def, is_v_bit_def]
+   )
+  ) >>
+  gs[e_exec_def, bigstep_e_exec'_def, is_v_def]
+ ) >- (
+  (* call *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()]
+ ) >- (
+  (* select *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL e’ thm) >>
+  gs[] >>
+  res_tac >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+  FULL_SIMP_TAC pure_ss [] >>
+  ‘~is_v e’ by (
+   Cases_on ‘e’ >> (
+    gs[e_exec_def, is_v_def]
+   )
+  ) >>
+  gs[e_exec_def, bigstep_e_exec'_def]
+ ) >- (
+  (* struct *)
+  rpt strip_tac >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()] >| [
+   ‘n' = n’ by decide_tac >>
+   gvs[] >>
+   Cases_on ‘n’ >- (
+    gvs[] >>
+    imp_res_tac bigstep_e_exec'_unchanged >>
+    imp_res_tac EVERY_is_v_unred_mem_index >>
+    gvs[e_exec_def, is_v_def, bigstep_e_exec'_def]
+   ),
+
+   ALL_TAC
+  ] >> (
+   qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INR (MAP SND (l:(string # e) list))’ thm) >>
+   gs[e3_size_list] >>
+   res_tac >>
+   qpat_x_assum ‘!l'. MAP SND l = MAP SND l' ==> _’ (fn thm => assume_tac $ Q.SPECL [‘l’] thm) >>
+   fs[] >>
+   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+   FULL_SIMP_TAC pure_ss [] >>
+   gvs[e_exec_def, is_v_def, bigstep_e_exec'_def, AllCaseEqs()] >>
+   ‘MAP FST $ ZIP (MAP FST l,LUPDATE e' i' (MAP SND l)) = MAP FST l’ suffices_by gs[] >>
+   ‘LENGTH $ MAP FST l = LENGTH $ LUPDATE e' i' (MAP SND l)’ suffices_by (
+    strip_tac >>
+    imp_res_tac listTheory.MAP_ZIP
+   ) >>
+   gs[listTheory.LENGTH_LUPDATE]
+  )
  ) >>
+ (* header *)
+ gvs[bigstep_e_exec'_def, AllCaseEqs()]
+) >>
+(* INR *)
+rpt strip_tac >>
+gvs[bigstep_e_exec'_def, AllCaseEqs()] >>
+Cases_on ‘l’ >> (
+ gvs[bigstep_e_exec'_def, AllCaseEqs()]
+) >| [
+ Cases_on ‘n'’ >- (
+  gvs[] >>
+  qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INR $ MAP SND (t:(string # e) list)’ thm) >>
+  gs[e_size_def] >>
+  res_tac >>
+  qpat_x_assum ‘!l'. MAP SND l = MAP SND l' ==> _’ (fn thm => assume_tac $ Q.SPECL [‘t’] thm) >>
+  fs[] >>
+  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
+  FULL_SIMP_TAC pure_ss [] >>
+  imp_res_tac bigstep_e_exec'_unchanged >>
+  gvs[e_exec_def, is_v_def, bigstep_e_exec'_def, AllCaseEqs()] >>
+  ‘unred_mem_index (SND h::MAP SND t) = SOME (SUC i')’ by (
+   gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, is_v_is_const, Q.SPECL [‘y’, ‘1:num’] INDEX_FIND_add, AllCaseEqs()]
+  ) >>
+  gs[LUPDATE_def] >>
+  gvs[bigstep_e_exec'_def, AllCaseEqs()]
+ ) >>
+ ‘n''' + n'' = n’ by decide_tac >>
+ gvs[],
+
+ ALL_TAC
+] >> (
+ qpat_x_assum ‘!y. _’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] $ Q.SPEC ‘INL $ SND (h:string # e)’ thm) >>
+ gs[e_size_def] >>
  res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
+ qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
  FULL_SIMP_TAC pure_ss [] >>
- ‘~is_v_bit e’ by (
-  Cases_on ‘e’ >> (
-   gvs[e_exec_def, is_v_bit_def]
+ PairCases_on ‘h’ >>
+ gs[] >>
+ ‘~is_v h1’ by (
+  Cases_on ‘h1’ >> (
+   gvs[e_exec_def, is_v_def]
   )
  ) >>
  gs[e_exec_def] >>
- Cases_on ‘e’ >> (
-  gvs[bigstep_e_exec'_def, is_v_def, is_v_bit_def, AllCaseEqs()]
- )
-) >- (
- (* slice *)
- cheat
-) >- (
- (* call *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()]
-) >- (
- (* select *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()] >>
- cheat
-) >- (
- (* struct *)
- rpt strip_tac >>
- gvs[bigstep_e_exec'_def, AllCaseEqs()] >> (
-  cheat
- )
-) >>
-(* header *)
-gvs[bigstep_e_exec'_def, AllCaseEqs()]
+ ‘unred_mem_index (h1::MAP SND t) = SOME 0’ by (
+   gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def, is_v_is_const]
+ ) >>
+ gs[bigstep_e_exec'_def, LUPDATE_def, AllCaseEqs()] >>
+ ‘LENGTH $ MAP FST t = LENGTH $ MAP SND t’ suffices_by gs[MAP_ZIP] >>
+ gs[]
+)
 QED
 
 Theorem bigstep_e_exec_split_alt:
 !e n' n emctx top_scope scope_list g_scope1 g_scope2 i e''.
 bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n = SOME (e'',n + SUC n') ==>
 ?e'.
-(* Since non-zero steps were taken, there must have been one standard reduction *)
 e_exec (add_oracle_index emctx i) [g_scope1; g_scope2] (top_scope::scope_list) e = SOME (e', [], NONE) /\
-(* Then, bigstep_f_arg_exec' continues reduction until finished *)
 bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e') n = SOME (e'', n + n')
 Proof
 rpt strip_tac >>
 gs[GSYM bigstep_e_exec'_equiv] >>
 imp_res_tac bigstep_e_exec'_split_alt >>
 gs[]
-(*
-Induct >- (
- rpt strip_tac >>
- gs[bigstep_e_exec_def]
-) >- (
- rpt strip_tac >>
- gvs[bigstep_e_exec_def, e_exec_def, AllCaseEqs()] >>
- qexists_tac ‘e_v v'’ >>
- gs[bigstep_e_exec_def, lookup_vexp_def, lookup_vexp2_def]
-) >- (
- rpt strip_tac >>
- gs[bigstep_e_exec_def]
-) >- (
- (* acc *)
- rpt strip_tac >>
- gvs[bigstep_e_exec_def, AllCaseEqs()] >- (
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec_unchanged >>
-   gvs[e_exec_def] >>
-   imp_res_tac e_exec_acc_v >>
-   gvs[bigstep_e_exec_def]
-  ) >>
-  Q.SUBGOAL_THEN ‘n'' + 1 = n + SUC (SUC n''') <=> n'' = n + SUC n'''’ (fn thm => FULL_SIMP_TAC pure_ss [thm]) >- (
-   decide_tac
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec_def, is_v_def]
-   )
-  ) >>
-  gs[] >>
-  simp[bigstep_e_exec_def]
- ) >>
- res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- simp[e_exec_def] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec_def, is_v_def]
-  )
- ) >>
- gs[bigstep_e_exec_def]
-) >- (
- (* unop *)
- rpt strip_tac >>
- gvs[bigstep_e_exec_def, AllCaseEqs()] >- (
-  ‘n'' = n + n'’ by decide_tac >>
-  gvs[] >> 
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec_unchanged >>
-   gvs[e_exec_def, bigstep_e_exec_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec_def, is_v_def]
-   )
-  ) >>
-  gs[bigstep_e_exec_def]
- ) >>
- res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- simp[e_exec_def] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec_def, is_v_def]
-  )
- ) >>
- gs[bigstep_e_exec_def]
-) >- (
- (* cast *)
- rpt strip_tac >>
- gvs[bigstep_e_exec_def, AllCaseEqs()] >- (
-  ‘n'' = n + n'’ by decide_tac >>
-  gvs[] >> 
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec_unchanged >>
-   gvs[e_exec_def, bigstep_e_exec_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec_def, is_v_def]
-   )
-  ) >>
-  gs[bigstep_e_exec_def]
- ) >>
- res_tac >>
- qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
- FULL_SIMP_TAC pure_ss [] >>
- simp[e_exec_def] >>
- ‘~is_v e’ by (
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec_def, is_v_def]
-  )
- ) >>
- gs[bigstep_e_exec_def]
-) >- (
- (* binop *)
- rpt strip_tac >>
- gvs[bigstep_e_exec_binop_REWR] >>
- (* TODO: Do split using rewriting theorem instead... *)
-(*
- gvs[bigstep_e_exec_def, AllCaseEqs()] >- (
-  ‘n'' = n + n'’ by decide_tac >>
-  gvs[] >> 
-  Cases_on ‘n'’ >- (
-   gvs[] >>
-   imp_res_tac bigstep_e_exec_unchanged >>
-   gvs[e_exec_def, bigstep_e_exec_def] >>
-   (* TODO: Make lemma *)
-   ‘?v. e''' = e_v v’ by cheat >>
-   gvs[bigstep_e_exec_def]
-  ) >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘~is_v e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec_def, is_v_def]
-   )
-  ) >>
-  Cases_on ‘e’ >> (
-   gs[bigstep_e_exec_def, is_v_def]
-  )
- ) >- (
-*)
- cheat
-) >- (
- (* concat *)
- rpt strip_tac >>
- gvs[bigstep_e_exec_def, AllCaseEqs()] >- (
-  ‘n''' = n + n'’ by decide_tac >> gvs[] >>
-  ‘?bitv1 bitv2. e1' = (e_v (v_bit bitv1)) /\ e2' = (e_v (v_bit bitv2))’ by cheat >>
-  gvs[] >>
-  ‘?n'''. n'' = n''' + n’ by cheat >> gvs[] >>
-  Cases_on ‘n'''’ >- (
-   gs[] >>
-   imp_res_tac bigstep_e_exec_unchanged >>
-   gvs[] >>
-   Cases_on ‘n'’ >- (
-    gs[] >>
-    imp_res_tac bigstep_e_exec_unchanged >>
-    gvs[e_exec_def, bigstep_e_exec_def]
-   ) >>
-   res_tac >>
-   qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-   FULL_SIMP_TAC pure_ss [] >>
-   simp[e_exec_def] >>
-   ‘~is_v_bit e'’ by (
-    Cases_on ‘e'’ >> (
-     gs[bigstep_e_exec_def, is_v_bit_def]
-    )
-   ) >>
-   gs[bigstep_e_exec_def, is_v_bit_def]
-  ) >>
-  gs[is_v_bit_def] >>
-  res_tac >>
-  qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i’, ‘emctx’] thm) >>
-  FULL_SIMP_TAC pure_ss [] >>
-  simp[e_exec_def] >>
-  ‘?p. n' = p + SUC n''’ by cheat >> gvs[] >>
-  ‘~is_v_bit e’ by (
-   Cases_on ‘e’ >> (
-    gs[bigstep_e_exec_def, is_v_bit_def]
-   )
-  ) >>
-  gs[] >>
-  Cases_on ‘p’ >- (
-   gs[] >>
-   imp_res_tac bigstep_e_exec_unchanged >>
-   gvs[e_exec_def, bigstep_e_exec_def, is_v_bit_def]
-  ) >>
-  Q.SUBGOAL_THEN ‘n + (SUC n' + SUC n'') = (n + SUC n'') + SUC n'’ (fn thm => FULL_SIMP_TAC pure_ss [thm]) >- (
-   decide_tac
-  ) >>
-  res_tac >>
-  gvs[AllCaseEqs()] >>
-  cheat
- ) >>
- cheat
-) >>
-cheat
-*)
 QED
 
 Theorem bigstep_f_arg_exec'_split_alt:
@@ -7308,7 +7260,7 @@ Cases_on ‘e'’ >> (
 QED
 
 Theorem bigstep_f_arg_exec_l_split_alt:
-!l1 l2 m n scopes_list e_l' d e .
+!l1 l2 d e m n scopes_list e_l'.
 bigstep_f_arg_exec_l scopes_list
           (l1 ++ (d,e)::l2) n = SOME (e_l',n + m) ==>
 ?e' n''.
@@ -7405,14 +7357,39 @@ Cases_on ‘e_l'’ >- (
  cheat
 ) >>
 ‘?j d e. find_unred_arg (h'::t') (h''::t'') = SOME (j,d,e)’ by cheat >>
-imp_res_tac bigstep_f_arg_exec_l_split_alt >>
-imp_res_tac bigstep_f_arg_exec'_split_alt >>
+gs[ZIP_def] >>
+(* TODO: Use imp_res_tac or other non-goal-oriented approach *)
+‘(h',h'')::ZIP (t',t'') = (TAKE j ((h',h'')::ZIP (t',t''))) ++ ((EL (SUC j) ((h',h'')::ZIP (t',t'')))::( DROP j ((h',h'')::ZIP (t',t''))))’ by cheat >>
+‘?e' n''.
+ bigstep_f_arg_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2]))
+   (FST (EL (SUC j) ((h',h'')::ZIP (t',t''))),
+    SND (EL (SUC j) ((h',h'')::ZIP (t',t'')))) n =
+ SOME (e',n + n'') /\
+ bigstep_f_arg_exec_l (top_scope::(scope_list ++ [g_scope1; g_scope2]))
+   (TAKE j ((h',h'')::ZIP (t',t'')) ++
+    (FST (EL (SUC j) ((h',h'')::ZIP (t',t''))),e')::
+      DROP j ((h',h'')::ZIP (t',t''))) (n + n'') =
+ SOME (h'3'::t'3',n + SUC n')’ by (
+ irule bigstep_f_arg_exec_l_split_alt >>
+ gs[] >>
+ (* Should be OK *)
+ cheat
+) >>
 gs[] >>
+‘EL j (ZIP (t',t'')) = (d,e)’ by cheat >>
+gs[] >>
+Cases_on ‘n''’ >- (
+ (* Problem: Big-step semantics can take 0 steps when encountering something it can reduce,
+  * but e_exec can reduce. *)
+ cheat
+) >>
+imp_res_tac bigstep_f_arg_exec'_split_alt >>
+gs[] >>        
 qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle)’] thm) >>
 gs[add_oracle_index_def] >>
 qexists_tac ‘LUPDATE e'' j (h''::t'')’ >>
 strip_tac >- (
- (* OK *)
+ (* Should be OK: e_exec to e_multi_exec' *)
  cheat
 ) >>
 qpat_x_assum ‘!top_scope'. _’ irule >>
@@ -7420,7 +7397,11 @@ FULL_SIMP_TAC pure_ss [GSYM ZIP_def] >>
 imp_res_tac bigstep_f_arg_exec_l_combine >>
 qexistsl_tac [‘h'::t'’, ‘n+1’, ‘h::t’] >>
 gs[] >>
-(* OK, modulo some lemmata on lists *)
+‘(LUPDATE (d,e'') j ((h',h'')::ZIP (t',t''))) = (ZIP (h'::t',LUPDATE e'' j (h''::t'')))’ suffices_by (
+ strip_tac >>
+ gs[arithmeticTheory.SUC_ONE_ADD]
+) >>
+(* OK, since d is the element at index j in the original dlist *)
 cheat
 QED
 
