@@ -8,9 +8,12 @@ open listTheory;
 (* This file contains a big-step semantics for a fragment of P4 that
  * contains mostly local instructions *)
 
-(* The symbolic execution should attempt to use this when
- * then next statement to be reduced is stmt_empty, (stmt_seq stmt_ass _)
- * or (stmt_seq stmt_empty _) *)
+(* The symbolic execution uses this to shortcut sequences of local small steps: the
+ * reduction of expressions inside assignment, return, transition, conditional and apply
+ * statements (also through sequences of statements), and the reduction of the arguments
+ * of function calls. See p4_is_shortcuttable and p4_is_f_arg_shortcuttable in
+ * p4_symb_execLib, and the composition theorems bigstep_arch_exec_comp'_NONE and
+ * bigstep_arch_exec_comp'_SOME at the end of this file. *)
 
 Theorem is_v_is_const:
 !e. is_v e = is_const e
@@ -246,7 +249,8 @@ Definition bigstep_e_exec_def:
 (*
  (************************)
  (* Function/extern call *)
- (* TODO: Needs directions... *)
+ (* TODO: Needs directions... Superseded: the arguments of calls are instead reduced at
+  * statement level by bigstep_f_arg_exec, which takes the directions into account *)
  (bigstep_e_exec scope_lists (INL (e_call funn e_l)) n =
   case bigstep_e_exec scope_lists (INR e_l) n of
   | SOME (INR $ e_l', n') =>
@@ -1682,7 +1686,8 @@ Definition e_multi_exec'_def:
   | _ => NONE)
 End
 
-(* Version for use with e_multi_exec'_list *)
+(* Version that also counts the number of steps taken. Only used by the commented-out
+ * e_multi_exec'_list below, so currently unused *)
 Definition e_multi_exec'_count_def:
  (e_multi_exec'_count _ _ _ (e,i) 0 = SOME ((e,i), 0:num))
  /\
@@ -1719,9 +1724,9 @@ Termination
 cheat
 End
 *)
-(* For the purposes of bigstep_stmt_app_exec_sound_n, it would be useful if
- * e_multi_exec'_list would find the first instance of a non-v expression in the expression
- * list and start reducing it stepwise using e_exec *)
+(* Unlike the commented-out e_multi_exec'_list above, this finds the first non-value
+ * expression in the list and reduces it stepwise using e_exec, which is what is needed
+ * for bigstep_stmt_app_exec_sound_n *)
 (* Note that this function yields NONE if the fuel given exceeds
  * the number of e_exec calls to fully reduce. That's OK, since this function is only ever used in proofs. *)
 Definition e_multi_exec'_list'_def:
@@ -5060,6 +5065,9 @@ res_tac >>
 gs[]
 QED
 
+(* The commented-out block below is a superseded approach to the soundness of the
+ * reduction of function call arguments. See bigstep_f_arg_exec_l_sound_n for the
+ * current one. *)
         (*
 (**************************************)
 (* Approach: add indices to arguments *)
@@ -5960,7 +5968,8 @@ Definition bigstep_e_exec'_def:
 (*
  (************************)
  (* Function/extern call *)
- (* TODO: Needs directions... *)
+ (* TODO: Needs directions... Superseded: the arguments of calls are instead reduced at
+  * statement level by bigstep_f_arg_exec, which takes the directions into account *)
  (bigstep_e_exec' scope_lists (INL (e_call funn e_l)) =
   case bigstep_e_exec' scope_lists (INR e_l) of
   | SOME (INR $ e_l', n) =>
@@ -7168,6 +7177,7 @@ Theorem bigstep_e_exec_split_alt:
 bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n = SOME (e'',n + SUC n') ==>
 ?e'.
 e_exec (add_oracle_index emctx i) [g_scope1; g_scope2] (top_scope::scope_list) e = SOME (e', [], NONE) /\
+(* Then, bigstep_e_exec continues reduction until finished *)
 bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e') n = SOME (e'', n + n')
 Proof
 rpt strip_tac >>
@@ -7212,19 +7222,6 @@ gvs[AllCaseEqs()] >- (
 imp_res_tac e_exec_oracle_index_call >>
 gs[]
 QED
-
-(* Perhaps to be used with bigstep_f_arg_exec_l_split_alt *)
-Definition reduced_upto_def:
-(reduced_upto scopes_list 0 d_e_l = T) /\
-(reduced_upto scopes_list (SUC j) d_e_l =
- case oEL j d_e_l of
- | NONE => F
- | SOME (d,e) =>
-  (case bigstep_f_arg_exec' scopes_list (d, e) 0 of
-   | SOME (e', n) => reduced_upto scopes_list j d_e_l
-   | NONE => F
-  ))
-End
 
 Theorem bigstep_f_arg_exec_l_append_split:
 !sl l1 l2 n res m.
@@ -7302,159 +7299,239 @@ assume_tac $ Q.SPECL [‘n + (n' + n'³')’, ‘n + n'''’] bigstep_f_arg_exec
 fs[]
 QED
 
-Theorem bigstep_f_arg_exec_l_combine:
-!n' n n'' scopes_list funn d_l e_l e_l' d e e' e'' j.
-bigstep_f_arg_exec_l scopes_list
-          (ZIP (d_l,e_l)) n = SOME (e_l',n + SUC n') ==>
-find_unred_arg d_l e_l = SOME (j, d, e) ==>
-bigstep_f_arg_exec' scopes_list (d,e) n = SOME (e',n + SUC n'') ==>
-bigstep_f_arg_exec' scopes_list (d, e'') n = SOME (e',n + n'') ==>
-(* Reduction of the updated list then takes the rest of the steps *)
-bigstep_f_arg_exec_l scopes_list
-          (LUPDATE (d,e'') j (ZIP (d_l,e_l))) (SUC n) = SOME (e_l',n + SUC n')
+Theorem oZIP_SOME:
+!l1 l2 l.
+oZIP (l1,l2) = SOME l ==>
+LENGTH l1 = LENGTH l2 /\ l = ZIP (l1,l2)
 Proof
-rpt strip_tac >>
-gvs[bigstep_f_arg_exec_l_def, AllCaseEqs()] >>
-cheat
+Induct_on ‘l1’ >> Cases_on ‘l2’ >> rpt strip_tac >> gvs[oZIP_def, AllCaseEqs()] >> res_tac >> gvs[]
 QED
 
-(* TODO: Can this use the soundness proof for bigstep_e? *)
+Theorem oZIP_ZIP:
+!l1 l2.
+LENGTH l1 = LENGTH l2 ==>
+oZIP (l1,l2) = SOME (ZIP (l1,l2))
+Proof
+Induct_on ‘l1’ >> Cases_on ‘l2’ >> rpt strip_tac >> gvs[oZIP_def]
+QED
+
+(* TODO: Move *)
+Theorem LUPDATE_TAKE_DROP:
+!l x j.
+j < LENGTH l ==>
+LUPDATE x j l = TAKE j l ++ x::DROP (SUC j) l
+Proof
+Induct_on ‘l’ >> rpt strip_tac >> Cases_on ‘j’ >> gvs[LUPDATE_def]
+QED
+
+(* TODO: Move *)
+Theorem ZIP_LUPDATE_SND:
+!l1 l2 x j.
+LENGTH l1 = LENGTH l2 ==>
+j < LENGTH l1 ==>
+ZIP (l1, LUPDATE x j l2) = LUPDATE (EL j l1, x) j (ZIP (l1,l2))
+Proof
+rpt strip_tac >>
+simp[LIST_EQ_REWRITE, LENGTH_ZIP, LENGTH_LUPDATE] >>
+rpt strip_tac >>
+rw[EL_ZIP, EL_LUPDATE, LENGTH_ZIP]
+QED
+
+Theorem find_unred_arg_SOME:
+!d_l e_l j d e.
+LENGTH d_l = LENGTH e_l ==>
+find_unred_arg d_l e_l = SOME (j,d,e) ==>
+j < LENGTH e_l /\ EL j d_l = d /\ EL j e_l = e /\ ~is_arg_red d e
+Proof
+rpt gen_tac >> rpt disch_tac >>
+gvs[find_unred_arg_def, INDEX_FIND_EQ_SOME_0, LENGTH_ZIP, EL_ZIP]
+QED
+
+(* Arguments that are already reduced take no steps *)
+Theorem bigstep_f_arg_exec'_arg_red:
+!sl d e n.
+is_arg_red d e ==>
+bigstep_f_arg_exec' sl (d,e) n = SOME (e,n)
+Proof
+rpt strip_tac >>
+Cases_on ‘d’ >> Cases_on ‘e’ >> (
+ gvs[is_arg_red_def, is_d_out_def, bigstep_f_arg_exec'_def, is_const_def, bigstep_e_exec_def]
+)
+QED
+
+Theorem bigstep_f_arg_exec_l_arg_red:
+!sl d_e_l n.
+EVERY (\(d,e). is_arg_red d e) d_e_l ==>
+bigstep_f_arg_exec_l sl d_e_l n = SOME (MAP SND d_e_l, n)
+Proof
+Induct_on ‘d_e_l’ >> rpt strip_tac >> gvs[bigstep_f_arg_exec_l_def] >>
+PairCases_on ‘h’ >> gvs[bigstep_f_arg_exec'_arg_red]
+QED
+
+(* An argument that takes no steps was already reduced *)
+Theorem bigstep_f_arg_exec'_zero:
+!sl d e e' n.
+bigstep_f_arg_exec' sl (d,e) n = SOME (e',n) ==>
+is_arg_red d e
+Proof
+rpt strip_tac >>
+Cases_on ‘d’ >> (
+ gvs[bigstep_f_arg_exec'_def, is_arg_red_def, is_d_out_def, AllCaseEqs()]
+) >> (
+ imp_res_tac bigstep_e_exec_unchanged >>
+ gvs[]
+)
+QED
+
+(* If steps were taken, some argument was unreduced *)
+Theorem bigstep_f_arg_exec_l_unred_arg:
+!sl d_l e_l e_l' n m.
+LENGTH d_l = LENGTH e_l ==>
+bigstep_f_arg_exec_l sl (ZIP (d_l,e_l)) n = SOME (e_l', n + SUC m) ==>
+?j d e. find_unred_arg d_l e_l = SOME (j,d,e)
+Proof
+rpt strip_tac >>
+Cases_on ‘find_unred_arg d_l e_l’ >- (
+ ‘unred_arg_index d_l e_l = NONE’ by gs[unred_arg_index_def] >>
+ imp_res_tac unred_arg_index_NONE >>
+ gs[check_args_red_def] >>
+ imp_res_tac bigstep_f_arg_exec_l_arg_red >>
+ gs[]
+) >>
+PairCases_on ‘x’ >>
+gs[]
+QED
+
+(* Replacing an argument by another one that reduces to the same result changes the step count
+ * only by the difference in steps of the argument *)
+Theorem bigstep_f_arg_exec_l_combine:
+!sl l1 l2 d e1 e2 e' n k1 k2 e_l' m1 m2.
+bigstep_f_arg_exec_l sl (l1 ++ (d,e1)::l2) n = SOME (e_l', n + m1) ==>
+bigstep_f_arg_exec' sl (d,e1) n = SOME (e', n + k1) ==>
+bigstep_f_arg_exec' sl (d,e2) n = SOME (e', n + k2) ==>
+m1 + k2 = m2 + k1 ==>
+bigstep_f_arg_exec_l sl (l1 ++ (d,e2)::l2) n = SOME (e_l', n + m2)
+Proof
+rpt strip_tac >>
+qpat_x_assum ‘bigstep_f_arg_exec_l sl (l1 ++ _) n = _’ (fn thm => strip_assume_tac (SIMP_RULE std_ss [bigstep_f_arg_exec_l_append_split] thm)) >>
+gvs[bigstep_f_arg_exec_l_def, AllCaseEqs()] >>
+(* The prefix takes c steps *)
+‘?c. k = n + c’ by (
+ imp_res_tac bigstep_f_arg_exec_l_imp >>
+ qexists_tac ‘k - n’ >>
+ decide_tac
+) >>
+gvs[] >>
+(* The argument reduces to e' *)
+‘bigstep_f_arg_exec' sl (d,e1) (n + c) = SOME (e', (n + c) + k1)’ by (
+ irule (iffLR bigstep_f_arg_exec'_counter) >>
+ qexists_tac ‘n’ >>
+ simp[]
+) >>
+gvs[] >>
+(* The suffix takes c2 steps *)
+‘?c2. n + m1 = (n + c + k1) + c2’ by (
+ imp_res_tac bigstep_f_arg_exec_l_imp >>
+ qexists_tac ‘(n + m1) - (n + c + k1)’ >>
+ decide_tac
+) >>
+gvs[] >>
+(* Reassemble with the other argument *)
+‘bigstep_f_arg_exec' sl (d,e2) (n + c) = SOME (e', (n + c) + k2)’ by (
+ irule (iffLR bigstep_f_arg_exec'_counter) >>
+ qexists_tac ‘n’ >>
+ simp[]
+) >>
+‘bigstep_f_arg_exec_l sl l2 (n + c + k2) = SOME (t', (n + c + k2) + c2)’ by (
+ irule (iffLR bigstep_f_arg_exec_l_counter) >>
+ qexists_tac ‘n + c + k1’ >>
+ simp[]
+) >>
+gvs[bigstep_f_arg_exec_l_append_split, bigstep_f_arg_exec_l_def] >>
+decide_tac
+QED
+
+(* Soundness of big-step reduction of the arguments of a function call: n' big-step
+ * steps on the argument list correspond to n' small steps on the call expression.
+ * Note that oZIP (which requires the argument list to have the same length as the
+ * signature) is needed, since e_exec checks the lengths. *)
 Theorem bigstep_f_arg_exec_l_sound_n:
-!top_scope scope_list g_scope1 g_scope2 x_l d_l e_l' n n' (x_d_l:(string # d) list) e_l funn apply_table_f ext_map func_map b_func_map pars_map tbl_map random_oracle i.
-(*
-(* All lists as one: *)
-oZIP (x_d_l, e_l) = SOME x_d_e_l ==>
-oZIP (MAP SND x_d_l,e_l) = SOME d_e_l ==>
-lookup_funn_sig funn func_map b_func_map ext_map = SOME (ZIP (MAP FST $ MAP FST x_d_e_l, MAP SND $ MAP FST x_d_e_l)) ==>
-*)
-lookup_funn_sig funn func_map b_func_map ext_map = SOME (ZIP (x_l, d_l)) ==>
-bigstep_f_arg_exec_l (top_scope::(scope_list ++ [g_scope1; g_scope2])) (ZIP (d_l, e_l)) n =
- SOME (e_l',n + n') ==>
+!n' n top_scope scope_list g_scope1 g_scope2 (x_d_l:(string # d) list) d_e_l e_l e_l' funn apply_table_f ext_map func_map b_func_map pars_map tbl_map random_oracle i.
+lookup_funn_sig funn func_map b_func_map ext_map = SOME x_d_l ==>
+oZIP (MAP SND x_d_l, e_l) = SOME d_e_l ==>
+bigstep_f_arg_exec_l (top_scope::(scope_list ++ [g_scope1; g_scope2])) d_e_l n = SOME (e_l', n + n') ==>
 e_multi_exec' ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, random_oracle):'a emctx) [g_scope1; g_scope2] (top_scope::scope_list) (e_call funn e_l, i) n' = SOME (e_call funn e_l', i)
 Proof
-cheat
-(*
 Induct_on ‘n'’ >- (
- gs[e_multi_exec'_def] >>
+ (* No steps: the arguments are unchanged *)
  rpt strip_tac >>
  imp_res_tac bigstep_f_arg_exec_l_imp >>
- (* OK modulo some lemmas *)
- cheat
+ imp_res_tac oZIP_lemma >>
+ gvs[e_multi_exec'_def]
 ) >>
 rpt strip_tac >>
-irule e_multi_exec'_split >>
-(* The effect of all the cheats below is just to rule out empty lists...
- * Instead, make the splitting theorem more general *)
-Cases_on ‘x_l’ >> Cases_on ‘d_l’ >- (
- cheat
-) >- (
- cheat
-) >- (
- cheat
+imp_res_tac oZIP_SOME >>
+gvs[] >>
+(* Some argument j is unreduced *)
+qspecl_then [‘top_scope::(scope_list ++ [g_scope1; g_scope2])’, ‘MAP SND x_d_l’, ‘e_l’, ‘e_l'’, ‘n’, ‘n'’] mp_tac bigstep_f_arg_exec_l_unred_arg >>
+impl_tac >- simp[] >>
+impl_tac >- simp[] >>
+strip_tac >>
+qspecl_then [‘MAP SND x_d_l’, ‘e_l’, ‘j’, ‘d’, ‘e’] mp_tac find_unred_arg_SOME >>
+impl_tac >- simp[] >>
+impl_tac >- simp[] >>
+strip_tac >>
+(* Decompose the argument list around argument j *)
+‘ZIP (MAP SND x_d_l, e_l) = TAKE j (ZIP (MAP SND x_d_l, e_l)) ++ (d,e)::DROP (SUC j) (ZIP (MAP SND x_d_l, e_l))’ by (
+ ‘j < LENGTH (ZIP (MAP SND x_d_l, e_l))’ by gs[LENGTH_ZIP] >>
+ ‘EL j (ZIP (MAP SND x_d_l, e_l)) = (d,e)’ by gs[EL_ZIP] >>
+ Q.SUBGOAL_THEN ‘TAKE j (ZIP (MAP SND x_d_l, e_l)) ++ [EL j (ZIP (MAP SND x_d_l, e_l))] ++ DROP (SUC j) (ZIP (MAP SND x_d_l, e_l)) = ZIP (MAP SND x_d_l, e_l)’ (fn thm => CONV_TAC (LHS_CONV (ONCE_REWRITE_CONV [GSYM thm])) >> simp[]) >>
+ simp[rich_listTheory.TAKE_DROP_SUC]
 ) >>
-Cases_on ‘e_l’ >- (
- cheat
-) >>
-Cases_on ‘e_l'’ >- (
- cheat
-) >>
-‘?j d e. find_unred_arg (h'::t') (h''::t'') = SOME (j,d,e)’ by cheat >>
-gs[ZIP_def] >>
-(* TODO: Use imp_res_tac or other non-goal-oriented approach *)
-‘(h',h'')::ZIP (t',t'') = (TAKE j ((h',h'')::ZIP (t',t''))) ++ ((EL (SUC j) ((h',h'')::ZIP (t',t'')))::( DROP j ((h',h'')::ZIP (t',t''))))’ by cheat >>
-‘?e' n''.
- bigstep_f_arg_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-   (FST (EL (SUC j) ((h',h'')::ZIP (t',t''))),
-    SND (EL (SUC j) ((h',h'')::ZIP (t',t'')))) n =
- SOME (e',n + n'') /\
- bigstep_f_arg_exec_l (top_scope::(scope_list ++ [g_scope1; g_scope2]))
-   (TAKE j ((h',h'')::ZIP (t',t'')) ++
-    (FST (EL (SUC j) ((h',h'')::ZIP (t',t''))),e')::
-      DROP j ((h',h'')::ZIP (t',t''))) (n + n'') =
- SOME (h'3'::t'3',n + SUC n')’ by (
- irule bigstep_f_arg_exec_l_split_alt >>
- gs[] >>
- (* Should be OK *)
- cheat
-) >>
-gs[] >>
-‘EL j (ZIP (t',t'')) = (d,e)’ by cheat >>
-gs[] >>
-Cases_on ‘n''’ >- (
- (* Problem: Big-step semantics can take 0 steps when encountering something it can reduce,
-  * but e_exec can reduce. *)
- cheat
-) >>
-imp_res_tac bigstep_f_arg_exec'_split_alt >>
-gs[] >>        
-qpat_x_assum ‘!i emctx. ?e''''. _’ (fn thm => assume_tac $ Q.SPECL [‘i:num’, ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,random_oracle)’] thm) >>
-gs[add_oracle_index_def] >>
-qexists_tac ‘LUPDATE e'' j (h''::t'')’ >>
-strip_tac >- (
- (* Should be OK: e_exec to e_multi_exec' *)
- cheat
-) >>
-qpat_x_assum ‘!top_scope'. _’ irule >>
-FULL_SIMP_TAC pure_ss [GSYM ZIP_def] >>
-imp_res_tac bigstep_f_arg_exec_l_combine >>
-qexistsl_tac [‘h'::t'’, ‘n+1’, ‘h::t’] >>
-gs[] >>
-‘(LUPDATE (d,e'') j ((h',h'')::ZIP (t',t''))) = (ZIP (h'::t',LUPDATE e'' j (h''::t'')))’ suffices_by (
- strip_tac >>
- gs[arithmeticTheory.SUC_ONE_ADD]
-) >>
-(* OK, since d is the element at index j in the original dlist *)
-cheat
-*)
-QED
-
-(* TODO: Instead of the above, make version similar to bigstep_stmt_ass_exec_sound_n_not_v... *)
-Theorem bigstep_stmt_ass_call_exec_sound_n:
-!top_scope ascope lval scope_list g_scope1 g_scope2 x_d_e_l d_e_l e_l' n n' (x_d_l:(string # d) list) e_l funn apply_table_f ext_map func_map b_func_map pars_map tbl_map.
-oZIP (MAP SND x_d_l,e_l) = SOME d_e_l ==>
-lookup_funn_sig funn func_map b_func_map ext_map = SOME x_d_l ==>
-bigstep_f_arg_exec_l (top_scope::(scope_list ++ [g_scope1; g_scope2])) d_e_l n =
- SOME (e_l',n + n') ==>
-stmt_multi_exec'
-          (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
-          (ascope,[g_scope1; g_scope2],
-           [(funn,[stmt_ass lval (e_call funn e_l)],top_scope::scope_list)],
-           status_running) n' =
-        SOME
-          (ascope,[g_scope1; g_scope2],
-           [(funn,[stmt_ass lval (e_call funn e_l')],top_scope::scope_list)],
-           status_running)
-Proof
-Induct_on ‘n'’ >- (
- rpt strip_tac >>
- gs[e_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def] >>
- cheat
-) >>
-rpt strip_tac >>
-gs[e_multi_exec'_def, stmt_multi_exec'_def] >>
-cheat
-(*
-Cases_on ‘e_multi_exec' (ext_map,func_map,b_func_map) [g_scope1; g_scope2] (top_scope::scope_list) e n’ >> (
- gs[]
-) >>
-Cases_on ‘e_exec ctx [g_scope1; g_scope2] (top_scope::scope_list) x’ >> (
- gs[]
-) >>
-PairCases_on ‘x'’ >>
-gs[] >>
-Cases_on ‘x'1’ >> (
+qpat_x_assum ‘bigstep_f_arg_exec_l _ (ZIP (MAP SND x_d_l,e_l)) n = _’ (fn thm => qpat_x_assum ‘ZIP (MAP SND x_d_l,e_l) = _’ (fn eq => assume_tac (ONCE_REWRITE_RULE [eq] thm))) >>
+(* Argument j is fully reduced in a non-zero number of steps *)
+imp_res_tac bigstep_f_arg_exec_l_split_alt >>
+‘?k. n'' = SUC k’ by (
+ Cases_on ‘n''’ >> gvs[] >>
+ imp_res_tac bigstep_f_arg_exec'_zero >>
  gs[]
 ) >>
 gvs[] >>
-subgoal ‘~is_v x’ >- (
- imp_res_tac e_exec_not_v
+(* The first of these steps is a small step on argument j *)
+drule bigstep_f_arg_exec'_split_alt >>
+disch_then (qspecl_then [‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, random_oracle)’, ‘i’] strip_assume_tac) >>
+gs[add_oracle_index_def] >>
+(* After the small step, the argument list takes the remaining steps *)
+qspecl_then [‘top_scope::(scope_list ++ [g_scope1; g_scope2])’, ‘TAKE j (ZIP (MAP SND x_d_l, e_l))’, ‘DROP (SUC j) (ZIP (MAP SND x_d_l, e_l))’, ‘EL j (MAP SND x_d_l)’, ‘EL j e_l’, ‘e''’, ‘e'’, ‘n’, ‘SUC k’, ‘k’, ‘e_l'’, ‘SUC n'’, ‘n'’] mp_tac bigstep_f_arg_exec_l_combine >>
+impl_tac >- simp[] >>
+impl_tac >- simp[] >>
+impl_tac >- simp[] >>
+impl_tac >- simp[] >>
+strip_tac >>
+(* Split off the first small step of the call *)
+simp[Once e_multi_exec'_split_alt] >>
+qexists_tac ‘e_call funn (LUPDATE e'' j e_l)’ >>
+conj_tac >- (
+ ‘?stmt. lookup_funn_sig_body funn func_map b_func_map ext_map = SOME (stmt, x_d_l)’ by (
+  Cases_on ‘lookup_funn_sig_body funn func_map b_func_map ext_map’ >>
+  gs[lookup_funn_sig_def] >>
+  PairCases_on ‘x’ >>
+  gs[]
+ ) >>
+ FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
+ simp[e_multi_exec'_def, add_oracle_index_def, e_exec_def, unred_arg_index_def]
 ) >>
-res_tac >>
-fs[stmt_exec_def, stmt_multi_exec'_check_state_def]
-*)
+(* The remaining steps by the inductive hypothesis *)
+qpat_x_assum ‘!n top_scope. _’ irule >>
+qexistsl_tac [‘ZIP (MAP SND x_d_l, LUPDATE e'' j e_l)’, ‘n’, ‘x_d_l’] >>
+simp[oZIP_ZIP] >>
+‘LENGTH (MAP SND x_d_l) = LENGTH e_l’ by simp[] >>
+‘j < LENGTH (MAP SND x_d_l)’ by simp[] >>
+simp[ZIP_LUPDATE_SND] >>
+‘j < LENGTH (ZIP (MAP SND x_d_l, e_l))’ by simp[LENGTH_ZIP] >>
+simp[LUPDATE_TAKE_DROP]
 QED
 
-(* TODO: Above commented-out section is for call proof *)
 
 Theorem bigstep_stmt_exec_sound_n:
 !n n' scope_list scope_lists' scope_list' funn ascope stmt stmt' top_scope g_scope1 g_scope2 g_scope_list' apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle.
@@ -7736,9 +7813,7 @@ Induct_on ‘stmt’ >- (
   imp_res_tac bigstep_stmt_exec_imp >>
   subgoal ‘?g_scope1' g_scope2' top_scope scope_list'.
            separate x1 = (SOME [g_scope1'; g_scope2'],SOME (top_scope::scope_list'))’ >- (
-   (* Need something along the lines of that bigstep_stmt_exec preserves scope list length,
-    * then a lemma that says that separate has a result so long as the scope list has length
-    * at least 2 *)
+   (* bigstep_stmt_exec preserves the length of the scope list, so separate yields a result *)
    gs[separate_LENGTH_SOME]
   ) >>
   qexistsl_tac [‘[g_scope1'; g_scope2']’, ‘x2-n'’, ‘(n' + n'' + 1)-(x2+1)’, ‘(top_scope'::scope_list'')’, ‘x0’] >>
@@ -7765,7 +7840,7 @@ Induct_on ‘stmt’ >- (
    qexistsl_tac [‘x2 + 1’, ‘scope_lists'’] >>
    gs[] >>
    subgoal ‘x1 = (top_scope'::(scope_list'' ++ [g_scope1'; g_scope2']))’ >- (
-    (* Requires a theorem stating the reverse effect of separate *)
+    (* Reverse effect of separate *)
     gs[separate_def] >>
     gvs[SUC_ADD_ONE] >>
     Cases_on ‘x1’ >> (
@@ -7859,7 +7934,6 @@ Induct_on ‘stmt’ >- (
  ) >>
  gvs[] >>
  FULL_SIMP_TAC pure_ss [GSYM APPEND, Once arithmeticTheory.ADD_SYM] >>
- (* Need INR version of bigstep_e_exec_sound_n_INL_zero *)
  imp_res_tac bigstep_e_exec_sound_n_INR_zero >>
  ‘?i. get_oracle_index ascope = i’ by gs[] >>
  qpat_x_assum ‘!i emctx. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘i’, ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, random_oracle)’] thm)) >>
@@ -7946,11 +8020,9 @@ Induct_on ‘stmt’ >- (
   FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_SYM] >>
   irule bigstep_stmt_ass_exec_sound_n_not_v >>
   gs[is_v_def] >>
-  cheat
-(* TODO: Continue here...
-  imp_res_tac bigstep_f_arg_exec_l_sound_n >>
-  cheat
-*)  
+  qpat_x_assum ‘bigstep_f_arg_exec_l _ _ _ = _’ (fn thm => assume_tac (ONCE_REWRITE_RULE [arithmeticTheory.ADD_SYM] thm)) >>
+  drule_all bigstep_f_arg_exec_l_sound_n >>
+  simp[]
  ) >>
 
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
@@ -8066,11 +8138,9 @@ Induct_on ‘stmt’ >- (
   FULL_SIMP_TAC pure_ss [Once arithmeticTheory.ADD_SYM] >>
   irule bigstep_stmt_cond_exec_sound_n >>
   gs[is_v_def] >>
-  cheat
-(* TODO: Continue
-  imp_res_tac bigstep_f_arg_exec_l_sound_n >>
-  cheat
-*)
+  qpat_x_assum ‘bigstep_f_arg_exec_l _ _ _ = _’ (fn thm => assume_tac (ONCE_REWRITE_RULE [arithmeticTheory.ADD_SYM] thm)) >>
+  drule_all bigstep_f_arg_exec_l_sound_n >>
+  simp[]
  ) >>
 
  Cases_on ‘bigstep_e_exec (top_scope::(scope_list ++ [g_scope1; g_scope2])) (INL e) n'’ >> (
@@ -8202,9 +8272,7 @@ Induct_on ‘stmt’ >- (
   imp_res_tac bigstep_stmt_exec_SOME_imp >>
   subgoal ‘?g_scope1' g_scope2' top_scope scope_list'.
            separate x1 = (SOME [g_scope1'; g_scope2'],SOME (top_scope::scope_list'))’ >- (
-   (* Need something along the lines of that bigstep_stmt_exec preserves scope list length,
-    * then a lemma that says that separate has a result so long as the scope list has length
-    * at least 2 *)
+   (* bigstep_stmt_exec preserves the length of the scope list, so separate yields a result *)
    gs[separate_LENGTH_SOME]
   ) >>
   qexistsl_tac [‘[g_scope1'; g_scope2']’, ‘x2-n'’, ‘(n' + n'' + 1)-(x2+1)’, ‘(top_scope'::scope_list'')’, ‘x0’] >>
@@ -8231,7 +8299,7 @@ Induct_on ‘stmt’ >- (
    qexistsl_tac [‘x2 + 1’, ‘scope_lists'’] >>
    gs[] >>
    subgoal ‘x1 = (top_scope'::(scope_list'' ++ [g_scope1'; g_scope2']))’ >- (
-    (* Requires a theorem stating the reverse effect of separate *)
+    (* Reverse effect of separate *)
     gs[separate_def] >>
     gvs[SUC_ADD_ONE] >>
     Cases_on ‘x1’ >> (
@@ -8323,7 +8391,6 @@ Induct_on ‘stmt’ >- (
  ) >>
  gvs[] >>
  FULL_SIMP_TAC pure_ss [GSYM APPEND, Once arithmeticTheory.ADD_SYM] >>
- (* Need INR version of bigstep_e_exec_sound_n_INL_zero *)
  imp_res_tac bigstep_e_exec_sound_n_INR_zero >>
  ‘?i. get_oracle_index ascope = i’ by gs[] >>
  qpat_x_assum ‘!i emctx. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘i’, ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, random_oracle)’] thm)) >>
@@ -8423,6 +8490,15 @@ Definition in_local_fun'_def:
     | _ => F) /\
    n <> 0)) /\
  (in_local_fun' ctx _ _ _ = F)
+End
+
+(* The oracle index getter and setter of an architecture context are sane: setting NONE
+ * is the identity, and getting after setting yields what was set. The big-step soundness
+ * theorems need this, since they cover only reductions that leave the oracle index unchanged
+ * and must show that the architectural scope is unchanged as well. *)
+Definition actx_oracle_index_getter_setter_sane_def:
+ actx_oracle_index_getter_setter_sane ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx) =
+  oracle_index_getter_setter_sane get_oracle_index set_oracle_index
 End
 
 Theorem in_local_fun'_imp:
@@ -8527,8 +8603,6 @@ bigstep_arch_exec ctx_b_func_map_opt g_scope_list arch_frame_list = SOME (g_scop
 *)
 (?frame_list'. arch_frame_list' = arch_frame_list_regular frame_list')
 Proof
-cheat
-(*
 rpt gen_tac >>
 rpt disch_tac >>
 Cases_on ‘g_scope_list’ >- (
@@ -8552,19 +8626,8 @@ gs[] >>
 Cases_on ‘h''1’ >> (
  gs[]
 ) >>
-Cases_on ‘bigstep_exec
-             (case ctx_b_func_map_opt of
-                NONE => NONE
-              | SOME
-                (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle) =>
-                SOME (func_map,b_func_map,ext_map)) ([h; h'],h''2)
-             h''’ >> (
- gs[]
-) >>
-PairCases_on ‘x’ >>
-gs[] >>
+gvs[AllCaseEqs()] >>
 metis_tac[]
-*)
 QED
 
 Theorem bigstep_arch_exec'_SOME_imp:
@@ -8622,13 +8685,11 @@ in_local_fun func_map b_func_map (arch_frame_list_regular [(funn,x0::t',x2)]) ==
     ((i,in_out_list,in_out_list',ascope),g_scope_list',arch_frame_list_regular ((funn,x0::t',x2)::t),
      status_running)
 Proof
-cheat
-(*
 Induct_on ‘n’ >> (
  rpt strip_tac >>
  gs[arch_multi_exec'_def, stmt_multi_exec'_def, stmt_multi_exec'_check_state_def]
 ) >>
-Cases_on ‘stmt_multi_exec' (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+Cases_on ‘stmt_multi_exec' (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
             (ascope,[g_scope1; g_scope2],[(funn,h::t',h'::t'')],status_running)
             n’ >> (
  gs[]
@@ -8643,7 +8704,7 @@ subgoal ‘x0' = ascope /\
  gs[]
 ) >>
 gs[] >>
-Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
+Cases_on ‘stmt_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_index,set_oracle_index,random_oracle)
             (ascope,[g_scope1'; g_scope2'],[(funn,stmt'::t',scope_list')],
              status_running)’ >> (
  gs[]
@@ -8729,13 +8790,13 @@ subgoal ‘scopes_to_retrieve funn func_map b_func_map [g_scope1'; g_scope2']
  CASE_TAC
 ) >>
 gs[]
-*)
 QED
 
 Theorem bigstep_arch_exec_sound_n:
 !n func_map g_scope_list g_scope_list' frame_list frame_list' x el pbl_type x_d_list b_func_map decl_list pars_map tbl_map ab_list pblock_map ffblock_map input_f output_f copyin_pbl
            copyout_pbl apply_table_f ext_map get_oracle_index set_oracle_index random_oracle i in_out_list in_out_list' ascope.
 
+oracle_index_getter_setter_sane get_oracle_index set_oracle_index ==>
 EL i ab_list = arch_block_pbl x el ==>
 ALOOKUP pblock_map x = SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map) ==>
 in_local_fun func_map b_func_map (arch_frame_list_regular frame_list) ==>
@@ -8743,8 +8804,6 @@ in_local_fun func_map b_func_map (arch_frame_list_regular frame_list) ==>
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) g_scope_list (arch_frame_list_regular frame_list) = SOME (g_scope_list', (arch_frame_list_regular frame_list'), n) ==>
 arch_multi_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx) (((i,in_out_list,in_out_list',ascope):'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list_regular frame_list', status_running)
 Proof
-cheat
-(*
 Cases_on ‘frame_list’ >- (
  rpt strip_tac >>
  imp_res_tac bigstep_arch_exec_SOME_imp >>
@@ -8783,7 +8842,6 @@ Cases_on ‘r’ >> (
  gs[]
 ) >>
 gvs[] >>
-(* Scope list non-empty should probably be added to in_local_fun' assumption, which can then be passed along to this theorem *)
 Cases_on ‘h'2’ >- (
  Cases_on ‘h'0’ >> (
   gs[in_local_fun_def]
@@ -8804,13 +8862,13 @@ strip_tac >- (
 ) >>
 Cases_on ‘t’ >> (
  gs[in_local_fun_def] >>
- qpat_x_assum ‘!funn. _’ (fn thm => ASSUME_TAC (Q.SPECL [‘funn’, ‘ctx’, ‘ascope’] thm)) >>
+ qpat_x_assum ‘!x. _’ (fn thm => assume_tac (SPEC_ALL thm)) >>
  imp_res_tac stmt_multi_exec'_SOME_imp >>
+ gvs[] >>
  Cases_on ‘scope_list'’ >> (
   gs[]
  )
 )
-*)
 QED
 
 Theorem bigstep_arch_exec'_sound_n:
@@ -8818,6 +8876,7 @@ Theorem bigstep_arch_exec'_sound_n:
            copyout_pbl apply_table_f ext_map get_oracle_index
              set_oracle_index random_oracle i in_out_list in_out_list' ascope.
 
+oracle_index_getter_setter_sane get_oracle_index set_oracle_index ==>
 EL i ab_list = arch_block_pbl x el ==>
 ALOOKUP pblock_map x = SOME (pbl_type,x_d_list,b_func_map,decl_list,pars_map,tbl_map) ==>
 in_local_fun func_map b_func_map (arch_frame_list_regular frame_list) ==>
@@ -8825,8 +8884,6 @@ in_local_fun func_map b_func_map (arch_frame_list_regular frame_list) ==>
 bigstep_arch_exec' (SOME ((i,in_out_list,in_out_list',ascope),((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx))) g_scope_list (arch_frame_list_regular frame_list) = SOME (g_scope_list', (arch_frame_list_regular frame_list'), n) ==>
 arch_multi_exec' ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx) (((i,in_out_list,in_out_list',ascope):'a aenv), g_scope_list, arch_frame_list_regular frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list_regular frame_list', status_running)
 Proof
-cheat
-(*
 Cases_on ‘frame_list’ >- (
  rpt strip_tac >>
  imp_res_tac bigstep_arch_exec'_SOME_imp >>
@@ -8850,7 +8907,6 @@ PairCases_on ‘x'’ >>
 gs[] >>
 gvs[] >>
 gvs[bigstep_exec_def, AllCaseEqs()] >>
-(* Scope list non-empty should probably be added to in_local_fun' assumption, which can then be passed along to this theorem *)
 Cases_on ‘h'2’ >- (
  Cases_on ‘h'0’ >> (
   gs[in_local_fun_def]
@@ -8871,13 +8927,13 @@ strip_tac >- (
 ) >>
 Cases_on ‘t’ >> (
  gs[in_local_fun_def] >>
- qpat_x_assum ‘!tbl_map. _’ (fn thm => assume_tac (Q.SPECL [‘tbl_map’, ‘pars_map’, ‘funn’, ‘ascope’, ‘apply_table_f’] thm)) >>
+ qpat_x_assum ‘!x. _’ (fn thm => assume_tac (SPEC_ALL thm)) >>
  imp_res_tac stmt_multi_exec'_SOME_imp >>
+ gvs[] >>
  Cases_on ‘scope_list'’ >> (
   gs[]
  )
 )
-*)
 QED
 
 Theorem arch_multi_exec'_sound:
@@ -8935,6 +8991,7 @@ QED
 
 Theorem bigstep_arch_exec_comp'_NONE:
 !n' n assl ctx g_scope_list arch_frame_list i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' arch_frame_list' arch_frame_list'' aenv.
+actx_oracle_index_getter_setter_sane ctx ==>
 (assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) ==>
 in_local_fun' (ctx:'a actx) i arch_frame_list' n ==>
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
@@ -8945,6 +9002,7 @@ irule arch_multi_exec_comp_n_tl >>
 imp_res_tac bigstep_arch_exec_SOME_imp >>
 gvs[] >>
 PairCases_on ‘ctx’ >>
+fs[actx_oracle_index_getter_setter_sane_def] >>
 subgoal ‘?x el. EL i ctx0 = arch_block_pbl x el /\
          ?pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
           ALOOKUP ctx1 x =
@@ -8974,7 +9032,8 @@ QED
 
 Theorem bigstep_arch_exec_comp'_NONE_conj:
 !n' n assl ctx g_scope_list arch_frame_list i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' arch_frame_list' arch_frame_list'' aenv.
-((assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) /\
+(actx_oracle_index_getter_setter_sane ctx /\
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) /\
 in_local_fun' (ctx:'a actx) i arch_frame_list' n /\
 bigstep_arch_exec (NONE:('a actx # b_func_map) option) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n')) ==>
 (assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list'', arch_frame_list'', status_running))
@@ -8984,6 +9043,7 @@ QED
 
 Theorem bigstep_arch_exec_comp'_SOME:
 !assl ctx g_scope_list arch_frame_list i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv.
+actx_oracle_index_getter_setter_sane ctx ==>
 (assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) ==>
 in_local_fun' ctx i arch_frame_list' n ==>
 bigstep_arch_exec' (SOME ((i,in_out_list,in_out_list',ascope), ctx)) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n') ==>
@@ -8994,6 +9054,7 @@ irule arch_multi_exec_comp_n_tl >>
 imp_res_tac bigstep_arch_exec'_SOME_imp >>
 gvs[] >>
 PairCases_on ‘ctx’ >>
+fs[actx_oracle_index_getter_setter_sane_def] >>
 subgoal ‘?x el. EL i ctx0 = arch_block_pbl x el /\
          ?pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
           ALOOKUP ctx1 x =
@@ -9023,7 +9084,8 @@ QED
 
 Theorem bigstep_arch_exec_comp'_SOME_conj:
 !assl ctx g_scope_list arch_frame_list status i in_out_list in_out_list' ascope g_scope_list' g_scope_list'' n' arch_frame_list' arch_frame_list'' n aenv.
-((assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) /\
+(actx_oracle_index_getter_setter_sane ctx /\
+(assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) n = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list', arch_frame_list', status_running)) /\
 in_local_fun' ctx i arch_frame_list' n /\
 bigstep_arch_exec' (SOME ((i,in_out_list,in_out_list',ascope), ctx)) (g_scope_list':g_scope_list) arch_frame_list' = SOME (g_scope_list'', arch_frame_list'', n')) ==>
 (assl ==> arch_multi_exec ctx (aenv, g_scope_list, arch_frame_list, status_running) (n+n') = SOME ((i,in_out_list,in_out_list',ascope), g_scope_list'', arch_frame_list'', status_running))

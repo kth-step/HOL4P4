@@ -1867,7 +1867,27 @@ fun deabbreviate (deabbrev_stmt_stack, deabbrev_frame_stack, deabbrev_ascope) st
  end
 ;
 
-fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm use_eval_in_ctxt step_thm =
+(* Instantiates the composition theorems used for big-step shortcuts with a proof that the
+ * oracle index getter and setter of the architecture context are sane. ctx_def defines the
+ * constant abbreviating the context, which is what the step theorems use. *)
+fun p4_get_bigstep_comp_thms ctx_def =
+ let
+  val ctx_const = lhs $ snd $ strip_forall $ concl ctx_def
+  val oracle_sane_thm =
+   EQT_ELIM $ REWRITE_CONV [ctx_def, actx_oracle_index_getter_setter_sane_def,
+                            v1model_oracle_index_getter_setter_sane,
+                            vss_oracle_index_getter_setter_sane,
+                            ebpf_oracle_index_getter_setter_sane]
+             (mk_actx_oracle_index_getter_setter_sane ctx_const)
+   handle HOL_ERR _ =>
+    raise (ERR "p4_get_bigstep_comp_thms" "Could not prove that the oracle index getter and setter of the architecture context are sane")
+ in
+  (MATCH_MP bigstep_arch_exec_comp'_NONE oracle_sane_thm,
+   MATCH_MP bigstep_arch_exec_comp'_SOME oracle_sane_thm)
+ end
+;
+
+fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
   val time_start = Time.now();
@@ -2020,8 +2040,8 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 
     val shortcut_comp_thm =
      if shortcut_result_eq shortcut res_shortcut
-     then bigstep_arch_exec_comp'_NONE
-     else bigstep_arch_exec_comp'_SOME
+     then fst bigstep_comp_thms
+     else snd bigstep_comp_thms
 
     val res =
      SIMP_RULE simple_arith_ss []
@@ -2195,6 +2215,10 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl_conj
 
+  (* Composition theorems for big-step shortcuts, with the sanity of the oracle index
+   * getter and setter of ctx discharged *)
+  val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def
+
   (* TODO: Use eval_ctxt defined below for init_step_thm? *)
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
@@ -2203,14 +2227,15 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
 *)
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm
+  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
    else (p4_is_finished 0)
  in
 (* DEBUG:
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;
+val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def;
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm;
 val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
