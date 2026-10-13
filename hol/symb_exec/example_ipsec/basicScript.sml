@@ -1380,6 +1380,85 @@ val postcond_simpset = pure_ss
 
 val time_start = Time.now();
 
+(* DEBUGging the checksum extern:
+ Loop/freeze with something like 195 fuel remaining.
+ Running with n_max = 105 will trigger the crash.
+ n_max = 104 will stop right before with big-step enabled.
+ val n_max = 104
+ (* Need trivial postcond to get out sensible result *)
+ val postcond =
+  “(\s. T):v1model_ascope astate -> bool”;
+
+Could this issue have to do with simplification sets suddenly including more files? Looks like some kind of word operation is partially applied...
+
+val (path_tree, path_list) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE n_max;
+
+Path ID 61, 60 appears to have the interesting precondition that approximates the checksum update. Path 61 is about to run the "update_checksum" extern. Note that in the path_tree, you have to look at node 20 to see this.
+
+symb_execLib.get_node 61 path_tree
+
+val step_thm = (fn (a,b,c) => c) $ valOf $ List.find (fn (a,b,c) => a = 61) path_list
+
+Problem is likely discrepancy between
+
+        [(v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 7;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 6;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 5;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 4;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 3;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 2;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 1;
+                       (v2w [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71] −
+                        v2w [F; F; F; F; F; F; F; T]) ' 0]
+
+
+and
+
+BIT 7
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 6
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 5
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 4
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 3
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 2
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 1
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256);
+        BIT 0
+          ((l2n 2
+              (bitify [] [ip64; ip65; ip66; ip67; ip68; ip69; ip70; ip71]) +
+            255) MOD 256)
+
+Debug this in regular_step.
+
+*)
+
 (* Commit 7463b72:
 Using all threads yield "Total time consumption: 885548 ms" (14m, 45s, 548ms)
 All threads minus two yield "Total time consumption: 845613 ms" (14m, 5s, 613ms)
