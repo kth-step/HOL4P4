@@ -45,3 +45,6 @@ jobs:
         
       - name: Compile metatheory
         run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make metatheory
+
+      - name: Compile symbolic execution tests
+        run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make symb_exec_tests
