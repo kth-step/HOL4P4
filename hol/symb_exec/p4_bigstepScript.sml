@@ -249,8 +249,7 @@ Definition bigstep_e_exec_def:
 (*
  (************************)
  (* Function/extern call *)
- (* TODO: Needs directions... Superseded: the arguments of calls are instead reduced at
-  * statement level by bigstep_f_arg_exec, which takes the directions into account *)
+ (* Needs directions... *)
  (bigstep_e_exec scope_lists (INL (e_call funn e_l)) n =
   case bigstep_e_exec scope_lists (INR e_l) n of
   | SOME (INR $ e_l', n') =>
@@ -1172,36 +1171,6 @@ Proof
 gs[bigstep_e_exec_def]
 QED
 
-Triviality unred_mem_index_NONE:
-!e_l.
-EVERY is_v e_l ==>
-unred_mem_index e_l = NONE
-Proof
-Induct >- (
- gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def]
-) >>
-rpt strip_tac >>
-gs[unred_mem_index_def, unred_mem_def, INDEX_FIND_def] >>
-subgoal ‘is_const h’ >- (
- Cases_on ‘h’ >> (
-  gs[is_v_def, is_const_def]
- )
-) >>
-gs[] >>
- Cases_on ‘INDEX_FIND 1 (\e. ~is_const e) e_l’ >> (
-  gs[]
- ) >>
-PairCases_on ‘x’ >>
-gs[] >>
-imp_res_tac index_find_first >>
-Cases_on ‘INDEX_FIND 0 (\e. ~is_const e) e_l’ >- (
- gs[] >>
- gs[Q.SPECL [‘e_l’, ‘1:num’] (INDEX_FIND_add)]
-) >>
-PairCases_on ‘x’ >>
-gs[]
-QED
-
 Theorem unred_mem_index_oEL:
 !e_l i.
 unred_mem_index e_l = SOME i ==>
@@ -1551,7 +1520,7 @@ Induct_on ‘t’ >- (
     gs[]
    ) >>
    (* Contradiction on unreduced element in e_l' *)
-   imp_res_tac unred_mem_index_NONE >>
+   imp_res_tac EVERY_is_v_unred_mem_index >>
    gs[]
   ) >>
   gs[] >>
@@ -5968,8 +5937,7 @@ Definition bigstep_e_exec'_def:
 (*
  (************************)
  (* Function/extern call *)
- (* TODO: Needs directions... Superseded: the arguments of calls are instead reduced at
-  * statement level by bigstep_f_arg_exec, which takes the directions into account *)
+ (* Needs directions... *)
  (bigstep_e_exec' scope_lists (INL (e_call funn e_l)) =
   case bigstep_e_exec' scope_lists (INR e_l) of
   | SOME (INR $ e_l', n) =>
@@ -8597,10 +8565,6 @@ bigstep_arch_exec ctx_b_func_map_opt g_scope_list arch_frame_list = SOME (g_scop
 (?g_scope1 g_scope2.
  g_scope_list = [g_scope1; g_scope2]) /\
 (?frame_list. arch_frame_list = arch_frame_list_regular frame_list) /\
-(* TODO: Holds, but not needed for now... 
-(?g_scope1' g_scope2'.
- g_scope_list' = [g_scope1'; g_scope2']) /\
-*)
 (?frame_list'. arch_frame_list' = arch_frame_list_regular frame_list')
 Proof
 rpt gen_tac >>
@@ -8636,10 +8600,6 @@ bigstep_arch_exec' ctx_b_func_map_opt g_scope_list arch_frame_list = SOME (g_sco
 (?g_scope1 g_scope2.
  g_scope_list = [g_scope1; g_scope2]) /\
 (?frame_list. arch_frame_list = arch_frame_list_regular frame_list) /\
-(* TODO: Holds, but not needed for now... 
-(?g_scope1' g_scope2'.
- g_scope_list' = [g_scope1'; g_scope2']) /\
-*)
 (?frame_list'. arch_frame_list' = arch_frame_list_regular frame_list')
 Proof
 rpt gen_tac >>
