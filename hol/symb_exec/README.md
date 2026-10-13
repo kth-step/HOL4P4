@@ -64,6 +64,14 @@ will decrement `nthreads_ref` and return `true`, otherwise `false`.
 `work_fun:unit -> unit` and an integer `n`, forking `n` threads each computing `work_fun`,
 up to the limit `nthreads_max`.
 
+## "Big-step" shortcuts
+
+When the next statement is inside a local function, the P4 symbolic executor collapses
+sequences of local small steps into one step using the big-step semantics in
+`p4_bigstepScript.sml`, composed with the step theorem by `bigstep_arch_exec_comp'_NONE`
+and `bigstep_arch_exec_comp'_SOME`. A new architecture needs a lemma like
+`v1model_oracle_index_getter_setter_sane` in `p4_symb_execScript.sml`.
+
 ## Tests and examples
 
 The tests are located in the `tests` subdirectory. After installation, run them by first executing

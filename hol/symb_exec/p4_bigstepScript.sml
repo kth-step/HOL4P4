@@ -24,7 +24,6 @@ Cases_on ‘e’ >> (
 )
 QED
 
-(* TODO: Merge with the above? *)
 Theorem EVERY_is_v_unred_mem_index:
 !e_l.
 EVERY is_v e_l ==>
