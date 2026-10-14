@@ -248,12 +248,11 @@ val basic_actx = ``([arch_block_inp;
                       (stmt_ass lval_null
                          (e_call (funn_inst "register")
                             [e_var (varn_name "counters");
-                            (* TODO: The below value should be 1024 - currently it is shrunk*)
                              e_v
                                (v_bit
                                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                                    F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                                    F; F; F; T],32));
+                                    F; F; F; F; F; F; F; T; F; F; F; F; F; F;
+                                    F; F; F; F],32));
                              e_v
                                (v_bit
                                   ([F; F; F; F; F; F; F; F;
