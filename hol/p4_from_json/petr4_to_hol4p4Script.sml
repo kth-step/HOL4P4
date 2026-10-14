@@ -4017,17 +4017,6 @@ Definition p4_pblock_of_tbl_def:
   | NONE => NONE
 End
 
-(* TODO: Move *)
-Definition FILTER_DUPLICATES_def:
- (FILTER_DUPLICATES [] = []) /\
- (FILTER_DUPLICATES (h::t) =
-  (h::(FILTER_DUPLICATES (FILTER ($<> h) t))))
-Termination
-WF_REL_TAC `measure LENGTH` >>
-rpt strip_tac >>
-ASSUME_TAC (Q.SPECL [`(\y. h <> y)`, `t`] rich_listTheory.LENGTH_FILTER_LEQ) >>
-fs[prim_recTheory.LESS_THM]
-End
 
 (* TODO: Put in files with other arch-specific stuff? *)
 (* Get initial mappings for ctrl from the programmable blocks map *)

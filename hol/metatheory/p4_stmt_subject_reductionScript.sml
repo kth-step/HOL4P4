@@ -1066,19 +1066,6 @@ QED
 
 
            
-Theorem LENGTH_imp_NULL:
- ∀ l1 l2 .          
-LENGTH l1 = LENGTH l2 ⇒
-(¬NULL l1 = ¬NULL l2)
-Proof
-Induct >> Induct_on ‘l2’ >> gvs[NULL]
-QED
-
-
-
-
-
-
 
 
 Triviality map_tmp_lemma:
@@ -3544,38 +3531,7 @@ REWRITE_TAC[GSYM FOLDL_init_from_tau_SNOC] >>
 gs[]
 QED
 
-(* TODO: Move *)
-Theorem ZIP_FRONT:
-∀l1 l2.
-l1 ≠ [] ∧ l2 ≠ [] ⇒
-FRONT (ZIP (l1,l2)) =
- ZIP (FRONT l1,FRONT l2)
-Proof
-Induct_on ‘l1’ >> Induct_on ‘l2’ >> gs[] >>
-rpt strip_tac >>
-Cases_on ‘l2’ >> gs[ZIP_def] >>
-Cases_on ‘l1’ >> gs[ZIP_def] >>
-qpat_x_assum ‘!l2. _’ (fn thm => assume_tac $ Q.SPECL [‘h''::t’] thm) >>
-gs[]
-QED
 
-(* TODO: Move *)
-Theorem ZIP_LAST:
-∀l a b l1 l2.
-LENGTH l1 = LENGTH l2 ⇒
-l ++ [(a,b)] = ZIP(l1,l2) ⇒ LAST l1 = a
-Proof
-Induct >> (
- rpt strip_tac >>
- gs[] >>
- Cases_on ‘l1’ >> Cases_on ‘l2’ >> gvs[ZIP_def, LAST_DEF]
-) >- (
- Cases_on ‘t’ >>  Cases_on ‘t'’ >> gs[ZIP_def]
-) >>
-res_tac >>
-gs[] >>
-Cases_on ‘t’ >> gs[ZIP_def]
-QED
 
 (* L-folding using init_from_tau preserves the IDs as the first
  * list elements *)
@@ -3643,20 +3599,6 @@ REWRITE_TAC[GSYM ZIP_def] >>
 gs[ZIP_FRONT]
 QED
 
-(* TODO: Move *)
-Theorem MAP_SND_EL:
-∀l i.
-i < LENGTH l ⇒
-SND (EL i l) = EL i (MAP SND l)
-Proof
-Induct >- (
- gs[]
-) >>
-rpt strip_tac >>
-Cases_on ‘i’ >> (
- gs[]
-)
-QED
 
 Theorem init_from_tau_is_typed:
 !(ty:'a itself).

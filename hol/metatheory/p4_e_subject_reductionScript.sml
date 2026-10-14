@@ -4069,14 +4069,6 @@ QED
 
 
 
-Theorem LENGTH_imp_NULL:
- ∀ l1 l2 .          
-LENGTH l1 = LENGTH l2 ⇒
-(¬NULL l1 = ¬NULL l2)
-Proof
-Induct >> Induct_on ‘l2’ >> gvs[NULL]
-QED
-
 
 
 Theorem type_scopes_list_normalize:        
