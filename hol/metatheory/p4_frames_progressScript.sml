@@ -72,28 +72,6 @@ QED
                                   
 
 
-Triviality type_state_tsll_normalization:
-∀ scll tsll.
-  LENGTH scll = LENGTH tsll ∧
-  LENGTH scll > 0 ∧
-type_state_tsll scll tsll ⇒
-type_state_tsll [HD scll] [HD tsll] ∧
-type_state_tsll (TL scll) (TL tsll)
-Proof
-Cases_on ‘scll’ >>
-Cases_on ‘tsll’ >>
-REPEAT STRIP_TAC >>
-gvs[type_state_tsll_def] >>
- REPEAT STRIP_TAC >| [                
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`0`])) >>   
-gvs[] 
-,
-  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`SUC i`])) >>   
- gvs[] >> lfs[]
-]
-QED
-
-
 
 
 Triviality t_map_to_pass_delta_b_cases:

@@ -2136,33 +2136,6 @@ QED
 
 
 
-Triviality wf_arg_list_normalization_imp1:
-! dxel d x e ss .
-(wf_arg_list (MAP (λ(d,x,e). d) dxel) (MAP (λ(d,x,e). x) dxel)
-          (MAP (λ(d,x,e). e) dxel) ss /\
- wf_arg_list [d] [x] [e] ss) ==>
-(wf_arg_list (MAP (λ(d,x,e). d) dxel ⧺ [d])
-              (MAP (λ(d,x,e). x) dxel ⧺ [x])
-	      (MAP (λ(d,x,e). e) dxel ⧺ [e]) ss )
-Proof
-SIMP_TAC list_ss [wf_arg_list_def] >>
-rpt strip_tac >>
-Cases_on `dxel = []` >| [
- gvs[]
- ,
-
-
- Cases_on `LENGTH dxel = i` >| [
-   gvs[] >>
-   rfs[EL_LENGTH_simp] 
-   ,
-   gvs[] >>
-   NTAC 3  (rfs[Once EL_APPEND1,LENGTH_MAP])
-  ]
-]
-QED
-
-
 
 
 Triviality wf_arg_list_normalization_imp2:

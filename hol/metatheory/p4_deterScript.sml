@@ -852,16 +852,6 @@ QED
 
 
 
-Triviality ret_lemma1d:
-! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' stmt' ascope.
-stmt_red c
-          (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
-           status_running)
-          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')
-Proof
-FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
-QED
-
 
 
 Triviality not_ret_status:

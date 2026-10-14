@@ -525,23 +525,6 @@ QED
 
 
 
-Theorem ZIP_tri_id1:
-(∀l . l = ZIP (MAP (λx. FST x) l, ZIP (MAP (λx. FST (SND x)) l,MAP (λx. SND (SND x)) l)))
-Proof          
-Induct >>
-gvs[] 
-QED
-
-
-Theorem ZIP_tri_id2:        
-∀l.  l = ZIP (MAP (λ(f,stmt,sc). f) l, ZIP (MAP (λ(f,stmt,sc). stmt) l,MAP (λ(f,stmt,sc). sc) l))
-Proof          
-Induct >>
-gvs[] >>
-REPEAT STRIP_TAC >>
-PairCases_on ‘h’ >> gvs[]
-QED
-
 
 
 
