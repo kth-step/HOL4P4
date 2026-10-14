@@ -15,12 +15,12 @@ Datatype:
  | ebpf_v_ext_hash_table
 End
 
-val _ = type_abbrev("ebpf_sum_v_ext", ``:(core_v_ext, ebpf_v_ext) sum``);
+Type ebpf_sum_v_ext = “:(core_v_ext, ebpf_v_ext) sum”
 
-val _ = type_abbrev("ebpf_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+Type ebpf_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
 
 (* The architectural state type of the eBPF architecture model *)
-val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl # num)``);
+Type ebpf_ascope = “:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl # num)”
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)

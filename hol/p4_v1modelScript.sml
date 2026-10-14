@@ -35,7 +35,7 @@ Datatype:
  (* From IPSec example *)
  | v1model_v_ext_ipsec_crypt
 End
-val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
+Type v1model_sum_v_ext = “:(core_v_ext, v1model_v_ext) sum”
 
 (* The control plane representation:
 
@@ -46,10 +46,10 @@ val _ = type_abbrev("v1model_sum_v_ext", ``:(core_v_ext, v1model_v_ext) sum``);
      (* the action of a table entry: string is action name, e_list is arguments *)
      string # e_list) alist) alist``)
 *)
-val _ = type_abbrev("v1model_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+Type v1model_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
 
 (* The architectural state type of the V1Model architecture model *)
-val _ = type_abbrev("v1model_ascope", ``:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl # num)``);
+Type v1model_ascope = “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl # num)”
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)

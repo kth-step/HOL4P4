@@ -11,12 +11,12 @@ Datatype:
  vss_v_ext =
    vss_v_ext_ipv4_checksum (word16 list)
 End
-val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
+Type vss_sum_v_ext = “:(core_v_ext, vss_v_ext) sum”
 
-val _ = type_abbrev("vss_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+Type vss_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
 
 (* The architectural state type of the VSS architecture model *)
-val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl # num)``);
+Type vss_ascope = “:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl # num)”
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)

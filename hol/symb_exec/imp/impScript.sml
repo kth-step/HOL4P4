@@ -69,7 +69,7 @@ stmt =  (* statement *)
  | stmt_seq stmt stmt (* sequence *)
 End
 
-val _ = type_abbrev("imp_store", ``:((string, v) alist)``);
+Type imp_store = “:((string, v) alist)”
 
 Definition v_exec_uop_def:
  (v_exec_uop uop_neg (v_bool b) = SOME (v_bool ~b))

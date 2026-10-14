@@ -241,13 +241,13 @@ End
 
 (* Some types which are used throughout the .p4 parser which are not part of the HOL4P4 state or
  * context *)
-val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
-val _ = type_abbrev("enummap", ``:(string # (string, v) alist) list``);
-val _ = type_abbrev("ftymap", ``:((funn, (p_tau list # p_tau)) alist)``);
+Type tyenv = “:(string, p_tau) alist”
+Type enummap = “:(string # (string, v) alist) list”
+Type ftymap = “:((funn, (p_tau list # p_tau)) alist)”
 
 (* pblock and tbl_map with list of actions stored *)
-val _ = type_abbrev("tbl_map_extra", ``:((string, ((mk list) # x_list # (x # e_list))) alist)``);
-val _ = type_abbrev("pblock_extra", ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map_extra)``);
+Type tbl_map_extra = “:((string, ((mk list) # x_list # (x # e_list))) alist)”
+Type pblock_extra = “:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map_extra)”
 
 (* The tau signifies the type argument(s) *)
 Datatype:
