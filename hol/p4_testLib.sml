@@ -370,40 +370,6 @@ fun eval_step ascope_ty actx astate =
  end
 end;
 
-(* TODO: Move to syntax file *)
-(* TODO: This happens to work with all current architectures *)
-fun dest_ascope ascope =
- let
-  val (counter, ascope') = dest_pair ascope
-  val (ext_obj_map, ascope'') = dest_pair ascope'
-  val (v_map, ascope''') = dest_pair ascope''
-  val (ctrl, oracle_index) = dest_pair ascope'''
- in
-  (counter, ext_obj_map, v_map, ctrl, oracle_index)
- end
-;
-
-(* TODO: Move to syntax file *)
-(* TODO: This happens to work with all current architectures *)
-fun dest_actx actx =
- let
-  val (ab_list, actx') = dest_pair actx
-  val (pblock_map, actx'') = dest_pair actx'
-  val (ffblock_map, actx''') = dest_pair actx''
-  val (input_f, actx'''') = dest_pair actx'''
-  val (output_f, actx''''') = dest_pair actx''''
-  val (copyin_pbl, actx'''''') = dest_pair actx'''''
-  val (copyout_pbl, actx''''''') = dest_pair actx''''''
-  val (apply_table_f, actx'''''''') = dest_pair actx'''''''
-  val (ext_map, actx''''''''') = dest_pair actx''''''''
-  val (func_map, actx'''''''''') = dest_pair actx'''''''''
-  val (get_oracle_index, actx''''''''''') = dest_pair actx''''''''''
-  val (set_oracle_index, random_oracle) = dest_pair actx'''''''''''
- in
-  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle)
- end
-;
-
 (* This tactic is used in the automatic tests derived from the .stf files of the P4 examples *)
 local
 fun get_existentials eval_thm =

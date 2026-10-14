@@ -63,11 +63,6 @@ fun list_of_decuple (a, b, c, d, e, f, g, h, i, j) = [a, b, c, d, e, f, g, h, i,
 fun mk_decop tm = HolKernel.list_mk_icomb tm o list_of_decuple;
 val syntax_fns10 = HolKernel.syntax_fns {n = 10, dest = dest_decop, make = mk_decop};
 
-(* TODO: Move to ottSyntax *)
-open ottTheory;
-val (clause_name_tm,  mk_clause_name, dest_clause_name, is_clause_name) =
-  syntax_fns1 "ott" "clause_name";
-
 (********)
 (* varn *)
 (********)
@@ -374,6 +369,20 @@ val arch_frame_list_empty_tm = prim_mk_const {Name="arch_frame_list_empty", Thy=
 fun is_arch_frame_list_empty tm = term_eq tm arch_frame_list_empty_tm;
 val (arch_frame_list_regular_tm,  mk_arch_frame_list_regular, dest_arch_frame_list_regular, is_arch_frame_list_regular) =
   syntax_fns1 "p4" "arch_frame_list_regular";
+
+(* TODO: This happens to work with all current architectures *)
+fun dest_ascope ascope =
+ let
+  val (counter, ascope') = dest_pair ascope
+  val (ext_obj_map, ascope'') = dest_pair ascope'
+  val (v_map, ascope''') = dest_pair ascope''
+  val (ctrl, oracle_index) = dest_pair ascope'''
+ in
+  (counter, ext_obj_map, v_map, ctrl, oracle_index)
+ end
+;
+
+val random_oracle_tm = “random_oracle:random_oracle”;
 
 fun dest_actx actx =
  case spine_pair actx of

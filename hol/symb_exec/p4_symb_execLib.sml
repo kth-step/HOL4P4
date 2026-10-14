@@ -9,7 +9,7 @@ open listTheory p4_auxTheory optionTheory pairTheory;
 open p4Theory p4_exec_semTheory;
 open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 
-open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
+open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax p4_symb_execSyntax;
 open auxLib symb_execLib p4_bigstepSyntax;
 
 open p4_convLib p4_symb_exec_v1modelLib;
@@ -2254,24 +2254,6 @@ val (fty_map, b_fty_map) = (fty_map', b_fty_map')
  end
   handle (HOL_ERR exn) => raise (wrap_exn "p4_symb_exec" "p4_symb_exec" (HOL_ERR exn))
 ;
-
-(* TODO: Move to a new syntax file *)
-fun dest_quinop c e tm =
-   case with_exn strip_comb tm e of
-      (t, [t1, t2, t3, t4, t5]) =>
-         if same_const t c then (t1, t2, t3, t4, t5) else raise e
-    | _ => raise e;
-fun list_of_quintuple (a, b, c, d, e) = [a, b, c, d, e];
-fun mk_quinop tm = HolKernel.list_mk_icomb tm o list_of_quintuple;
-val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_quinop};
-val (p4_contract_list_tm, mk_p4_contract_list, dest_p4_contract_list, is_p4_contract_list) =
- syntax_fns5 "p4_symb_exec" "p4_contract_list";
-
-val (p4_contract_tm, mk_p4_contract, dest_p4_contract, is_p4_contract) =
- syntax_fns4 "p4_symb_exec" "p4_contract";
-
-val (p4_contract'_tm, mk_p4_contract', dest_p4_contract', is_p4_contract') =
- syntax_fns3 "p4_symb_exec" "p4_contract'";
 
 (*
 val path_cond_case_thm_list = (zip path_cond_rest_tm_list (CONJUNCTS path_tree_list_leafs_thm))

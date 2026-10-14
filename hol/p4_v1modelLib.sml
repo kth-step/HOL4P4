@@ -8,15 +8,6 @@ open p4Syntax p4_coreLib;
 
 open p4Theory p4_coreTheory p4_v1modelTheory;
 
-fun dest_quinop c e tm =
-   case with_exn strip_comb tm e of
-      (t, [t1, t2, t3, t4, t5]) =>
-         if same_const t c then (t1, t2, t3, t4, t5) else raise e
-    | _ => raise e;
-fun list_of_quintuple (a, b, c, d, e) = [a, b, c, d, e];
-fun mk_quinop tm = HolKernel.list_mk_icomb tm o list_of_quintuple;
-val syntax_fns5 = HolKernel.syntax_fns {n = 5, dest = dest_quinop, make = mk_quinop};
-
 val v1model_arch_ty = ``:v1model_ascope``;
 
 (* Architectural constants *)

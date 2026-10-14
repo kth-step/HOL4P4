@@ -3,6 +3,7 @@ structure p4Lib :> p4Lib = struct
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open p4Syntax;
+open ottSyntax;
 open finite_mapLib;
 open finite_mapSyntax;
 
