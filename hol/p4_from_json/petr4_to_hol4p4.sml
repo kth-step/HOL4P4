@@ -832,46 +832,86 @@ fun format_for_hol4 (str: string) : string =
 
 (* Print test:
  (* OK *)
- val args = ["1", "2", "validation_tests/action_call_table_ebpf.json", "validation_tests/action_call_table_ebpf.log", "ebpf", "concrete_stf"];
+ val args = ["validation_tests/action_call_table_ebpf.json", "validation_tests/action_call_table_ebpf.log", "mode=concrete_stf"];
  (* OK *)
- val args = ["1", "2", "validation_tests/test_ebpf.json", "validation_tests/test_ebpf.log", "ebpf", "concrete_stf"];
+ val args = ["validation_tests/test_ebpf.json", "validation_tests/test_ebpf.log", "mode=concrete_stf"];
 
- val args = ["1", "2", "validation_tests/key-bmv2.json", "testlog", "v1model", "concrete_stf"];
+ val args = ["validation_tests/key-bmv2.json", "testlog"];
 
- val args = ["1", "2", "test.json", "testlog", "v1model", "concrete_stf"];
-
- val args = ["1", "2", "../../../p4-ipsec/p4/p4/basic.json", "testlog", "v1model", "symbolic"];
+ val args = ["../../../p4-ipsec/p4/p4/basic.json", "testlog", "mode=symbolic"];
 
 *)
 
-fun main() =
+(* The first argument ending in .json starts our arguments; anything before it
+ * belongs to buildheap. *)
+fun drop_until p [] = []
+  | drop_until p (h::t) = if p h then h::t else drop_until p t;
+
+fun opt_value key opts =
+ case List.find (String.isPrefix (key^"=")) opts of
+   SOME s => SOME (String.extract (s, size key + 1, NONE))
+ | NONE => NONE;
+
+(* The architecture is recognised by the package type the program is written against *)
+fun detect_arch json_str =
+ if String.isSubstring "\"V1Switch\"" json_str then SOME v1model
+ else if String.isSubstring "\"ebpfFilter\"" json_str then SOME ebpf
+ else if String.isSubstring "\"VSS\"" json_str then SOME vss
+ else NONE;
+
+(* Replaces petr4's source-position fields ["info",{...}] by ["missing_info",""],
+ * which makes lexing and parsing a lot faster *)
+fun strip_info str =
  let
-  val args = CommandLine.arguments()
- in
-  if length args >= 4
-  then
+  val marker = "[\"info\","
+  fun loop ss acc =
    let
-    val filename = el 3 args;
-    val logname = el 4 args;
-    val arch_opt = if length args >= 5 then parse_arch (el 5 args) else NONE;
-    val arch_opt_tm = arch_to_term arch_opt;
+    val (pre, post) = Substring.position marker ss
+   in
+    if Substring.isEmpty post
+    then String.concat (rev ((Substring.string pre)::acc))
+    else
+     let
+      val (_, rest) = Substring.position "]" (Substring.triml (size marker) post)
+     in
+      loop (Substring.triml 1 rest) ("[\"missing_info\",\"\"]"::(Substring.string pre)::acc)
+     end
+   end
+ in
+  loop (Substring.full str) []
+ end;
+
+val usage = "Usage: petr4_to_hol4p4 FILE.json LOGFILE [mode=auto|concrete|concrete_stf|symbolic] [arch=vss|ebpf|v1model] [keep-info]\n";
+
+fun main() =
+ case drop_until (String.isSuffix ".json") (CommandLine.arguments()) of
+   (filename::logname::opts) =>
+   let
+    val outstream = TextIO.openAppend logname;
+    fun fail msg =
+     let
+      val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: "^(msg^"\n")));
+      val _ = TextIO.closeOut outstream;
+      val _ = print (msg^"\n");
+     in
+      OS.Process.exit OS.Process.failure
+     end;
 
     (* NOTE: This will just remove the suffix .json *)
     val valname_no_suffix = List.drop (rev $ explode filename, 5);
-    val stfname_opt =
-     if length args = 6
-     then 
-      if (el 6 args) = "concrete_stf"
-      then SOME ((implode $ rev valname_no_suffix)^".stf")
-      else NONE
-     else NONE;
-    val output_extra_maps =
-     if length args = 6
-     then 
-      if (el 6 args) = "symbolic"
-      then true
-      else false
-     else false;
+    val stfname = (implode $ rev valname_no_suffix)^".stf";
+    val mode =
+     case getOpt (opt_value "mode" opts, "auto") of
+       "auto" => if OS.FileSys.access (stfname, []) then "concrete_stf" else "concrete"
+     | "stf" => "concrete_stf"
+     | m => m;
+    val _ =
+     if mode = "concrete" orelse mode = "concrete_stf" orelse mode = "symbolic"
+     then ()
+     else fail ("Unknown mode "^(mode^(". "^usage)));
+    val stfname_opt = if mode = "concrete_stf" then SOME stfname else NONE;
+    val output_extra_maps = (mode = "symbolic");
+    val keep_info = List.exists (fn s => s = "keep-info") opts;
 
     (* TODO: Done in one split instead? *)
     val valname_no_prefix =
@@ -884,24 +924,32 @@ fun main() =
     val valname = format_for_hol4 valname_raw;
     val prefix = implode $ rev $ valname_prefix;
 
-    val outstream = TextIO.openAppend logname;
+    val instream = TextIO.openIn filename;
+    val json_str = (if keep_info then (fn str => str) else strip_info) (TextIO.inputAll instream);
+    val _ = TextIO.closeIn instream;
+
+    val arch_opt =
+     case opt_value "arch" opts of
+       SOME a =>
+       (case parse_arch a of
+          SOME arch => SOME arch
+        | NONE => fail ("Unknown architecture "^(a^(". "^usage))))
+     | NONE =>
+       (case detect_arch json_str of
+          SOME arch => SOME arch
+        | NONE => fail ("Could not detect the architecture of "^(filename^": no V1Switch, ebpfFilter or VSS package found. Use arch=... to override.")));
+    val arch_opt_tm = arch_to_term arch_opt;
    in
     if not $ exists (fn el => el = valname_raw) (List.concat $ snd $ unzip exclude_descs)
     then
      let
-      val instream = TextIO.openIn filename;
-      (* TODO: Rename *)
-      val vss_input_tm = stringLib.fromMLstring $ TextIO.inputAll $ instream;
-      val _ = TextIO.closeIn instream;
+      val input_tm = stringLib.fromMLstring json_str;
       (* Lexing + parsing to HOL4 JSON *)
-      (* TODO: Rename *)
-      val vss_parse_thm =
-(*        EVAL ``parse (OUTL (lex (p4_preprocess_str (^vss_input_tm)) ([]:token list))) [] T``; *)
-       EVAL ``parse (OUTL (lex (^vss_input_tm) ([]:token list))) [] T``;
+      val parse_thm = EVAL ``parse (OUTL (lex (^input_tm) ([]:token list))) [] T``;
       (* TODO: Check if result is INR (OK) or INL (print error) *)
       (* Parsing to HOL4P4 JSON *)
-      val vss_parse_clean = EVAL ``p4_from_json ^(rhs $ concl vss_parse_thm) ^(arch_opt_tm)``;
-      val final_res_tup = rhs $ concl vss_parse_clean;
+      val parse_clean = EVAL ``p4_from_json ^(rhs $ concl parse_thm) ^(arch_opt_tm)``;
+      val final_res_tup = rhs $ concl parse_clean;
      in
       if is_SOME_msg final_res_tup
       then
@@ -941,7 +989,7 @@ val oracle_index_tm = (el 16 res_list)
 	val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: Could not parse "^filename^(". "^(parse_error^"\n"))));
 	val _ = TextIO.closeOut outstream;
        in
-	print (parse_error^"\n")
+	(print (parse_error^"\n"); OS.Process.exit OS.Process.failure)
        end
      end
     else
@@ -953,8 +1001,7 @@ val oracle_index_tm = (el 16 res_list)
       print ""
      end
    end
-  else print ("Wrong number of arguments ("^((Int.toString $ length args)^")! Should be target JSON file and log file.\n"))
- end;
+ | _ => print usage;
 
 val _ = main();
 

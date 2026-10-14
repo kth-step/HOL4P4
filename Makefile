@@ -12,7 +12,10 @@ hol/p4_from_json: hol
 	Holmake -r -I hol/p4_from_json
 
 validate: hol/p4_from_json
-	cd hol/p4_from_json && ./validate.sh
+	hol/p4_from_json/p4_from_json.sh validate
+
+fetch_tests:
+	hol/p4_from_json/p4_from_json.sh fetch-tests
 	
 metatheory: hol
 	Holmake -r -I hol/metatheory
@@ -33,4 +36,4 @@ clean:
 	rm -f docs/semantics/p4_defs.tex hol/p4Script.sml
 	cd hol && Holmake clean -r && cd p4_from_json && Holmake clean && cd validation_tests && Holmake clean && cd ../../symb_exec && Holmake clean && cd tests && Holmake clean
 
-.PHONY: default clean hol symb_exec_tests
+.PHONY: default clean hol symb_exec_tests validate fetch_tests
