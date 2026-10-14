@@ -96,10 +96,10 @@ First, navigate to the directory where you want to put the source code of Poly/M
 	
 	Finally, do
 	
-		cd ..
+		cd ../hol
 		Holmake
 		
-	This will build the HOL4 theories and associated libraries.
+	This will build the core HOL4 theories and associated libraries. The theories in the `hol/metatheory`, `hol/p4_from_json` and `hol/symb_exec` subdirectories are built by running `Holmake` in each of them.
 	
 6. (Optional) Install Python 3 and the latest version of Ott
 

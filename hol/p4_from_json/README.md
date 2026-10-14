@@ -1,7 +1,7 @@
 # Import Tool
 
 This directory contains an import tool to obtain HOL4P4 representations of P4 programs and STF specifications.
-The simplest way to try this out is to use the `Makefile` in the root directory of this repository: `make validate`. You can also run them directly from this directory via `.validate.sh`.
+The simplest way to try this out is to use the `Makefile` in the root directory of this repository: `make validate`. You can also run them directly from this directory via `./validate.sh`.
 
 ## Shell scripts
 
@@ -21,9 +21,7 @@ The simplest way to try this out is to use the `Makefile` in the root directory 
 
 `parse_jsonScript.sml` is a theory of generic JSON objects.
 
-`parse_stf.sml` parses an `.stf` specification of a test.
-
-`petr4_to_hol4p4.sml` is the internal mechanism of `petr4_to_hol4p4_dir.sh` that does the actual format transformation from petr4 JSON to HOL4P4. `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
+`petr4_to_hol4p4.sml` is the internal mechanism of `petr4_to_hol4p4_dir.sh` that does the actual format transformation from petr4 JSON to HOL4P4; it also contains the parser for the `.stf` specification of a test (the `parse_stf` functions). `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
 
 ## Program transformations
 

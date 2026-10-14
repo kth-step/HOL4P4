@@ -21,6 +21,7 @@ hol/p4_from_json/validation_tests/*.sml
 hol/p4_from_json/validation_tests/*.sig
 hol/p4_from_json/validation_tests/*-heap
 hol/p4_from_json/p4include
+hol/p4_from_json/user_tests/
 
 ## petr4
 petr4/
