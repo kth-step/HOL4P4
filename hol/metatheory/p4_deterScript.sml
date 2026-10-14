@@ -140,15 +140,15 @@ End
 
 (********* lookup_funn_sig_body eq ************)
 
-val fun_body_map_EQ =
-prove(`` ! funn func_map b_func_map ext_map stmt (sdl') (sdl: (string # d) list).
+Triviality fun_body_map_EQ:
+! funn func_map b_func_map ext_map stmt (sdl') (sdl: (string # d) list).
 lookup_funn_sig_body funn func_map b_func_map ext_map = SOME (stmt, sdl ) /\
 lookup_funn_sig      funn func_map b_func_map ext_map = SOME (sdl') ==>
 (sdl = sdl')
-``,
+Proof
 REPEAT STRIP_TAC >>
-rfs [lookup_funn_sig_def] 
-);
+rfs [lookup_funn_sig_def]
+QED
 
 
 
@@ -816,126 +816,100 @@ QED
 
 
 
-val ret_lemma1a =
-prove(``
+Triviality ret_lemma1a:
 ! e v c g_scope_list funn scopes_stack ctrl stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack)],status_returnv v) ==> (e = e_v v) ``,
+          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack)],status_returnv v) ==> (e = e_v v)
+Proof
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
+QED
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
 
-);
-
-
-val ret_lemma1b =
-prove(``
+Triviality ret_lemma1b:
 ! e v c g_scope_list funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack')  ``,
+          (ascope, g_scope_list,[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack')
+Proof
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
+QED
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
-);
 
 
-
-val ret_lemma1c =
-prove(``
+Triviality ret_lemma1c:
 ! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
-
-FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
-);
-
-
+          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')
+Proof
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
+QED
 
 
-val ret_lemma1d =
-prove(``
+
+
+Triviality ret_lemma1d:
 ! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
            status_running)
-          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')  ``,
+          (ascope, g_scope_list',[(funn,[stmt'],scopes_stack')],status_returnv v) ==> (e = e_v v /\ scopes_stack = scopes_stack' /\ g_scope_list = g_scope_list')
+Proof
+FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
+QED
 
-FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] 
-);
 
 
-
-val not_ret_status  =
-prove(``
+Triviality not_ret_status:
 ! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v ascope.
 ~ stmt_red c
           (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
-          (ascope, g_scope_list', frame_list,status_running)``
-,
+          (ascope, g_scope_list', frame_list,status_running)
+Proof
 FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
-);
+QED
 
 
-val is_ret_status  =
-prove(``
+Triviality is_ret_status:
 ! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v status ascope.
 stmt_red c
           (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
-          (ascope, g_scope_list', frame_list,status) ==>  (status = status_returnv v)``
-,
+          (ascope, g_scope_list', frame_list,status) ==>  (status = status_returnv v)
+Proof
 FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
-);
+QED
 
 
 
 
-val not_trans_status  =
-prove(``
+Triviality not_trans_status:
 ! c g_scope_list g_scope_list' f stmt stmt' ss frame_list v v' ascope.
 ~ stmt_red c
           (ascope, g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)], status_running)
           (ascope, g_scope_list', frame_list,status_returnv v)
-``
-,
+Proof
 FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
 rw[] >>
 rfs[lemma_v_red_forall]
-);
+QED
 
 
 
-val not_trans_status  =
-prove(``
-! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  v v' ascope.
-~ stmt_red c
-          (ascope, g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)], status_running)
-          (ascope, g_scope_list', frame_list,status_returnv v)
-``
-,
-FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases] >>
-rw[] >>
-rfs[lemma_v_red_forall]
-);
-
-
-
-
-val not_ret_run_is_trans_or_error  =
-prove(``
+Triviality not_ret_run_is_trans_or_error:
 ! status.
-status ≠ status_running /\ notret status ==> ((?v. status = status_trans v)) ``
-,
+status ≠ status_running /\ notret status ==> ((?v. status = status_trans v))
+Proof
 Cases_on `status` >>
-rw [notret_def] 
-);
+rw [notret_def]
+QED
 
 
 
@@ -945,8 +919,9 @@ rw [notret_def]
 (**************************************************)
 (**************************************************)
 
-val P4_frame_det =
-prove ( `` ! frame ty. det_frame frame ty ``,
+Triviality P4_frame_det:
+! frame ty. det_frame frame ty
+Proof
 Cases_on `frame` >>
 Cases_on `r`>>
 Cases_on `q'` >| [
@@ -971,8 +946,7 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases, same_state_def]
      fs []  >>
    ` g_scope_list''' =  g_scope_list'⁵'` by METIS_TAC [SOME_EL,SOME_11]
 ]
-
-);
+QED
 
 
 

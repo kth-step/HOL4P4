@@ -148,9 +148,10 @@ End
 a value list where each member is a constant imples that
 the conversion back to an expression list hold
 *)
-val vl_el_conv = prove( ``
+Triviality vl_el_conv:
 ! l l'.  (l = vl_of_el l')  /\ (is_consts l') ==>
-         (l' = el_of_vl l) ``,
+         (l' = el_of_vl l)
+Proof
 Induct_on `l` >>
 Induct_on `l'` >>
 rpt strip_tac >>
@@ -158,7 +159,7 @@ fs[el_of_vl_def, vl_of_el_def] >>
 rw[] >>
 Cases_on `h` >>
 fs[v_of_e_def, is_const_def, is_consts_def]
-);
+QED
 
 
 
@@ -172,31 +173,32 @@ if an expression value (e_v v) is well typed,
 then that value v is also well typed with the same tau
 *)
 
-val ev_types_v = prove (``
+Triviality ev_types_v:
 ! v tau t_scope_list_g t_scope_list T_e .
   e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) (tau) F ==>
-  v_typ (v) (tau) F ``,
-
+  v_typ (v) (tau) F
+Proof
 rpt strip_tac >>
 OPEN_EXP_TYP_TAC ``e_v v`` >>
-fs[] ) ;
+fs[]
+QED
 
 
 (*
 if the expression a constant, then the value of that expression
 should be able to be typed with the same tau
 *)
-val e_types_v = prove (``
+Triviality e_types_v:
 ! v e tau t_scope_list_g t_scope_list T_e .
   is_const(e) /\
   e_typ (t_scope_list_g,t_scope_list) T_e (e) (tau) F ==>
-  v_typ ( THE (v_of_e e)) (tau) F ``,
-
+  v_typ ( THE (v_of_e e)) (tau) F
+Proof
 rpt strip_tac >>
 OPEN_EXP_TYP_TAC ``e`` >>
 fs[] >>
 fs[v_of_e_def, is_const_def]
-) ;
+QED
 
 
 
@@ -222,7 +224,7 @@ if the expression list contains only constant values,
 then those values of these expressions 
 should be able to be typed with the same tau at the same index of that expression
 *)
-val evl_types_vl_F = prove(``
+Triviality evl_types_vl_F:
 !l l' i t_scope_list_g t_scope_list T_e.
 (LENGTH l = LENGTH l') /\
 (i<LENGTH l) /\
@@ -230,8 +232,8 @@ is_consts (l) /\
 (e_typ (t_scope_list_g,t_scope_list) T_e
           (EL i l)
           (t_tau (EL i l')) F) ==>
-v_typ (EL i (vl_of_el l)) (t_tau (EL i l')) F ``,
-
+v_typ (EL i (vl_of_el l)) (t_tau (EL i l')) F
+Proof
 Induct_on `l` >>
 Induct_on `l'` >>
 fs[] >>
@@ -300,7 +302,7 @@ CASE_TAC >| [
  gvs[] >>
  fs[EL_CONS, PRE_SUB1]
 ]
-);
+QED
 
 
 
@@ -308,13 +310,14 @@ CASE_TAC >| [
 (*
 The constant can never be typed as an lvalue
 *)
-val value_is_lval = prove ( ``
-     ∀v tau t_scope_list_g t_scope_list T_e.
-       ~ e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) tau T ``,
+Triviality value_is_lval:
+∀v tau t_scope_list_g t_scope_list T_e.
+       ~ e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) tau T
+Proof
 fs[Once e_typ_cases] >>
 fs[clause_name_def] >>
 fs[Once v_typ_cases]
-);
+QED
 
 
 
@@ -651,15 +654,14 @@ QED
 
 
 
-val varn_is_typed = prove (``
+Triviality varn_is_typed:
 ! gsl gtsl sl tsl varn v tau .
           type_scopes_list gsl gtsl ∧
           type_scopes_list sl tsl ∧
           SOME v = lookup_vexp2 sl gsl varn ∧
           SOME tau = lookup_tau tsl gtsl varn ==>
           v_typ v (t_tau tau) F
-``,
-
+Proof
 rpt strip_tac >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
 
@@ -687,7 +689,7 @@ fs[])  >>
 Q.PAT_X_ASSUM `∀x v. _`
 ( STRIP_ASSUME_TAC o (Q.SPECL [`varn`,`(v,x1)`])) >>
 gvs[]
-);
+QED
 
 
 
@@ -695,17 +697,17 @@ gvs[]
 if var star is not in the domain of the scope s,
 then it is not a member of that list
 *)
-val star_MEM = prove ( ``
+Triviality star_MEM:
 !s f.
-star_not_in_s (s) ==>  ~MEM (varn_star f) (MAP FST s) ``,
-
+star_not_in_s (s) ==>  ~MEM (varn_star f) (MAP FST s)
+Proof
 rpt strip_tac >>
 fs[star_not_in_s_def] >>
 
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
 [`f`])) >>
 fs[ALOOKUP_NONE]
-);
+QED
 
 
 
@@ -713,16 +715,16 @@ fs[ALOOKUP_NONE]
 if star is not in any scope of scope lists l, then we should not
 find any index and value returned while searching in l's scopes
 *)
-val star_not_in_s_implies_none = prove ( ``
+Triviality star_not_in_s_implies_none:
 !l . EVERY (λs. star_not_in_s s) l  ==>
 !f . INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (l) = NONE
-``,
+Proof
 Induct >>
 fs[star_not_in_s_def, INDEX_FIND_def] >>
 rpt strip_tac >>
 RES_TAC >>
 fs[P_NONE_hold]
-);
+QED
 
 
 Theorem lookup_map_in_gsl_lemma:
@@ -850,8 +852,7 @@ QED
 
 
 
-val lookup_glb_local_ctx = prove ( ``
-
+Triviality lookup_glb_local_ctx:
 ! func_map delta_g func_map delta_b b_func_map s stmt_called
 xdl txdl ext_map delta_x tau.
 
@@ -871,8 +872,8 @@ SOME (txdl,tau) = t_lookup_funn (funn_name s) delta_g delta_b delta_x  ==>
  ALOOKUP delta_g s = NONE /\
 ALOOKUP b_func_map s = SOME (stmt_called,xdl) /\
  ALOOKUP delta_b s = SOME (txdl,tau)) 
-) ``,
-
+)
+Proof
 rpt strip_tac >>
 fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
 fs[t_lookup_funn_def] >>
@@ -930,19 +931,19 @@ fs[] >| [
  [`s`])) >>
  gvs[]
  ]
-);
+QED
 
 
 
 
-val t_lookup_funn_lemma_old = prove ( ``
+Triviality t_lookup_funn_lemma_old:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn f delta_g [] [] /\
 dom_tmap_ei delta_g delta_b ==>
 (? tau' txdl' . ( SOME (txdl',tau') = t_lookup_funn f delta_g delta_b []) /\
                ( SOME (txdl',tau') = t_lookup_funn f delta_g delta_b delta_x) /\
-	       (txdl = txdl' /\ tau = tau'))``,
-
+	       (txdl = txdl' /\ tau = tau'))
+Proof
 rpt strip_tac >>
 Cases_on `f` >>
 fs[t_lookup_funn_def] >>
@@ -952,16 +953,16 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 fs[dom_tmap_ei_def] >>
 rfs[dom_empty_intersection_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
-);
+QED
 
                                     
-val t_lookup_funn_lemma = prove ( ``
+Triviality t_lookup_funn_lemma:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn f delta_g [] delta_x /\
 dom_tmap_ei delta_g delta_b ==>
 (? tau' txdl' . ( SOME (txdl',tau') = t_lookup_funn f delta_g delta_b delta_x) /\
-	       (txdl = txdl' /\ tau = tau'))``,
-
+	       (txdl = txdl' /\ tau = tau'))
+Proof
 rpt strip_tac >>
 fs[t_lookup_funn_def] >>
 
@@ -970,7 +971,7 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 fs[dom_tmap_ei_def] >>
 rfs[dom_empty_intersection_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
-);
+QED
 
 
 
@@ -979,19 +980,19 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
 
                                     
 
-val t_lookup_funn_blk_lemma = prove ( ``
+Triviality t_lookup_funn_blk_lemma:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn (f) [] delta_b []  ==>
 (? tau' txdl' . ( SOME (txdl',tau') = t_lookup_funn f delta_g delta_b []) /\
                ( SOME (txdl',tau') = t_lookup_funn f delta_g delta_b delta_x) /\
-	       (txdl = txdl' /\ tau = tau')) ``,
-
+	       (txdl = txdl' /\ tau = tau'))
+Proof
 rpt strip_tac >>
 Cases_on `f` >>
 fs[t_lookup_funn_def] >>
 Cases_on `ALOOKUP delta_b s` >>
 fs[] >> rw[]
-);
+QED
 
 
 
@@ -1013,8 +1014,7 @@ QED
 
 
 
-val WT_c_imp_global_or_local_lookup = prove ( ``
-
+Triviality WT_c_imp_global_or_local_lookup:
 ! func_map delta_g func_map delta_b b_func_map s stmt_called
 xdl ext_map delta_x order t_scope_list_g pars_map tbl_map set_oracle_index get_oracle_index random_oracle stmt apply_table_f delta_t Prs_n.
 SOME (stmt,xdl) =
@@ -1032,9 +1032,7 @@ WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,set_oracle_inde
 ALOOKUP b_func_map s = SOME (stmt,xdl) /\
  (?tau txdl . ALOOKUP delta_b s = SOME (txdl,tau)) 
 ))
-  ``,
-
-
+Proof
 rpt strip_tac >>
 fs[lookup_funn_sig_def, lookup_funn_sig_body_def] >>
 fs[t_lookup_funn_def] >>
@@ -1108,7 +1106,7 @@ fs[] >| [
  [`s`])) >>
  gvs[]
  ]
-);
+QED
 
 
 Theorem Fg_star_lemma1:
@@ -1224,7 +1222,7 @@ QED
 
 
 
-val e_resulted_frame_is_WT = prove ( ``
+Triviality e_resulted_frame_is_WT:
 ! (ec:'a ectx) gscope scopest e e' f_called stmt_called copied_in_scope i_opt
              t_scope_list_g t_scope_list order delta_g delta_b delta_x delta_t f (ty:'a itself) b tau
              apply_table_f ext_map func_map b_func_map pars_map tbl_map oracle_index random_oracle Prs_n.
@@ -1245,8 +1243,8 @@ val e_resulted_frame_is_WT = prove ( ``
           t_passed_elem f_called delta_g delta_b delta_t t_scope_list_g = (SOME passed_delta_b,SOME passed_delta_t,SOME passed_tslg) ∧
           scopes_to_pass f_called func_map b_func_map gscope = SOME passed_gscope ∧
           t_scopes_consistent (order,f,delta_g,delta_b,delta_x,delta_t) t_scope_list t_scope_list_g t_scope_list_fr ∧
-          frame_typ (passed_tslg,t_scope_list_fr) (order,f_called,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope copied_in_scope [stmt_called] ``,
-
+          frame_typ (passed_tslg,t_scope_list_fr) (order,f_called,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope copied_in_scope [stmt_called]
+Proof
 rpt strip_tac >>
 gvs[] >>
 
@@ -1258,8 +1256,8 @@ Q.PAT_X_ASSUM `sr_exp e ty`
                        ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘oracle_index’, ‘random_oracle’])) o SIMP_RULE (srw_ss()) [sr_exp_def]) >>
 
 gvs[] >>
-srw_tac [SatisfySimps.SATISFY_ss][]                                     
-);
+srw_tac [SatisfySimps.SATISFY_ss][]
+QED
 
 
 
@@ -1559,11 +1557,11 @@ QED
 
 
 
-val out_is_val_imp_every = prove (``
- ! dl bl .
+Triviality out_is_val_imp_every:
+! dl bl .
    out_is_lval dl bl ==>
-   EVERY (\ (dir,b) . is_d_out dir ==> b ) (ZIP(dl, bl))``,
-
+   EVERY (\ (dir,b) . is_d_out dir ==> b ) (ZIP(dl, bl))
+Proof
 fs[out_is_lval_def] >>
 fs[EVERY_EL] >>
 Induct_on `bl` >>
@@ -1588,17 +1586,17 @@ Cases_on `n` >| [
   ) >>
   RES_TAC
   ]
-);
+QED
 
 
 
-val dir_list_lemma1 = prove ( ``
+Triviality dir_list_lemma1:
 ! dl bl i.
 i < LENGTH dl /\
 out_is_lval dl bl /\
 (~is_d_out (EL i dl)) ==>
-! b . out_is_lval dl (LUPDATE b i bl) ``,
-
+! b . out_is_lval dl (LUPDATE b i bl)
+Proof
 fs[out_is_lval_def] >>
 Induct_on `bl` >>
 Induct_on `dl` >>
@@ -1615,17 +1613,17 @@ rpt strip_tac >| [
  gvs[] >>
  SRW_TAC [] [EL_LUPDATE] 
 ]
-);
+QED
 
 
 
 
-val unred_arg_index_details = prove ( ``
+Triviality unred_arg_index_details:
 ! dl el i .
  unred_arg_index dl el = SOME i ⇒
           ((EL i dl = d_in ∨ EL i dl = d_none) ∧ ¬is_const (EL i el)) ∨
-          ((EL i dl = d_inout ∨ EL i dl = d_out) ∧ ¬is_e_lval (EL i el))``,
-
+          ((EL i dl = d_inout ∨ EL i dl = d_out) ∧ ¬is_e_lval (EL i el))
+Proof
 Induct_on `dl` >>
 Induct_on `el` >>
 
@@ -1680,7 +1678,7 @@ fs[INDEX_FIND_def] >| [
   fs[EL_CONS, PRE_SUB1]
   ]
 ]
-);
+QED
 
 
     
@@ -1702,10 +1700,10 @@ QED
 
 
                     
-val unred_arg_index_in_range2 = prove ( “
+Triviality unred_arg_index_in_range2:
 ∀dl el i. unred_arg_index dl el = SOME i ⇒ i < LENGTH dl
-                                      ”,
- rpt strip_tac >>
+Proof
+rpt strip_tac >>
  fs[unred_arg_index_def] >>
  fs[find_unred_arg_def] >>
  Cases_on `INDEX_FIND 0 (λ(d,e). ¬is_arg_red d e) (ZIP (dl,el))` >> 
@@ -1713,7 +1711,7 @@ val unred_arg_index_in_range2 = prove ( “
  Cases_on `x` >>
  IMP_RES_TAC index_find_length >>
  fs []
-);        
+QED
 
 
                         
@@ -1736,7 +1734,7 @@ QED
 
 
 
-val dir_fun_delta_same = prove ( ``
+Triviality dir_fun_delta_same:
 ! xdl txdl ftau f func_map b_func_map ext_map delta_g delta_b delta_x
 apply_table_f order t_scope_list_g pars_map tbl_map get_oracle_index
 set_oracle_index random_oracle delta_t  Prs_n. 
@@ -1744,13 +1742,13 @@ WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,get_oracle_inde
           order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n /\
 SOME (xdl) = lookup_funn_sig f func_map b_func_map ext_map /\
 SOME (txdl, ftau) = t_lookup_funn f delta_g delta_b delta_x  ==>
-MAP (λ(t,x,d). d) txdl = MAP SND xdl ``,
-
+MAP (λ(t,x,d). d) txdl = MAP SND xdl
+Proof
 rpt strip_tac  >>
 IMP_RES_TAC tfunn_imp_sig_lookup >>
 gvs[] >>
 Cases_on `lookup_funn_sig f func_map b_func_map ext_map` >> rfs[]
-);
+QED
 
 
 
@@ -1758,15 +1756,15 @@ Cases_on `lookup_funn_sig f func_map b_func_map ext_map` >> rfs[]
 
 
 
-val two_lookup_funn = prove ( ``
+Triviality two_lookup_funn:
 ! f delta_g delta_b delta_x tau tau' txdl txdl'.
 SOME (txdl,tau) = t_lookup_funn (f) delta_g delta_b delta_x /\
 SOME (txdl',tau') = t_lookup_funn (f) delta_g delta_b delta_x ==>
-	(tau = tau') /\ (txdl= txdl') ``,
-
+	(tau = tau') /\ (txdl= txdl')
+Proof
 rpt strip_tac >>
 Cases_on `t_lookup_funn f delta_g delta_b delta_x` >> gvs[]
-);
+QED
 
 
 
@@ -1818,28 +1816,27 @@ QED
 (** context related theorems **)
 
 
-val trans_names_imp = prove ( ``
+Triviality trans_names_imp:
 ! l Prs_n . 
 literials_in_P_state l ["accept"; "reject"] ==>
-literials_in_P_state l (Prs_n ⧺ ["accept"; "reject"]) ``,
-
+literials_in_P_state l (Prs_n ⧺ ["accept"; "reject"])
+Proof
 fs[literials_in_P_state_def] >>
 Induct >>
 fs[]
-);
+QED
 
 
 
 (*we need to show that the statement that we get is always extern
   the scope is well typed and it is always well typed*)
 
-val funn_inst_ext_prod_ext_stmt = prove ( ``
+Triviality funn_inst_ext_prod_ext_stmt:
 ! f s s' stmt xdl func_map b_func_map ext_map .
 (f = funn_inst s \/ f = (funn_ext s s')) /\
 SOME (stmt,xdl) = lookup_funn_sig_body (f) func_map b_func_map ext_map ==>
 stmt= stmt_ext
-``,
-
+Proof
 rpt strip_tac >>
 gvs[] >>
 fs[lookup_funn_sig_body_def] >>
@@ -1858,7 +1855,7 @@ gvs[] >>
 PairCases_on `x` >>
 TRY (PairCases_on `x'`) >>
 gvs[]
-);
+QED
 
 
 Theorem dom_eq_imp_NONE:
@@ -1888,7 +1885,7 @@ QED
 
 
 
-val func_lookup_cases_eq = prove (“           
+Triviality func_lookup_cases_eq:
 ∀ func_map b_func_map ext_map stmt stmt' xdl xdl' s.
 ( lookup_funn_sig_body (funn_name s) func_map b_func_map ext_map = SOME (stmt,xdl) ∧
   ALOOKUP func_map s = SOME  (stmt',xdl') ∧ 
@@ -1899,19 +1896,18 @@ val func_lookup_cases_eq = prove (“
 ( lookup_funn_sig_body (funn_name s) func_map b_func_map ext_map = SOME (stmt,xdl) ∧
   ALOOKUP func_map s = NONE ∧ 
   ALOOKUP b_func_map s = SOME  (stmt',xdl') ⇒
-       ((stmt,xdl) = (stmt',xdl'))  )”,
-  
+       ((stmt,xdl) = (stmt',xdl'))  )
+Proof
 rpt strip_tac>>            
 gvs[lookup_funn_sig_body_def]
-);
+QED
 
 
 
 
            
 
-val all_func_maps_contains_welltyped_body_min = prove ( ``
-
+Triviality all_func_maps_contains_welltyped_body_min:
 ! xdl txdl el stmt tau f
   (ext_map:'a ext_map) func_map b_func_map order t_scope_list_g
             delta_g delta_b delta_x delta_t gscope Prs_n.
@@ -1937,8 +1933,7 @@ SOME (stmt,xdl) = lookup_funn_sig_body f func_map b_func_map ext_map ==>
          
 stmt_typ (passed_tslg, [ZIP (mk_varn (MAP FST xdl), ZIP (MAP FST txdl,  MAP (\e. get_lval_of_e e) el)) ])
           (order,f,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n stmt
-``,
-
+Proof
 rpt strip_tac >>
 
 Cases_on `f` >>
@@ -1997,12 +1992,11 @@ IMP_RES_TAC dom_eq_imp_NONE >> gvs[] >| [
   REPEAT (LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[])
                                   
 ]
-);
+QED
 
 
 
-val all_func_maps_contains_welltyped_body = prove ( ``
-
+Triviality all_func_maps_contains_welltyped_body:
 ! xdl txdl stmt tau f apply_table_f  (ext_map: 'a ext_map) func_map b_func_map pars_map
        tbl_map order t_scope_list_g delta_g delta_b delta_x delta_t gscope Prs_n el .
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
@@ -2027,16 +2021,15 @@ SOME (stmt,xdl) = lookup_funn_sig_body f func_map b_func_map ext_map ==>
          
 stmt_typ (passed_tslg, [ZIP (mk_varn (MAP FST xdl), ZIP (MAP FST txdl,  MAP (\e. get_lval_of_e e) el)) ])
           (order,f,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n stmt
-``,
-
- fs[WT_c_cases] >>
+Proof
+fs[WT_c_cases] >>
  rpt strip_tac >>
  drule all_func_maps_contains_welltyped_body_min >>
  rpt strip_tac >>
  RES_TAC >>
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gscope`])) >>
  srw_tac [SatisfySimps.SATISFY_ss][]
-);
+QED
 
 
 
@@ -2076,7 +2069,7 @@ End
 
 
 
-val WF_arg_empty = prove ( ``
+Triviality WF_arg_empty:
 !ss d x e i random_oracle.
    wf_arg d x e ss ⇒
     update_arg_for_newscope ss random_oracle (SOME ([], i)) (d,x,e) =
@@ -2085,8 +2078,7 @@ val WF_arg_empty = prove ( ``
     SOME ([(varn_name x, (v,lval_opt))], i')
 
     )
-``,
-  
+Proof
 fs[wf_arg_def] >>
 rpt strip_tac >>
 Cases_on `d` >>
@@ -2099,22 +2091,21 @@ fs[AUPDATE_def, AllCaseEqs()] >>
 Cases_on ‘init_out_v random_oracle i v’ >>
 qexistsl_tac [‘q’, ‘r’] >>
 gs[]
-);
+QED
 
 
 
-val update_args_none = prove ( ``
+Triviality update_args_none:
 ! dxel scope ss random_oracle.
 ~ (FOLDL (update_arg_for_newscope ss random_oracle) NONE (dxel) = SOME scope)
-``,
-
+Proof
 Induct_on `dxel` >>
 fs[update_arg_for_newscope_def] >>
 REPEAT GEN_TAC >>
 PairCases_on `h` >>
 EVAL_TAC >>
 gvs[]
-);
+QED
 
 
 
@@ -2145,15 +2136,15 @@ QED
 
 
 
-val wf_arg_list_normalization_imp1 = prove ( ``
+Triviality wf_arg_list_normalization_imp1:
 ! dxel d x e ss .
 (wf_arg_list (MAP (λ(d,x,e). d) dxel) (MAP (λ(d,x,e). x) dxel)
           (MAP (λ(d,x,e). e) dxel) ss /\
  wf_arg_list [d] [x] [e] ss) ==>
 (wf_arg_list (MAP (λ(d,x,e). d) dxel ⧺ [d])
               (MAP (λ(d,x,e). x) dxel ⧺ [x])
-	      (MAP (λ(d,x,e). e) dxel ⧺ [e]) ss ) ``,
-
+	      (MAP (λ(d,x,e). e) dxel ⧺ [e]) ss )
+Proof
 SIMP_TAC list_ss [wf_arg_list_def] >>
 rpt strip_tac >>
 Cases_on `dxel = []` >| [
@@ -2169,19 +2160,19 @@ Cases_on `dxel = []` >| [
    NTAC 3  (rfs[Once EL_APPEND1,LENGTH_MAP])
   ]
 ]
-);
+QED
 
 
 
 
-val wf_arg_list_normalization_imp2 = prove (``
+Triviality wf_arg_list_normalization_imp2:
 ! xl dl el x d e ss .
 (LENGTH dl = LENGTH xl) /\
 (LENGTH el = LENGTH xl) /\
 wf_arg_list (dl ++ [d]) (xl ++ [x]) (el ++ [e]) ss ==>
 ((wf_arg_list (dl) (xl) (el) ss) /\
- wf_arg d x e ss ) ``,
-
+ wf_arg d x e ss )
+Proof
 Induct_on `dl` >>
 Induct_on `xl` >>
 Induct_on `el` >>
@@ -2223,25 +2214,24 @@ rpt strip_tac >| [
  RES_TAC >>
  gvs[] 
 ]
-);
+QED
 
 
 
 
 
 
-val wf_arg_none_single = prove ( ``
+Triviality wf_arg_none_single:
 ! ss d s e random_oracle i.
  wf_arg d s e ss ==> 
    ~ (update_arg_for_newscope ss random_oracle (SOME ([], i)) (d,s,e) = NONE )
-``,
-
+Proof
 fs[wf_arg_def, update_arg_for_newscope_def, one_arg_val_for_newscope_def] >>
 rpt strip_tac >>
 Cases_on `is_d_out d` >> (
  gs[AllCaseEqs()]
 )
-);
+QED
 
 
 
@@ -2264,21 +2254,22 @@ QED
 
 
 
-val EL_domain_ci_same = prove (``
+Triviality EL_domain_ci_same:
 !dxel scope ss i random_oracle.
 i < LENGTH scope /\
 LENGTH scope = LENGTH dxel /\
 copyin_abstract (MAP (λ(d,x,e). x) dxel)
                 (MAP (λ(d,x,e). d) dxel)
 	        (MAP (λ(d,x,e). e) dxel) ss scope random_oracle ==>
-   FST (EL i scope) = (varn_name (EL i (MAP (λ(d,x,e). x) dxel)) )``,
+   FST (EL i scope) = (varn_name (EL i (MAP (λ(d,x,e). x) dxel)) )
+Proof
 simp[copyin_abstract_def] >>
 rpt strip_tac >>
 gs[] >>
 ‘i < LENGTH dxel’ by gs[] >>
 res_tac >>
 gvs[]
-);
+QED
 
 
 
@@ -2314,45 +2305,49 @@ QED
 
 
 
-val args_ci_scope_LENGTH = prove (``
+Triviality args_ci_scope_LENGTH:
 ! dxel ss scope random_oracle.
 copyin_abstract (MAP (λ(d,x,e). x) (dxel))
                 (MAP (λ(d,x,e). d) (dxel))
 		(MAP (λ(d,x,e). e) (dxel)) ss scope random_oracle ==>
-		(LENGTH scope = LENGTH dxel)``,
+		(LENGTH scope = LENGTH dxel)
+Proof
 Induct >>
 rpt strip_tac >>
 fs[copyin_abstract_def] >>
 INST_FST [`0`]
-);
+QED
 
 
 
-val args_ci_scope_LENGTH2 = prove ( ``
+Triviality args_ci_scope_LENGTH2:
 ! xl dl el ss scope random_oracle.
 LENGTH xl = LENGTH dl /\ LENGTH xl = LENGTH el /\
 copyin_abstract (xl) (dl) (el) ss scope random_oracle ==>
-		(LENGTH scope = LENGTH xl)``,
+		(LENGTH scope = LENGTH xl)
+Proof
 Induct >>
 rpt strip_tac >>
 fs[copyin_abstract_def] >>
 INST_FST [`0`]
-);
+QED
 
 
-val LOOKUP_LENGTH = prove ( ``
-! l a x . ALOOKUP l a = SOME x ==> ~(LENGTH l = 0) ``,
+Triviality LOOKUP_LENGTH:
+! l a x . ALOOKUP l a = SOME x ==> ~(LENGTH l = 0)
+Proof
 Induct >>
-fs[]);
+fs[]
+QED
 
 
 
-val LOOKUP_EXISTS_EL = prove ( ``
+Triviality LOOKUP_EXISTS_EL:
 ! l x a .
 LENGTH l > 0 /\
 ALOOKUP l x = SOME a ==>
-? i . ( i < LENGTH l /\ (EL i l = (x,a))) ``,
-
+? i . ( i < LENGTH l /\ (EL i l = (x,a)))
+Proof
 Induct >- fs[] >>
 rpt strip_tac >>
 Cases_on `h` >>
@@ -2372,8 +2367,8 @@ Cases_on `q=x` >| [
  Q.EXISTS_TAC `i+1` >>
  rw[Once EL_compute] >>
  fs[numeral_pre,PRE_SUB1,PRE_SUC_EQ]
-]   
-);   
+]
+QED
 
 
 
@@ -2480,18 +2475,17 @@ QED
 
 
 
-val copyin_abstract_single = prove (``
+Triviality copyin_abstract_single:
 ! x d e ss scope random_oracle.
 copyin_abstract [x] [d] [e] ss [HD scope] random_oracle ==>
 (ALL_DISTINCT (MAP FST [HD scope]) /\
  FST (HD scope) = varn_name x)
-``,
-
+Proof
 rpt strip_tac >>
 IMP_RES_TAC args_ci_scope_LENGTH2 >>
 fs[copyin_abstract_def] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘random_oracle’])) >> fs[]
-);
+QED
 
 
 
@@ -2511,12 +2505,12 @@ QED
 
 
 
-val copyin_abstract_domain = prove ( ``
+Triviality copyin_abstract_domain:
 !dxel ss scope random_oracle.
 copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel)
           (MAP (λ(d,x,e). e) dxel) ss scope random_oracle ==>
            MAP FST scope = mk_varn (MAP (λ(d,x,e). x) dxel)
-``,
+Proof
 Induct >- (
  fs[copyin_abstract_def, mk_varn_def]
 ) >>
@@ -2530,7 +2524,7 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
 IMP_RES_TAC copyin_abstract_single >>
 fs[mk_varn_lemma2] >>
 Cases_on `scope` >> fs[mk_varn_def, copyin_abstract_def]
-);
+QED
 
 
 
@@ -2584,47 +2578,47 @@ QED
 
 (* if all the domain is distict, then if we find something in there,
 it should notmbe as the tail of it *)
-val copyin_abstract_distinct =  prove (``
+Triviality copyin_abstract_distinct:
 ! dxel ss x random_oracle.
  ALL_DISTINCT (MAP (λ(d,x,e). x) dxel) /\
  copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel)
  (MAP (λ(d,x,e). e) dxel) ss x random_oracle ==>
-ALL_DISTINCT (MAP FST x)	  
-``,
+ALL_DISTINCT (MAP FST x)
+Proof
 rpt strip_tac >>
 
 IMP_RES_TAC copyin_abstract_domain >>
 `ALL_DISTINCT (MAP FST x) = ALL_DISTINCT (mk_varn (MAP (λ(d,x,e). x) dxel))` by fs[] >>
 rw[] >>
 gvs[mk_varn_lemma3]
-);
+QED
 
 
 
 
-val copyin_abstract_distinct_app =  prove (``
+Triviality copyin_abstract_distinct_app:
 ! dxel ss x a random_oracle.
 ALL_DISTINCT ((MAP (λ(d,x,e). x) dxel) ++ [a] )/\
  copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel)
  (MAP (λ(d,x,e). e) dxel) ss x random_oracle ==>
  ALL_DISTINCT ((MAP FST x) ++ [varn_name a] )
-``,
+Proof
 rpt strip_tac >>
 fs[ALL_DISTINCT_APPEND] >>
 IMP_RES_TAC copyin_abstract_domain >>
 `ALL_DISTINCT (MAP FST x) = ALL_DISTINCT (mk_varn (MAP (λ(d,x,e). x) dxel))` by fs[] >>
 gvs[mk_varn_lemma3, mk_varn_lemma]
-);
+QED
 
 
-val distinct_not_neg =  prove (``
+Triviality distinct_not_neg:
 ! l xl x v lval_op x'.
 LENGTH l = LENGTH xl /\
 ALOOKUP l (varn_name x) = SOME x' /\
 EL (LENGTH xl) (l ⧺ [(varn_name x,v,lval_op)]) = (varn_name x,v,lval_op) /\
 ALL_DISTINCT (MAP FST l ⧺ [varn_name x]) ==>
-~ALL_DISTINCT (MAP FST l ⧺ [varn_name x]) ``,
-
+~ALL_DISTINCT (MAP FST l ⧺ [varn_name x])
+Proof
 Induct_on `l` >>
 Induct_on `xl` >>
 fs[] >>
@@ -2637,24 +2631,25 @@ Cases_on `h'0 = varn_name x` >> fs[] >>
 
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
 [`xl`, `x`, `v`, `lval_op`, `(x'0,x'1)`])) >>
-gvs[] 
-);
+gvs[]
+QED
 
 
 
-val distinct_not_neg_in_bound =  prove (``
+Triviality distinct_not_neg_in_bound:
 ! l x x'.
 ALOOKUP l (varn_name x) = SOME x' /\
 ALL_DISTINCT (MAP FST l ⧺ [varn_name x])
 ==>
-F ``,
+F
+Proof
 Induct_on `l` >>
 fs[] >>
 rpt strip_tac >>
 
 PairCases_on `h` >>
 Cases_on `h0 = varn_name x` >> fs[]
-);
+QED
 
 
 
@@ -2820,16 +2815,14 @@ QED
 
 
 
-val wf_arg_list_implied = prove (``
-
+Triviality wf_arg_list_implied:
 !dxel d (x:string) e ci_scope ss random_oracle tmp i'.
  ALL_DISTINCT (MAP (λ(d,x,e). x) dxel ⧺ [x]) /\
  check_args_red (MAP (λ(d,x,e). d) dxel ⧺ [d])
           (MAP (λ(d,x,e). e) dxel ⧺ [e]) /\
  SOME (ci_scope, i') = update_arg_for_newscope ss random_oracle (SOME tmp) (d,x,e) ==>
  wf_arg_list [d] [x] [e] ss
-``,
-
+Proof
 rpt strip_tac >>
 fs[wf_arg_list_def] >>
 fs[wf_arg_def] >>
@@ -2844,11 +2837,11 @@ fs[is_d_out_def] >| [
  ,
  Cases_on `v_of_e e` >> fs[]
 ]
-); 
+QED
 
 
 
-val wf_arg_list_normalize_imp1 = prove ( ``
+Triviality wf_arg_list_normalize_imp1:
 ! dxel d x e ss .
 (wf_arg_list (MAP (λ(d,x,e). d) dxel) (MAP (λ(d,x,e). x) dxel)
           (MAP (λ(d,x,e). e) dxel) ss /\
@@ -2856,8 +2849,7 @@ wf_arg_list [d] [x] [e] ss) ==>
 (wf_arg_list (MAP (λ(d,x,e). d) dxel ⧺ [d])
               (MAP (λ(d,x,e). x) dxel ⧺ [x])
 	      (MAP (λ(d,x,e). e) dxel ⧺ [e]) ss )
-``,
-
+Proof
 SIMP_TAC list_ss [wf_arg_list_def] >>
 rpt strip_tac >>
 Cases_on `dxel = []` >| [
@@ -2872,18 +2864,18 @@ Cases_on `dxel = []` >| [
    NTAC 3  (rfs[Once EL_APPEND1,LENGTH_MAP])
    ]
 ]
-);
+QED
 
 
 
-val check_args_red_normalize = prove (``
+Triviality check_args_red_normalize:
 ! dxel d e . 
 check_args_red (MAP (λ(d,x,e). d) dxel ⧺ [d])
                (MAP (λ(d,x,e). e) dxel ⧺ [e]) <=>
 (check_args_red (MAP (λ(d,x,e). d) dxel)
  (MAP (λ(d,x,e). e) dxel)	/\
- check_args_red [d] [e] ) ``,
-
+ check_args_red [d] [e] )
+Proof
 Induct_on `dxel` >-
 fs[check_args_red_def] >>
 rpt strip_tac >>
@@ -2892,12 +2884,12 @@ PairCases_on `h` >>
 fs[] >>
 fs[check_args_red_def] >>
 Cases_on `is_arg_red h0 h2` >> gvs[]
-);
+QED
 
 
 
 
-val update_new_scope_wf_args = prove ( ``
+Triviality update_new_scope_wf_args:
 ∀dxel ci_scope i' ss random_oracle i.
      ALL_DISTINCT (MAP (λ(d,x,e). x) dxel) /\
      check_args_red (MAP (λ(d,x,e). d) dxel)
@@ -2907,8 +2899,8 @@ val update_new_scope_wf_args = prove ( ``
       ⇒
      wf_arg_list (MAP (λ(d,x,e). d) dxel)
                   (MAP (λ(d,x,e). x) dxel)
-		  (MAP (λ(d,x,e). e) dxel) (ss) ``,
-
+		  (MAP (λ(d,x,e). e) dxel) (ss)
+Proof
 HO_MATCH_MP_TAC SNOC_INDUCT >> SRW_TAC [] [FOLDL_SNOC, MAP_SNOC] >> (fs[SNOC_APPEND]) >- (
  fs[wf_arg_list_def]
 ) >>
@@ -2924,13 +2916,13 @@ Cases_on `FOLDL (update_arg_for_newscope ss random_oracle) (SOME ([], i)) dxel` 
  PairCases_on `x` >>
  metis_tac[wf_arg_list_normalize_imp1, wf_arg_list_implied]
 ]
-);
+QED
 
 
 
 
 
-val all_update_new_scope_wf_args = prove ( ``
+Triviality all_update_new_scope_wf_args:
 ∀e_x_d_list ci_scope i' ss i random_oracle.
      ALL_DISTINCT (MAP (λ(e_,x_,d_). x_) e_x_d_list) /\
      check_args_red (MAP (λ(e_,x_,d_). d_) e_x_d_list)
@@ -2941,8 +2933,8 @@ val all_update_new_scope_wf_args = prove ( ``
        (ss) i random_oracle ⇒
      wf_arg_list (MAP (λ(e,x,d). d) e_x_d_list)
        (MAP (λ(e,x,d). x) e_x_d_list) (MAP (λ(e,x,d). e) e_x_d_list)
-       (ss) ``,
-
+       (ss)
+Proof
 rpt strip_tac >>
 assume_tac update_new_scope_wf_args >>
 fs[all_arg_update_for_newscope_def] >>
@@ -2951,13 +2943,13 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ZIP (MAP (λ(e_,x_,d_). d_) e_x_d_l
          MAP (λ(e_,x_,d_). e_) e_x_d_list))`,
 	 `ci_scope`, ‘i'’, `ss`, ‘random_oracle’, ‘i’])) >>
 rfs[map_distrub]
-);
+QED
 
 
 
 
 
-val copyin_imp_wf_args2 = prove ( ``
+Triviality copyin_imp_wf_args2:
 ! e_x_d_list ci_scope gscope scopest i random_oracle.
 ALL_DISTINCT (MAP (λ(e_,x_,d_). x_) e_x_d_list) /\
 check_args_red (MAP (λ(e_,x_,d_). d_) e_x_d_list)
@@ -2969,15 +2961,15 @@ SOME ci_scope =
 ( wf_arg_list
         (MAP (\(e,x,d).d) e_x_d_list)
 	(MAP (\(e,x,d).x) e_x_d_list)
-	(MAP (\(e,x,d).e) e_x_d_list) (scopest ++ gscope)) 
-``,
+	(MAP (\(e,x,d).e) e_x_d_list) (scopest ++ gscope))
+Proof
 fs[copyin_def] >>
 rpt strip_tac >>
 gvs[AllCaseEqs()] >>
 irule all_update_new_scope_wf_args >>
 gs[] >>
 metis_tac[]
-);
+QED
 
 
 
@@ -2987,35 +2979,35 @@ metis_tac[]
 (****************************)
 (* further lemmas about the copyin and the typing*)
 
-val star_not_in_varn_list = prove ( ``
+Triviality star_not_in_varn_list:
 ! scope xl .
 MAP FST scope = mk_varn (xl) ==>
-star_not_in_sl [scope] ``,
-
+star_not_in_sl [scope]
+Proof
 Induct_on `xl` >>
 Induct_on `scope` >>
 fs[mk_varn_def, star_not_in_sl_def, star_not_in_s_def] >>
 rpt strip_tac >>
 PairCases_on `h` >> fs[]
-);
+QED
 
 
 
 
 
-val check_args_red_normalize2 = prove (``
+Triviality check_args_red_normalize2:
 ! e_x_d_list d e . 
 check_args_red (d::MAP (λ(e_,x_,d_). d_) e_x_d_list)
                (e::MAP (λ(e_,x_,d_). e_) e_x_d_list) ==>
 (check_args_red (MAP (λ(e_,x_,d_). d_) e_x_d_list)
                 (MAP (λ(e_,x_,d_). e_) e_x_d_list)/\
-check_args_red [d] [e] ) ``,
-
+check_args_red [d] [e] )
+Proof
 Induct_on `e_x_d_list` >>
 fs[check_args_red_def] >>
 rpt strip_tac >>
 RES_TAC
-);
+QED
 
 
 
@@ -3304,13 +3296,12 @@ Cases_on ‘l2’ >> gs[] >>
 Cases_on ‘l3’ >> gs[]
 QED
 
-val init_typed =
-prove (``
+Triviality init_typed:
 (! (ty:'a itself).
 (! v  . init_out_v_typed v ty) /\
 (! svl. init_out_svl_typed svl ty) /\
-(! sv . init_out_sv_tup_typed sv ty))``,
-
+(! sv . init_out_sv_tup_typed sv ty))
+Proof
 strip_tac >>
 Induct >> (
  fs[init_out_v_typed_def] >> 
@@ -3534,7 +3525,7 @@ Induct >> (
  Cases_on `tau` >> fs[Once v_typ_cases] >>
  fs[Once v_typ_cases]
 )
-);
+QED
 
 
 
@@ -3631,7 +3622,7 @@ QED
 
 
 
-val out_dir_lookup_typed = prove ( ``
+Triviality out_dir_lookup_typed:
 ! e tau lval T_e gscope t_g scopest t_sl b d (x:string).
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
@@ -3642,7 +3633,7 @@ wf_arg d x e (scopest ⧺ gscope) /\
 e_typ (t_g,t_sl) T_e e (t_tau tau) b ==>
 (? v . lookup_lval (scopest ⧺ gscope) lval = SOME v /\
 v_typ v (t_tau tau) F)
-``,
+Proof
 (* First prove that b is always true *)
 
 
@@ -3769,13 +3760,13 @@ gvs[] >| [
  fs[Once v_typ_cases] >>
  gvs[slice_def, bs_width_def, bitv_bitslice_def, vec_to_const_def]
 ]
-);
+QED
 
 
 
 
 
-val CI_scope_WT_single = prove ( ``
+Triviality CI_scope_WT_single:
 ! e gscope t_g scopest t_sl x d tau T_e scope' b t random_oracle.
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
@@ -3784,8 +3775,7 @@ star_not_in_sl scopest /\
 wf_arg d x e (scopest ⧺ gscope) /\
 copyin_abstract [x] [d] [e] (scopest ⧺ gscope) scope' random_oracle ==>
 type_scopes_list [scope'] [ZIP ((mk_varn [x]), ZIP([tau], [get_lval_of_e e] ))]
-``,
-
+Proof
 fs[type_scopes_list_def] >>
 fs[mk_varn_def] >>
 rpt strip_tac >>
@@ -3860,18 +3850,18 @@ gvs[] >| [
   IMP_RES_TAC ev_types_v >>
   gvs[get_lval_of_e_def]
 ]
-);
+QED
 
 
-val similar_normalize = prove ( ``
+Triviality similar_normalize:
 ∀l vl tl t v R a.
        LENGTH vl = LENGTH tl ∧ similar R [a] (ZIP ([v],[t])) ∧
        similar R l (ZIP (vl,tl)) ⇒
-       similar R (a::l) (ZIP (v::vl,t::tl))``,
-
+       similar R (a::l) (ZIP (v::vl,t::tl))
+Proof
 rpt strip_tac >>
 fs[similar_def]
-);
+QED
 
 
 
@@ -3886,7 +3876,7 @@ fs[similar_def]
 
         
 
-val CI_scope_list_typed = prove (``
+Triviality CI_scope_list_typed:
 ! e_x_d_list scopest t_sl gscope t_g scope' e_tau_x_d_b_list T_e i random_oracle.
 (LENGTH e_tau_x_d_b_list = LENGTH e_x_d_list) /\
 type_scopes_list gscope t_g /\
@@ -3909,8 +3899,8 @@ type_scopes_list [scope']
                (mk_varn (MAP (λ(e_,x_,d_). x_) e_x_d_list),
                 ZIP
                   (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list,
-                        MAP (λ(e_,x_,d_). get_lval_of_e e_) e_x_d_list))] ``,
-
+                        MAP (λ(e_,x_,d_). get_lval_of_e e_) e_x_d_list))]
+Proof
 Induct >| [
 
  rpt strip_tac >> fs[] >>
@@ -4073,7 +4063,7 @@ Induct >| [
   ])) >>
    METIS_TAC[]
 ]
-);
+QED
 
         
 
@@ -4191,27 +4181,27 @@ QED
 
 
 
-val lookup_parse_err_in_xdl = prove (“
+Triviality lookup_parse_err_in_xdl:
 ∀ xdl tl.
 EVERY (λ(x,d). x ≠ "parseError") (MAP (λ(x_,d_). (x_,d_)) xdl) ⇒
-ALOOKUP (ZIP (mk_varn (MAP (λ(x_,d_). x_) xdl),tl))  (varn_name "parseError") = NONE ”,
-
+ALOOKUP (ZIP (mk_varn (MAP (λ(x_,d_). x_) xdl),tl))  (varn_name "parseError") = NONE
+Proof
 Induct_on ‘xdl’ >>
 Induct_on ‘tl’ >>
 rpt strip_tac >>
 gvs[mk_varn_def, ZIP_def]>>
 PairCases_on ‘h'’ >>
 gvs[]
-);
+QED
 
 
 
         
-val lookup_map_parse_err_in_xdl = prove ( “
+Triviality lookup_map_parse_err_in_xdl:
 ∀ xdl tl.        
 not_parseError_str (xdl) ⇒        
-lookup_map [ZIP (mk_varn (MAP FST xdl), tl)] (varn_name "parseError") = NONE ”,
-
+lookup_map [ZIP (mk_varn (MAP FST xdl), tl)] (varn_name "parseError") = NONE
+Proof
 gvs[not_parseError_str_def, lookup_map_def] >>
 gvs[topmost_map_def, find_topmost_map_def] >>
 
@@ -4223,7 +4213,7 @@ ASSUME_TAC lookup_parse_err_in_xdl >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘xdl’,‘tl’])) >>
 gvs[ELIM_UNCURRY] >>
 gvs[map_fst_EQ]
-);
+QED
 
 
 Theorem MAP_FST_3_2:
@@ -4309,17 +4299,18 @@ QED
 
                                         
 
-val wf_arg_imp_lval_consistent_single = prove (“
- ∀ d x e b ss.
+Triviality wf_arg_imp_lval_consistent_single_lemma:
+∀ d x e b ss.
 wf_arg d x e ss ∧
 (is_d_out d ⇒ b) ⇒
-out_lval_consistent [get_lval_of_e e] [d]”,
+out_lval_consistent [get_lval_of_e e] [d]
+Proof
 gvs[out_lval_consistent_def, wf_arg_def ] >>
 rpt strip_tac >>
 Cases_on ‘is_d_out d’ >> gvs[] >>
 Cases_on ‘e’ >>
 gvs[get_lval_of_e_def, v_of_e_def]
-);
+QED
 
 
         
@@ -4341,7 +4332,7 @@ PairCases_on ‘h’ >> gvs[] >>
 IMP_RES_TAC wf_arg_normalization >>
 Cases_on ‘bl’ >> gvs[] >>
 IMP_RES_TAC out_is_lval_normalisation >>
-IMP_RES_TAC wf_arg_imp_lval_consistent_single >>
+IMP_RES_TAC wf_arg_imp_lval_consistent_single_lemma >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘t’, ‘ss’])) >>
 gvs[out_lval_consistent_def]
 ]
@@ -4354,12 +4345,12 @@ QED
 
 (* the otherside of the implications hold at lval_typ_imp_e_typ *)
 
-val e_typ_imp_lval_typ = prove (“ 
+Triviality e_typ_imp_lval_typ:
 ∀ e l tau t b T_e gtsl tsl. 
 e_typ (gtsl,tsl) T_e e (t_tau t) T ∧
 get_lval_of_e e = SOME l ⇒
-lval_typ (gtsl,tsl) T_e l (t_tau t)”,
-
+lval_typ (gtsl,tsl) T_e l (t_tau t)
+Proof
 Induct >>                       
 REPEAT GEN_TAC >> STRIP_TAC >>
 gvs[get_lval_of_e_def, is_e_lval_def] >| [
@@ -4384,7 +4375,7 @@ gvs[get_lval_of_e_def, is_e_lval_def] >| [
  gvs[] >>
   METIS_TAC[]    
   ]
-);
+QED
 
 
 
@@ -4392,31 +4383,31 @@ gvs[get_lval_of_e_def, is_e_lval_def] >| [
 
 
 
-val  wf_arg_imp_lval_typ = prove (“
+Triviality wf_arg_imp_lval_typ:
 ∀ d b x e ss tslg tsl T_e tau lop.
 (is_d_out d ⇒ b) ∧
 wf_arg d x e ss ∧
 e_typ (tslg,tsl) T_e e (t_tau tau) b ∧
 get_lval_of_e e = SOME lop ⇒
-lval_typ (tslg,tsl) T_e lop (t_tau tau) ”,
-
+lval_typ (tslg,tsl) T_e lop (t_tau tau)
+Proof
 rpt strip_tac >>
 gvs[wf_arg_def] >>
 Cases_on ‘is_d_out d’ >> gvs[] >>              
 IMP_RES_TAC e_typ_imp_lval_typ>>
 gvs[] >>
-Cases_on ‘e’ >> gvs[v_of_e_def, get_lval_of_e_def]                        
-);
+Cases_on ‘e’ >> gvs[v_of_e_def, get_lval_of_e_def]
+QED
 
         
-val  wf_arg_imp_lval_typ_sinlge = prove (“
+Triviality wf_arg_imp_lval_typ_sinlge:
 ∀ d b x e ss tslg tsl T_e tau lop t a.
 out_is_lval [d] [b] ∧
 wf_arg d x e ss ∧
 e_typ (tslg,tsl) T_e e (t_tau tau) b ∧
 ALOOKUP [(x,tau,get_lval_of_e e)] a = SOME (t, SOME lop) ⇒
-lval_typ (tslg,tsl) T_e lop (t_tau t) ”,
-
+lval_typ (tslg,tsl) T_e lop (t_tau t)
+Proof
 rpt strip_tac >>
 Cases_on ‘a=x’ >> gvs[] >>
 gvs[out_is_lval_def, wf_arg_def] >>
@@ -4424,7 +4415,7 @@ Cases_on ‘is_d_out d’ >> gvs[] >>
 IMP_RES_TAC e_typ_imp_lval_typ>>
 gvs[] >>
 Cases_on ‘e’ >> gvs[v_of_e_def, get_lval_of_e_def]
-);
+QED
 
                                        
 
@@ -4433,7 +4424,7 @@ Cases_on ‘e’ >> gvs[v_of_e_def, get_lval_of_e_def]
 
 
 
-val wf_arg_imp_lval_typ_sinlge_list = prove (“
+Triviality wf_arg_imp_lval_typ_sinlge_list:
 ∀ exdl tbl t lop T_e tslg tsl ss x.
 LENGTH exdl = LENGTH tbl ∧
 out_is_lval (MAP (λ(e,x,d). d) exdl) (MAP (λ(t,b). b) tbl) ∧
@@ -4446,8 +4437,8 @@ wf_arg_list (MAP (λ(e,x,d). d) exdl) (MAP (λ(e,x,d). x) exdl) (MAP (λ(e,x,d).
 
 ALOOKUP (ZIP (mk_varn (MAP (λ(e,x,d). x) exdl),
               ZIP (MAP (λ(t,b). t) tbl, MAP (λ(e,x,d). get_lval_of_e e) exdl))) x = SOME (t,SOME lop) ⇒
-lval_typ (tslg,tsl) T_e  lop (t_tau t) ”,
-
+lval_typ (tslg,tsl) T_e  lop (t_tau t)
+Proof
 Induct >>
 Cases_on ‘tbl’ >> gvs[] >>
 rpt strip_tac >-
@@ -4472,7 +4463,7 @@ rpt strip_tac >-
        gvs[ADD1, EL_CONS] >> gvs[PRE_SUB1] 
        ) >> gvs[]
 ]
-);
+QED
 
 
 

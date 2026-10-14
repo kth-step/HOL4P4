@@ -85,20 +85,22 @@ End
 
 
       
-val vl_of_el_ev = prove (“                       
+Triviality vl_of_el_ev:
 ∀ vl .
 is_consts vl ⇒
-vl = MAP (λv_. e_v v_) (vl_of_el vl) ”,
+vl = MAP (λv_. e_v v_) (vl_of_el vl)
+Proof
 Induct >> rw[] >> gvs[vl_of_el_def, is_consts_def] >>
-Cases_on ‘h’ >> gvs[is_const_def, v_of_e_def]                         
-);
+Cases_on ‘h’ >> gvs[is_const_def, v_of_e_def]
+QED
 
         
 
-val index_not_const_EL = prove ( “
+Triviality index_not_const_EL:
 ∀ el x .
   x < LENGTH el ∧ index_not_const el = SOME x ⇒
-  ¬is_const (EL x el)”,
+  ¬is_const (EL x el)
+Proof
 Induct >>
 rw[] >>
 IMP_RES_TAC index_not_const_in_range >>
@@ -107,14 +109,15 @@ gvs[index_not_const_def] >>
 Cases_on ‘INDEX_FIND 0 (λe. ¬is_const e) (h::el)’ >> gvs[] >>
 PairCases_on ‘x'’ >> gvs[] >>                                           
 IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >> gvs[]
-);
+QED
 
 
 
-val oDROP_exists = prove (“
+Triviality oDROP_exists:
 ∀ sl i .
    LENGTH sl ≥ 3 ∧ i = LENGTH sl − 2 ⇒
-   ∃l l'. SOME l = oDROP (i) sl ”,
+   ∃l l'. SOME l = oDROP (i) sl
+Proof
 Induct >>
 Induct_on ‘i’ >>            
 
@@ -128,13 +131,14 @@ Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >-
 ‘i + 2 =LENGTH sl’ by gvs[] >>
 Cases_on ‘i’ >> gvs[] >>
 gvs[oDROP_def]
-);
+QED
 
 
-val oTAKE_exists = prove (“
+Triviality oTAKE_exists:
 ∀ sl i .
    LENGTH sl ≥ 3 ∧ i = LENGTH sl − 2 ⇒
-   ∃l l'. SOME l = oTAKE (i) sl ”,
+   ∃l l'. SOME l = oTAKE (i) sl
+Proof
 Induct >>
 Induct_on ‘i’ >>            
 
@@ -149,34 +153,34 @@ Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >>
 
 ‘i + 2 =LENGTH sl’ by gvs[] >> Cases_on ‘i’ >> gvs[] >>
 gvs[oTAKE_def]  >> fs[]
-);
+QED
 
 
 
 
-val separate_exists = prove (“
+Triviality separate_exists:
 ∀ sl.
  LENGTH sl ≥ 3 ⇒
- ∃ l l' . (SOME l , SOME l' ) = separate sl ”,
-
+ ∃ l l' . (SOME l , SOME l' ) = separate sl
+Proof
 REPEAT STRIP_TAC  >>
 fs[separate_def] >>
 gvs[ADD1, oDROP_def, oTAKE_def ] >>
 IMP_RES_TAC oDROP_exists >>
 IMP_RES_TAC oTAKE_exists >>
 gvs[] >> METIS_TAC []
-);
+QED
 
 
 
         
-val lval_typ_imp_e_typ = prove ( “      
+Triviality lval_typ_imp_e_typ:
 ∀ l tau gtsl tsl T_e .
   lval_typ (gtsl,tsl) T_e l (tau) ⇒
     ∃ e.  is_e_lval e ∧
       get_lval_of_e e = SOME l ∧
-      e_typ (gtsl,tsl) T_e e tau T ”,
-
+      e_typ (gtsl,tsl) T_e e tau T
+Proof
 Induct >>                       
 REPEAT GEN_TAC >> STRIP_TAC >| [
  Q.EXISTS_TAC ‘e_var v’ >>
@@ -210,17 +214,18 @@ REPEAT GEN_TAC >> STRIP_TAC >| [
  ,
  OPEN_LVAL_TYP_TAC “(lval_paren l)”  >> gvs[] 
   ]
-);
+QED
 
 
 
 
-val lookup_lval_empty = prove ( “        
+Triviality lookup_lval_empty:
 ∀ l .
-lookup_lval [] l = NONE ”,
- Induct_on ‘l’ >>
+lookup_lval [] l = NONE
+Proof
+Induct_on ‘l’ >>
  gvs[lookup_lval_def, lookup_v_def, lookup_map_def, topmost_map_def, find_topmost_map_def, INDEX_FIND_def]
-);
+QED
 
 
 
