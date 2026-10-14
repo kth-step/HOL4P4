@@ -85,8 +85,8 @@ QED
 (******   Subject Reduction for expression    ******)
 (*t_scopes_consistent is with respect to the expression's global, not the passed, because at that point we are comparing with respect to the passed scope that is already exists in the expression *)
 
-val sr_exp_def = Define `
- sr_exp (e) (ty:'a itself) =
+Definition sr_exp_def:
+sr_exp (e) (ty:'a itself) =
  ! e' gscope (scopest:scope list) framel i_opt t_scope_list t_scope_list_g T_e tau b
       (ec:'a ectx) order delta_g delta_b delta_t delta_x f f_called stmt_called copied_in_scope Prs_n
       apply_table_f ext_map func_map b_func_map pars_map tbl_map oracle_index random_oracle .
@@ -110,37 +110,37 @@ val sr_exp_def = Define `
              t_scopes_consistent T_e (t_scope_list) (t_scope_list_g) (t_scope_list_fr)  ∧
 	     frame_typ (passed_tslg,t_scope_list_fr)  (order,  f_called , (delta_g,passed_delta_b, delta_x, passed_delta_t)) Prs_n passed_gscope copied_in_scope [stmt_called] )
             )
-`;
+End
 
 
 (****** Subject reduction for expression list ******)
-val sr_exp_list_def = Define `
- sr_exp_list (l : e list) (ty:'a itself) = 
+Definition sr_exp_list_def:
+sr_exp_list (l : e list) (ty:'a itself) = 
        !(e : e). MEM e l ==> sr_exp (e) (ty:'a itself)
-`;
+End
 
 
 (****** Subject reduction for strexp list ******)
-val sr_strexp_list_def = Define `
-   sr_strexp_list (l : (string#e) list) (ty:'a itself)
+Definition sr_strexp_list_def:
+sr_strexp_list (l : (string#e) list) (ty:'a itself)
       = !  (e:e) . MEM e (SND (UNZIP l)) ==> sr_exp(e) (ty:'a itself)
-`;
+End
 
 
 (****** Subject reduction for str e tup list ******)
-val sr_strexp_tup_def = Define ` 
-   sr_strexp_tup (tup : (string#e)) (ty:'a itself)
+Definition sr_strexp_tup_def:
+sr_strexp_tup (tup : (string#e)) (ty:'a itself)
       =  sr_exp ((SND tup)) (ty:'a itself)
-`;
+End
 
 
 (******
 define an inverse function of vl_of_el 
 *)
 
-val el_of_vl_def = Define `
-  el_of_vl vl = MAP (\(v). (e_v v)) (vl)
-`;
+Definition el_of_vl_def:
+el_of_vl vl = MAP (\(v). (e_v v)) (vl)
+End
 
 
 
@@ -2059,20 +2059,20 @@ Definition copyin_abstract_def:
 End
 
 
-val wf_arg_def = Define `
+Definition wf_arg_def:
 wf_arg d x e ss =
  ((~is_d_out d ==> ?v. v_of_e e = SOME v) /\
   (is_d_out d  ==> ?lval v. get_lval_of_e e = SOME lval /\ lookup_lval ss lval = SOME v))
-`;
+End
 
 
 
-val wf_arg_list_def = Define `
+Definition wf_arg_list_def:
 wf_arg_list dlist (xlist: string list) elist ss =
        !i . ((LENGTH xlist > 0 /\ i < LENGTH xlist) ==>
           wf_arg (EL i dlist) (EL i xlist) (EL i elist) ss) \/
             (LENGTH xlist = 0 /\ LENGTH dlist = 0 /\ LENGTH elist = 0)
-        `;
+End
 
 
 
@@ -2291,7 +2291,7 @@ Theorem wf_arg_list_NONE:
 		    (MAP (λ(d,x,e). e) dxel ) ss) ==>
       ~ (FOLDL (update_arg_for_newscope ss random_oracle) (SOME ([], i)) dxel = NONE)
 Proof
-HO_MATCH_MP_TAC SNOC_INDUCT THEN SRW_TAC [] [FOLDL_SNOC, MAP_SNOC]  >>
+HO_MATCH_MP_TAC SNOC_INDUCT >> SRW_TAC [] [FOLDL_SNOC, MAP_SNOC]  >>
 fs[SNOC_APPEND] >>
 PairCases_on `x` >>
 fs[] >>
@@ -2672,7 +2672,7 @@ Theorem copyin_abstract_verbose[local]:
   SOME (scope, i')) ==>
  copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel) (MAP (λ(d,x,e). e) dxel) ss scope random_oracle
 Proof
-HO_MATCH_MP_TAC SNOC_INDUCT THEN SRW_TAC [] [FOLDL_SNOC, MAP_SNOC] >- (
+HO_MATCH_MP_TAC SNOC_INDUCT >> SRW_TAC [] [FOLDL_SNOC, MAP_SNOC] >- (
  fs[copyin_abstract_def, wf_arg_list_def]
 ) >>
 fs[SNOC_APPEND] >>
@@ -2909,7 +2909,7 @@ val update_new_scope_wf_args = prove ( ``
                   (MAP (λ(d,x,e). x) dxel)
 		  (MAP (λ(d,x,e). e) dxel) (ss) ``,
 
-HO_MATCH_MP_TAC SNOC_INDUCT THEN SRW_TAC [] [FOLDL_SNOC, MAP_SNOC] >> (fs[SNOC_APPEND]) >- (
+HO_MATCH_MP_TAC SNOC_INDUCT >> SRW_TAC [] [FOLDL_SNOC, MAP_SNOC] >> (fs[SNOC_APPEND]) >- (
  fs[wf_arg_list_def]
 ) >>
 PairCases_on `x` >>
@@ -3027,12 +3027,12 @@ RES_TAC
 (*********************************************)
 
 
-val rm_t_def = Define `
-(rm_t (t_tau (tau : tau) ) = tau ) 
-`;
+Definition rm_t_def:
+(rm_t (t_tau (tau : tau) ) = tau )
+End
 
 
-val type_of_v_def = TotalDefn.tDefine "type_of_v" `
+Definition type_of_v_def:
 (type_of_v (v_bool boolv) = t_tau tau_bool) /\
 (type_of_v (v_bit (bl, n)) = t_tau (tau_bit n)) /\
 (type_of_v (v_bot) = t_tau tau_bot) /\
@@ -3042,46 +3042,46 @@ val type_of_v_def = TotalDefn.tDefine "type_of_v" `
   t_tau (tau_xtl struct_ty_struct ( MAP (\xv . (FST xv ,  rm_t (type_of_v (SND xv))   )) xvl   ) ) ) /\
 (type_of_v (v_header boolv xvl) =
   t_tau (tau_xtl struct_ty_header ( MAP (\xv . (FST xv ,  rm_t (type_of_v (SND xv))   )) xvl   ) ) )
-`
-(WF_REL_TAC `measure v_size` >>
+Termination
+WF_REL_TAC `measure v_size` >>
  fs[v_size_def] >>
  rpt strip_tac >>
  `v_size p_2 < v1_size xvl` suffices_by (
   fs[]
  ) >>
  METIS_TAC [v1_size_mem]
-);
+End
 
 
-val v_typ_eq_def = Define `
+Definition v_typ_eq_def:
 v_typ_eq v t (ty:'a itself)  = 
     (type_of_v v = t ==> v_typ v t F)
-`;
+End
 
 
-val vl_typ_eq_def = Define `
+Definition vl_typ_eq_def:
 vl_typ_eq vl tl (ty:'a itself)  = 
     ! i v t. (EL i vl = v) /\ (EL i tl = t) ==> v_typ_eq v t (ty:'a itself)
-`;
+End
 
 
 
 (* this property is applied only on the base type. It does not include the parer names*)
-val init_out_v_typed_def = Define `
- init_out_v_typed (v:v) (ty:'a itself) =
+Definition init_out_v_typed_def:
+init_out_v_typed (v:v) (ty:'a itself) =
   !tau random_oracle i. v_typ v (t_tau tau) F ==> v_typ (FST $ init_out_v random_oracle i v) (t_tau tau) F
-`;
+End
 
 
-val init_out_svl_typed_def = Define `
- init_out_svl_typed (svl: (string # v) list ) (ty:'a itself) =
+Definition init_out_svl_typed_def:
+init_out_svl_typed (svl: (string # v) list ) (ty:'a itself) =
    !(v:v). MEM v (SND (UNZIP svl)) ==> init_out_v_typed (v) (ty:'a itself)
-`;
+End
 
-val init_out_sv_tup_typed_def = Define `
- init_out_sv_tup_typed  (tup : (string#v) ) (ty:'a itself) =
+Definition init_out_sv_tup_typed_def:
+init_out_sv_tup_typed  (tup : (string#v) ) (ty:'a itself) =
   init_out_v_typed ((SND tup)) (ty:'a itself)
-`;
+End
 
 
 Theorem FOLDL_init_out_v_SNOC[local]:

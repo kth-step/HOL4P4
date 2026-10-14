@@ -32,8 +32,8 @@ open numeralTheory;
 val _ = new_theory "p4_frames_progress";
 
      
-val prog_state_def = Define `
- prog_state (framel) (ty:'a itself) =
+Definition prog_state_def:
+prog_state (framel) (ty:'a itself) =
 ∀ (c:'a ctx) ascope  gscope   status  tslg tsll order delta_g delta_b delta_t delta_x Prs_n .
       
   (WT_state c ( ascope ,  gscope  , framel  , status) Prs_n  order tslg tsll (delta_g, delta_b, delta_x, delta_t))
@@ -43,8 +43,8 @@ val prog_state_def = Define `
 
      ∃ status' ascope' gscope' framel'.
        (frames_red c ( ascope ,  gscope  , framel  , status)
-                     ( ascope',  gscope' , framel' , status'))                   
-`;
+                     ( ascope',  gscope' , framel' , status'))
+End
 
 
 

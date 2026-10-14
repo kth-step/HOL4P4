@@ -53,7 +53,7 @@ val t_scopes_consistent_list_def = Define ‘
 
 
         
-val (WT_state_rules, WT_state_ind, WT_state_cases) = Hol_reln`
+Inductive WT_state:
 (* defn WT_state *)
 
 ( (* WT_state_state *) 
@@ -79,22 +79,21 @@ WT_c ctx order t_scope_list_g delta_g delta_b delta_x delta_t  Prs_n /\
 
  ==> 
 ( ( WT_state ctx  ( ascope ,  g_scope_list ,   (ZIP(funnl,ZIP(stmtll,scll)) ) ,  status )  Prs_n  order t_scope_list_g  ( tsll)   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
-
-`;
-
+End
 
 
 
-val sr_state_def = Define `
- sr_state (framel) (ty:'a itself) =
+
+Definition sr_state_def:
+sr_state (framel) (ty:'a itself) =
 ∀ framel' (c:'a ctx) ascope ascope' gscope gscope'  status status' tslg  order delta_g delta_b delta_t delta_x Prs_n  tsll.
       
        (WT_state c ( ascope ,  gscope  , framel  , status) Prs_n  order tslg tsll (delta_g, delta_b, delta_x, delta_t)) ∧             
        (frames_red c ( ascope ,  gscope  , framel  , status)
                      ( ascope',  gscope' , framel' , status')) ⇒
 
- ∃  tsll' .    (WT_state c ( ascope' ,  gscope'  , framel'  , status') Prs_n  order tslg tsll' (delta_g, delta_b, delta_x, delta_t))                  
-`;
+ ∃  tsll' .    (WT_state c ( ascope' ,  gscope'  , framel'  , status') Prs_n  order tslg tsll' (delta_g, delta_b, delta_x, delta_t))
+End
 
 
 

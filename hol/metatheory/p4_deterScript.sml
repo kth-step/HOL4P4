@@ -29,46 +29,46 @@ fun OPEN_STMT_RED_TAC stm_term =
 
 (*********** SAME SATE DEF *****************)
 
-val same_state_def = Define `
- same_state (st:'a state) st'  =
+Definition same_state_def:
+same_state (st:'a state) st'  =
 (st = st')
-`;
+End
 
 
 (******** STMT DETERMINISIM DEF ************)
 
 
-val det_stmt_def = Define `
- det_stmt (stm) (ty:'a itself) = ! (c: 'a ctx) ascope sl s' s'' g_scope_list f status .
+Definition det_stmt_def:
+det_stmt (stm) (ty:'a itself) = ! (c: 'a ctx) ascope sl s' s'' g_scope_list f status .
 (stmt_red c ( ascope, g_scope_list, ([(f,[stm],sl)]), status) (s'))
 /\
 (stmt_red c ( ascope, g_scope_list, ([(f,[stm],sl)]), status) (s''))
 ==>
 ( same_state s' s'')
-`;
+End
 
 
 
 (********* SAME FRAME and EXP DEF *************)
 
-val same_frame_exp_def = Define `
- same_frame_exp (frame:frame_list, i_opt) (frame', i_opt') (e:e) e'  =
+Definition same_frame_exp_def:
+same_frame_exp (frame:frame_list, i_opt) (frame', i_opt') (e:e) e'  =
 ((frame = frame') /\ (e = e') /\ (i_opt = i_opt'))
-`;
+End
 
 
 (********** EXPRESSION DETER DEF *************)
 (* Based on the e_induction definition, this is P0
 wich shows that each exression reduction is determ.*)
 
-val det_exp_def = Define `
- det_exp e (ty:'a itself) = ! (c: 'a ectx) scope scopest e' e'' frame i_opt frame' i_opt'.
+Definition det_exp_def:
+det_exp e (ty:'a itself) = ! (c: 'a ectx) scope scopest e' e'' frame i_opt frame' i_opt'.
 (e_red (c: 'a ectx) scope scopest e e' (frame, i_opt) )
 /\
 (e_red (c: 'a ectx)  scope scopest e e'' (frame', i_opt') ) 
 ==>
 (same_frame_exp (frame, i_opt) (frame', i_opt') e' e'')
-`;
+End
 
 
 (********** EXPRESSION List P3 ***************)
@@ -77,9 +77,9 @@ every expression element of the list is deterministic
 for clarification, check the definition of e_induction
 in P4 theory, it is basically P3 *)
 
-val det_exp_list_def = Define `
-   det_exp_list (l : e list) (ty:'a itself)  = !(x : e). MEM x l ==> det_exp (x) (ty:'a itself)
-`;
+Definition det_exp_list_def:
+det_exp_list (l : e list) (ty:'a itself)  = !(x : e). MEM x l ==> det_exp (x) (ty:'a itself)
+End
 
 
 (********** STR EXPRESSION List P1 ***************)
@@ -88,10 +88,10 @@ every expression element of the list of tuples of expression
 and strings is deterministic for clarification, check
 the definition of e_induction in P4 theory, it is P1 *)
 
-val det_strexp_list_def = Define `
-   det_strexp_list (l : (string#e) list) (ty:'a itself)
+Definition det_strexp_list_def:
+det_strexp_list (l : (string#e) list) (ty:'a itself)
       = !  (e:e) . MEM e (SND (UNZIP l)) ==> det_exp(e) (ty:'a itself)
-`;
+End
 
 
 (********** STR EXPRESSION tuple P2 ***************)
@@ -99,42 +99,42 @@ val det_strexp_list_def = Define `
 A tuple of (expression, string) in the struct or header 
 is deterministic. Based on e_induction this is P2 *)
 
-val det_strexp_tuple_def = Define ` 
-   det_strexp_tup (tup : (string#e)) (ty:'a itself)
+Definition det_strexp_tup_def:
+det_strexp_tup (tup : (string#e)) (ty:'a itself)
       =  det_exp (SND(tup)) (ty:'a itself)
-`;
+End
 
 
 (******** stmt list DETERMINISIM DEF *******)
-val det_stmtl_def = Define `
- det_stmtl stmtl (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list) status (ss:scope list) (f:funn) ascope.
+Definition det_stmtl_def:
+det_stmtl stmtl (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list) status (ss:scope list) (f:funn) ascope.
 (stmt_red c ( ascope, g_scope_list , ([(f,stmtl,ss)]) , status) (s'))
 /\
 (stmt_red c ( ascope, g_scope_list , ([(f,stmtl,ss)]) , status) (s''))
 ==>
 ( same_state s' s'')
-`;
+End
 
 (******** Single frame DETERMINISIM DEF *******)
-val det_frame_def = Define `
- det_frame frame (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list) status ascope.
+Definition det_frame_def:
+det_frame frame (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list) status ascope.
 (frames_red c ( ascope, g_scope_list , [frame] , status) (s'))
 /\
 (frames_red c ( ascope, g_scope_list , [frame] , status) (s''))
 ==>
 ( same_state s' s'')
-`;
+End
 
 
 (******** Frame list DETERMINISIM DEF *******)
-val det_framel_def = Define `
- det_framel framel (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list)  status ascope.
+Definition det_framel_def:
+det_framel framel (ty:'a itself) = ! (c:'a ctx) (s':'a state) s'' (g_scope_list:scope list)  status ascope.
 (frames_red c ( ascope, g_scope_list , framel, status) (s'))
 /\
 (frames_red c ( ascope, g_scope_list , framel, status) (s''))
 ==>
 ( same_state s' s'')
-`;
+End
 
 (*lemmas and thms*)
 
@@ -534,7 +534,7 @@ FULL_SIMP_TAC list_ss [det_strexp_list_def]
 (*   strexcp   l             *)
 (*****************************)
 Cases_on `tup` >>
-FULL_SIMP_TAC list_ss [det_strexp_tuple_def ] >>
+FULL_SIMP_TAC list_ss [det_strexp_tup_def ] >>
 FULL_SIMP_TAC list_ss [det_strexp_list_def] >>
 FULL_SIMP_TAC list_ss [det_exp_def ] >>
 NTAC 2 STRIP_TAC >|[
@@ -567,7 +567,7 @@ FULL_SIMP_TAC list_ss [same_frame_exp_def]
 (*****************************)
 (*   str_exp_tup             *)
 (*****************************)
-FULL_SIMP_TAC list_ss [det_strexp_tuple_def ]
+FULL_SIMP_TAC list_ss [det_strexp_tup_def ]
 ,
 
 (*****************************)

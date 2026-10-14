@@ -59,8 +59,8 @@ fun OPEN_LVAL_TYP_TAC lval_term =
 val _ = new_theory "p4_stmt_progress";
 
    
-val prog_stmt_def = Define `
- prog_stmt (stmt) (ty:'a itself) =
+Definition prog_stmt_def:
+prog_stmt (stmt) (ty:'a itself) =
 ∀ ascope gscope (scopest:scope list) status  t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
       
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
@@ -77,8 +77,7 @@ val prog_stmt_def = Define `
        ∃ stmtl scopest' framel gscope' status' ascope'.
        (stmt_red c ( ascope ,  gscope  ,           [ (f, [stmt], scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status'))
-
-`;
+End
 
 
       
@@ -843,8 +842,8 @@ QED
 
 
    
-val prog_stmtl_def = Define `
- prog_stmtl (stmtl) (ty:'a itself) =
+Definition prog_stmtl_def:
+prog_stmtl (stmtl) (ty:'a itself) =
 ∀ ascope gscope (scopest:scope list) status  t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
       
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
@@ -860,8 +859,7 @@ val prog_stmtl_def = Define `
        ∃ stmtl' scopest' framel gscope' status' ascope'.
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status'))
-
-`;
+End
 
   
 

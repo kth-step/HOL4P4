@@ -1103,24 +1103,24 @@ METIS_TAC []
 
         
 (* this property is applied only on the base type. It does not include the parer names*)
-val deter_v_typed_def = Define `
- deter_v_typed (v:v) (ty:'a itself) =
+Definition deter_v_typed_def:
+deter_v_typed (v:v) (ty:'a itself) =
  ∀ tau tau'.           
 v_typ v (t_tau tau) F  ∧
 v_typ v (t_tau tau') F  ⇒
 tau = tau'
-`;
+End
 
 
-val deter_svl_typed_def = Define `
- deter_svl_typed (svl: (string # v) list ) (ty:'a itself) =
+Definition deter_svl_typed_def:
+deter_svl_typed (svl: (string # v) list ) (ty:'a itself) =
    !  (v:v) . MEM v (SND (UNZIP svl)) ==> deter_v_typed (v) (ty:'a itself)
-`;
+End
 
-val deter_sv_tup_typed_def = Define `
- deter_sv_tup_typed (tup : (string#v) ) (ty:'a itself) =
+Definition deter_sv_tup_typed_def:
+deter_sv_tup_typed (tup : (string#v) ) (ty:'a itself) =
      deter_v_typed ((SND tup)) (ty:'a itself)
-`;
+End
 
 
 
@@ -4411,8 +4411,8 @@ gvs[] >| [
         
 
 
-val sr_stmtl_def = Define `
- sr_stmtl (stmtl) (ty:'a itself) =
+Definition sr_stmtl_def:
+sr_stmtl (stmtl) (ty:'a itself) =
 ∀ stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n  n apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle.
       
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ) ∧                               
@@ -4434,8 +4434,8 @@ val sr_stmtl_def = Define `
        LENGTH stmtl > LENGTH stmtl' ⇒
        n = (LENGTH stmtl - LENGTH stmtl') ⇒
         frame_typ  ( t_scope_list_g  ,  (DROP n t_scope_list) ) T_e Prs_n  gscope' scopest' stmtl'
-       )                    
-`;
+       )
+End
 
 
 

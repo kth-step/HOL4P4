@@ -39,8 +39,8 @@ val _ = new_theory "p4_e_progress";
 
 
 (******    Type progress for expressions  ******)
-val prog_exp_def = Define `
- prog_exp (e) (ty:'a itself) =
+Definition prog_exp_def:
+prog_exp (e) (ty:'a itself) =
  !gscope (scopest:scope list) t_scope_list t_scope_list_g
  T_e tau b (c:'a ectx) order delta_g delta_b (delta_t:delta_t) delta_x f Prs_n.
      	 
@@ -52,30 +52,30 @@ val prog_exp_def = Define `
           (T_e = (order,  f, (delta_g, delta_b, delta_x, delta_t))) /\	  
 	  WT_ec c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n ==>
           ?e' framel. e_red c gscope scopest e e' framel
-`;
+End
 
 
 
 
 (****** Type progress for expression list ******)
-val prog_exp_list_def = Define `
- prog_exp_list (l : e list) (ty:'a itself) = 
+Definition prog_exp_list_def:
+prog_exp_list (l : e list) (ty:'a itself) = 
        !(e : e). MEM e l ==> prog_exp (e) (ty:'a itself)
-`;
+End
 
 
 (****** Type progress for strexp list ******)
-val prog_strexp_list_def = Define `
-   prog_strexp_list (l : (string#e) list) (ty:'a itself)
+Definition prog_strexp_list_def:
+prog_strexp_list (l : (string#e) list) (ty:'a itself)
       = !  (e:e) . MEM e (SND (UNZIP l)) ==> prog_exp(e) (ty:'a itself)
-`;
+End
 
 
 (****** Type progress for str e tup list ******)
-val prog_strexp_tup_def = Define ` 
-   prog_strexp_tup (tup : (string#e)) (ty:'a itself)
+Definition prog_strexp_tup_def:
+prog_strexp_tup (tup : (string#e)) (ty:'a itself)
       =  prog_exp ((SND tup)) (ty:'a itself)
-`;
+End
 
 
 
