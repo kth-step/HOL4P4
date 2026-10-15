@@ -2150,7 +2150,7 @@ Definition arch_exec_def:
           | pbl_type_parser =>
            (case ALOOKUP pars_map x' of
             | SOME stmt' =>
-             SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x', [stmt'], [ [] ])]), status_running)
+             SOME ((i, in_out_list, in_out_list', scope), g_scope_list, (arch_frame_list_regular [(funn_name x, [stmt'], [ [] ])]), status_running)
             | _ => NONE)
           | _ => NONE)
         | status_running =>
