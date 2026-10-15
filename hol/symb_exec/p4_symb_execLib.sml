@@ -1917,8 +1917,12 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigs
   val shortcut =
    case stmt_funn_opt of
      SOME (funn, stmt) =>
-    (* TODO: Temporary hack to restrict application of big-step semantics
-     * to control block + block-local functions *)
+    (* Big-step shortcuts are only taken in frames of block-local functions,
+     * i.e. names found in b_func_map: the apply body of the block, its parser
+     * states (whose frames carry the block name, see the parser_trans rule)
+     * and its actions. Together with the func_map check in
+     * p4_is_shortcuttable this is the precondition in_local_fun' of the
+     * big-step theorems. *)
     if
      (if is_funn_name funn
       then Teq $ rhs $ concl $ HOL4P4_CONV (mk_is_some $ mk_alookup (b_func_map, dest_funn_name funn))
