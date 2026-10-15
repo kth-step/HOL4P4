@@ -1,7 +1,7 @@
-open HolKernel boolLib Parse bossLib ;
-open BasicProvers boolSimps markerLib optionTheory ;
-open listTheory rich_listTheory ;
-open stringTheory ASCIInumbersTheory arithmeticTheory ;
+open HolKernel boolLib bossLib;
+open BasicProvers markerLib optionTheory;
+open listTheory rich_listTheory;
+open stringTheory ASCIInumbersTheory arithmeticTheory;
 
 (*
  * This file offers functionality to evaluate a term given preconditions.

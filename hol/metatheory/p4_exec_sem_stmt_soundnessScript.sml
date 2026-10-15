@@ -1,4 +1,4 @@
-open HolKernel boolLib Parse bossLib;
+open HolKernel boolLib bossLib;
 
 val _ = new_theory "p4_exec_sem_stmt_soundness";
 

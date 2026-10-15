@@ -1,6 +1,6 @@
 structure p4_symb_exec_v1modelLib :> p4_symb_exec_v1modelLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib liteLib simpLib bossLib;
 
 open bitstringSyntax listSyntax numSyntax optionSyntax pairSyntax;
 

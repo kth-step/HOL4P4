@@ -1,4 +1,4 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib bossLib;
 
 val _ = new_theory "symb_exec";
 

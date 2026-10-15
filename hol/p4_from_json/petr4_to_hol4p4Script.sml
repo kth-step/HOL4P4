@@ -1,13 +1,12 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib Parse bossLib;
 
 val _ = new_theory "petr4_to_hol4p4";
 
 open stringTheory listTheory ASCIInumbersTheory;
 open parse_jsonTheory;
-open p4Theory p4_auxTheory;
+open p4Theory p4_auxTheory p4_ebpfTheory p4_v1modelTheory p4_vssTheory;
 
 (* For EVAL *)
-open ASCIInumbersLib;
 
 (* Finds an element e obeying P in l, then returns a tuple of e and l with e removed *)
 Definition FIND_EXTRACT_def:

@@ -1,6 +1,8 @@
 structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
+(* wordsLib is loaded for its side effect of adding word arithmetic to the EVAL compset *)
+local open wordsLib in end;
 
 open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax stringLib;
 

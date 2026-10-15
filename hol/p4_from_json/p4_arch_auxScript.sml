@@ -1,8 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib;
 
 val _ = new_theory "p4_arch_aux";
 
-open p4Theory;
+open p4Theory p4_coreTheory p4_ebpfTheory p4_v1modelTheory p4_vssTheory;
 
 (* This file contains all architecture-specific definitions that are used for importing to HOL4P4.
  * None of these should be found in imported Script files or used by the semantics *)

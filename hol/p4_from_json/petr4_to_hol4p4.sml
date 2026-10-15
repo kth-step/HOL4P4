@@ -1,13 +1,13 @@
 open HolKernel Parse bossLib boolSyntax;
-open testutils;
 open PPBackEnd optionSyntax pairSyntax numSyntax listSyntax stringLib;
 open parse_jsonTheory;
-open petr4_to_hol4p4Theory p4_arch_auxTheory;
+open petr4_to_hol4p4Theory;
 
 open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib;
 
 (* For EVAL *)
-open ASCIInumbersLib;
+(* ASCIInumbersLib is loaded for its side effect of adding the ASCII/number conversions to the EVAL compset *)
+local open ASCIInumbersLib in end;
 
 datatype arch = vss | ebpf | v1model;
 
@@ -105,7 +105,7 @@ fun output_hol4_val outstream (name, tm, ty_opt) =
 
 fun output_hol4p4_incipit valname outstream =
  let
-  val _ = TextIO.output (outstream, "open HolKernel Parse bossLib boolSyntax;\nopen p4_testLib p4_arch_auxTheory;\n\n");
+  val _ = TextIO.output (outstream, "open HolKernel bossLib boolSyntax;\nopen p4_testLib p4_arch_auxTheory petr4_to_hol4p4Theory;\n\n");
   val _ = TextIO.output (outstream, "val _ = new_theory \""^(valname^"\";\n\n"));
  in
   ()

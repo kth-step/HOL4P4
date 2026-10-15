@@ -1,4 +1,6 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib bossLib;
+(* wordsLib is loaded for its side effect of adding the word simpsets to srw_ss *)
+local open wordsLib in end;
 
 open p4Theory listTheory;
 

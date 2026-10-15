@@ -1,10 +1,10 @@
 structure p4_symb_execSyntax :> p4_symb_execSyntax =
 struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel Abbrev;
 
 open p4Syntax;
-open p4_symb_execTheory;
+local open p4_symb_execTheory in end;
 
 val (p4_contract_list_tm, mk_p4_contract_list, dest_p4_contract_list, is_p4_contract_list) =
  syntax_fns5 "p4_symb_exec" "p4_contract_list";

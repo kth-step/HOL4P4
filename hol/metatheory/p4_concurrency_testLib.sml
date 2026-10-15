@@ -1,12 +1,8 @@
 structure p4_concurrency_testLib :> p4_concurrency_testLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib;
 
-open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
-
-open p4Syntax p4_concurrentSyntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory p4_testLib;
-
-open p4_exec_semTheory;
+open p4_concurrentSyntax p4_testLib;
 
 open p4_concurrentTheory;
 

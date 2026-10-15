@@ -1,11 +1,9 @@
 structure p4_concurrentSyntax :> p4_concurrentSyntax =
 struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel Abbrev pairSyntax;
 
-open stringSyntax optionSyntax pairSyntax listSyntax
-     wordsSyntax numSyntax bitstringSyntax;
-open p4_concurrentTheory;
+local open p4_concurrentTheory in end;
 
 
 val (trace_path_tm,  mk_trace_path, dest_trace_path, is_trace_path) =

@@ -1,4 +1,4 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib simpLib Parse bossLib;
 
 val _ = new_theory "p4_bigstep";
 

@@ -1,9 +1,9 @@
 structure p4_bigstepSyntax :> p4_bigstepSyntax =
 struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib listSyntax;
+open HolKernel Abbrev;
 
-open p4_bigstepTheory;
+local open p4_bigstepTheory p4_v1modelTheory in end;
 
 (* TODO: Move *)
 val (bigstep_arch_exec_tm,  mk_bigstep_arch_exec, dest_bigstep_arch_exec, is_bigstep_arch_exec) =

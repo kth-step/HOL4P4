@@ -1,17 +1,4 @@
 structure p4_convLib :> p4_convLib = struct
-(* OLD includes:
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open pairSyntax listSyntax numSyntax optionSyntax computeLib;
-
-open p4Theory p4_exec_semTheory;
-open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
-
-open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
-open auxLib symb_execLib p4_bigstepSyntax;
-*)
-(* TODO: IF something is unexpectedly slower, could be because of missing opens here... *)
-(* TODO: Note that this list of includes relies upon the heap that is used *)
 open HolKernel boolLib liteLib simpLib Parse bossLib;
 
 open wordsSyntax computeLib;
