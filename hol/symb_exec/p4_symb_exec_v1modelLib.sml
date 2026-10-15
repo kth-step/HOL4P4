@@ -140,8 +140,8 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
 (* TODO: Fix this. Similar to register construction *)
 fun approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list =
  let
-  (* TODO: HOL4P4_CONV? *)
-  val data_bitlist = dest_some $ rhs $ concl $ EVAL “get_checksum_incr' ^scope_list (lval_varname (varn_name "data"))”
+  (* Must be evaluated like the regular steps (not with EVAL), so that the equation added to the path condition matches the term in the state *)
+  val data_bitlist = dest_some $ rhs $ concl $ RESTR_HOL4P4_CONV_stop_consts “get_checksum_incr' ^scope_list (lval_varname (varn_name "data"))”
 
   val tm1 = mk_v1model_update_checksum_inner data_bitlist
 

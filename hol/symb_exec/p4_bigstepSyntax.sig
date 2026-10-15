@@ -25,4 +25,9 @@ val in_local_fun'_tm : term
 val is_in_local_fun' : term -> bool
 val mk_in_local_fun' : term * term * term * term -> term
 
+val actx_oracle_index_getter_setter_sane_tm : term
+val dest_actx_oracle_index_getter_setter_sane : term -> term
+val is_actx_oracle_index_getter_setter_sane : term -> bool
+val mk_actx_oracle_index_getter_setter_sane : term -> term
+
 end

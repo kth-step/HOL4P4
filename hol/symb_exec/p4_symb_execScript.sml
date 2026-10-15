@@ -7,6 +7,9 @@ open symb_execTheory;
 (* TODO: Hack, sort out *)
 open p4_v1modelTheory;
 
+(* For the oracle index sanity lemmas of the architectures *)
+open p4_bigstepTheory;
+
 (* TODO: Split into file used by symbolic execution and file used by contract derivation *)
 val _ = new_theory "p4_symb_exec";
 
@@ -510,6 +513,38 @@ Theorem w2v_exists:
 Proof
 rpt strip_tac >>
 fs[bitstringTheory.w2v_def]
+QED
+
+(* The oracle index getters and setters of the architectures are sane, as required by the
+ * soundness theorems of the big-step semantics used for shortcutting symbolic execution *)
+Theorem v1model_oracle_index_getter_setter_sane:
+oracle_index_getter_setter_sane v1model_get_oracle_index v1model_set_oracle_index
+Proof
+gs[oracle_index_getter_setter_sane_def] >>
+rpt strip_tac >> (
+ PairCases_on ‘ascope’ >>
+ gvs[v1model_get_oracle_index_def, v1model_set_oracle_index_def]
+)
+QED
+
+Theorem vss_oracle_index_getter_setter_sane:
+oracle_index_getter_setter_sane vss_get_oracle_index vss_set_oracle_index
+Proof
+gs[oracle_index_getter_setter_sane_def] >>
+rpt strip_tac >> (
+ PairCases_on ‘ascope’ >>
+ gvs[p4_vssTheory.vss_get_oracle_index_def, p4_vssTheory.vss_set_oracle_index_def]
+)
+QED
+
+Theorem ebpf_oracle_index_getter_setter_sane:
+oracle_index_getter_setter_sane ebpf_get_oracle_index ebpf_set_oracle_index
+Proof
+gs[oracle_index_getter_setter_sane_def] >>
+rpt strip_tac >> (
+ PairCases_on ‘ascope’ >>
+ gvs[p4_ebpfTheory.ebpf_get_oracle_index_def, p4_ebpfTheory.ebpf_set_oracle_index_def]
+)
 QED
 
 val _ = export_theory ();

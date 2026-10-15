@@ -22,4 +22,7 @@ val (in_local_fun_tm,  mk_in_local_fun, dest_in_local_fun, is_in_local_fun) =
 val (in_local_fun'_tm,  mk_in_local_fun', dest_in_local_fun', is_in_local_fun') =
   syntax_fns4 "p4_bigstep" "in_local_fun'";
 
+val (actx_oracle_index_getter_setter_sane_tm,  mk_actx_oracle_index_getter_setter_sane, dest_actx_oracle_index_getter_setter_sane, is_actx_oracle_index_getter_setter_sane) =
+  syntax_fns1 "p4_bigstep" "actx_oracle_index_getter_setter_sane";
+
 end

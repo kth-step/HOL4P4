@@ -207,6 +207,9 @@ val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch;
 val lang_is_finished = p4_is_finished;
 
+val (path_tree, [(path_id, path_cond, step_thm)]) =
+ p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE 1705;
+
 (* Remaining fuel *)
 val fuel = 1;
 val nobranch_flag = true;
@@ -225,6 +228,6 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract_conc debug_flag arch_ty ctx_data (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = export_theory ();

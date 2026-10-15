@@ -7,10 +7,10 @@ open pairSyntax listSyntax numSyntax optionSyntax stringSyntax computeLib marker
 open listTheory p4_auxTheory optionTheory pairTheory;
 
 open p4Theory p4_exec_semTheory;
-open symb_execTheory p4_symb_execTheory; (* p4_bigstepTheory; *)
+open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 
 open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax;
-open auxLib symb_execLib; (* p4_bigstepSyntax; *)
+open auxLib symb_execLib p4_bigstepSyntax;
 
 open p4_convLib p4_symb_exec_v1modelLib;
 
@@ -56,7 +56,6 @@ fun p4_should_branch_get_err_msg step_thm =
  end
 ;
 
-(* TODO: Rename to stmt_get_substmt? *)
 fun stmt_get_next stmt =
  if is_stmt_empty stmt
  then stmt
@@ -109,6 +108,28 @@ datatype branch_data =
  | apply of term * term
  | output of term;
 
+(* Looks up the ML string string in the HOL4 alist term alist,
+ * returning the corresponding value *)
+fun alookup_str alist string =
+ let
+  val alist_ml = map (fn (a,b) => (stringLib.fromHOLstring a, b)) $ map dest_pair $ fst $ dest_list alist
+ in
+  (case List.find (fn (a,b) => a = string) alist_ml of
+    SOME (_, value) =>
+      value
+   | NONE => raise (ERR "alookup_str" ((string^" not found in alist"))))
+ end
+;
+
+fun v1model_get_egress_port v_map =
+ let
+  val v = alookup_str v_map "standard_metadata"
+  val egress_port_v = alookup_str (dest_v_struct v) "egress_spec"
+ in
+  fst $ dest_pair $ dest_v_bit egress_port_v
+ end
+;
+
 (* Returns the information needed to perform a branch *)
 fun astate_get_branch_data astate =
  case astate_get_top_stmt astate of
@@ -146,15 +167,8 @@ fun astate_get_branch_data astate =
   then
    let
     val (_, _, v_map, _, _) = p4_v1modelLib.dest_v1model_ascope ascope
-    (* TODO: Hack, do in SML *)
-    val port_v_bit =
-     dest_some $ rhs $ concl $ EVAL “(case ALOOKUP ^v_map "standard_metadata" of
-				      | SOME (v_struct struct) =>
-				       ALOOKUP struct "egress_spec"
-				      | _ => NONE)”
-    val port_bl = fst $ dest_pair $ dest_v_bit port_v_bit
    in
-    output port_bl
+    output $ v1model_get_egress_port v_map
    end
   else no_branch
  end
@@ -1853,7 +1867,27 @@ fun deabbreviate (deabbrev_stmt_stack, deabbrev_frame_stack, deabbrev_ascope) st
  end
 ;
 
-fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm use_eval_in_ctxt step_thm =
+(* Instantiates the composition theorems used for big-step shortcuts with a proof that the
+ * oracle index getter and setter of the architecture context are sane. ctx_def defines the
+ * constant abbreviating the context, which is what the step theorems use. *)
+fun p4_get_bigstep_comp_thms ctx_def =
+ let
+  val ctx_const = lhs $ snd $ strip_forall $ concl ctx_def
+  val oracle_sane_thm =
+   EQT_ELIM $ REWRITE_CONV [ctx_def, actx_oracle_index_getter_setter_sane_def,
+                            v1model_oracle_index_getter_setter_sane,
+                            vss_oracle_index_getter_setter_sane,
+                            ebpf_oracle_index_getter_setter_sane]
+             (mk_actx_oracle_index_getter_setter_sane ctx_const)
+   handle HOL_ERR _ =>
+    raise (ERR "p4_get_bigstep_comp_thms" "Could not prove that the oracle index getter and setter of the architecture context are sane")
+ in
+  (MATCH_MP bigstep_arch_exec_comp'_NONE oracle_sane_thm,
+   MATCH_MP bigstep_arch_exec_comp'_SOME oracle_sane_thm)
+ end
+;
+
+fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
   val time_start = Time.now();
@@ -1892,10 +1926,8 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp
     then
      (case p4_is_shortcuttable (funn, stmt) func_map of
 	res_shortcut => res_shortcut
-      | res_no_shortcut_e e => res_no_shortcut_e e
-(*
+      | res_no_shortcut_e e =>
        p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e
-*)
       | other => other)
     else res_no_shortcut_arch
    | NONE => res_no_shortcut_arch
@@ -1955,7 +1987,6 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
   (* TODO: If use_eval_in_ctxt, this should never shortcut apply or select statements, which
    * need to use assumptions in the middle of execution. Fix this when you enable shortcutting
    * these *)
-(* TODO: Re-enable shortcutting
   if ((shortcut_result_eq shortcut res_shortcut) orelse (shortcut_result_eq shortcut res_f_args_shortcut))
   then
    (* Take regular shortcut *)
@@ -1966,14 +1997,14 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
     val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
      (* Non-function argument reduction *)
-     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 (* OLD
-     then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 *)
      (* Function argument reduction *)
-     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
     val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_HOL4P4_CONV_stop_consts bigstep_tm
 
@@ -2006,8 +2037,8 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 
     val shortcut_comp_thm =
      if shortcut_result_eq shortcut res_shortcut
-     then bigstep_arch_exec_comp'_NONE
-     else bigstep_arch_exec_comp'_SOME
+     then fst bigstep_comp_thms
+     else snd bigstep_comp_thms
 
     val res =
      SIMP_RULE simple_arith_ss []
@@ -2022,7 +2053,6 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
     res
    end
   else
-*)
    (* OLD regular step *)
    let
     val step_thm2 =
@@ -2043,18 +2073,18 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
     *)
       (* No timing printed for the below, it takes less than 0 ms *)
       (* TODO: Do this in a nicer way... *)
-    (* ???
+    (* DEBUG
       val next_e_opt = astate_get_next_e (func_map, b_func_map, ext_fun_map) astate
     *)
       val extra_rewr_thms =
        (case astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate of
-    (*
+    (* DEBUG
     val SOME next_e_syntax_f = astate_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) astate
     *)
 	  NONE => [] (* Reduction did not even consider reducing an e *)
 	| SOME next_e_syntax_f =>
 	 (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate) of
-    (*
+    (* DEBUG
     val SOME next_subexp_syntax_f = e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) (next_e_syntax_f astate)
     *)
 	    SOME next_subexp_syntax_f =>
@@ -2165,7 +2195,7 @@ fun preprocess_ftymaps (fty_map, b_fty_map) =
  end
 ;
 
-(* TODO: Re-enable shortcutting
+(* small-big:
 val (small_big_exec_tm, mk_small_big_exec, dest_small_big_exec, is_small_big_exec) =
  syntax_fns2 "p4_bigstep" "small_big_exec";
 *)
@@ -2182,22 +2212,27 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 
   val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] arch_multi_exec_comp_n_tl_assl_conj
 
+  (* Composition theorems for big-step shortcuts, with the sanity of the oracle index
+   * getter and setter of ctx discharged *)
+  val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def
+
   (* TODO: Use eval_ctxt defined below for init_step_thm? *)
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
   val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), stop_consts_never, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-(*
+(* small-big:
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
 *)
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm
+  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
    else (p4_is_finished 0)
  in
 (* DEBUG:
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt) comp_thm;
+val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def;
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm;
 val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
