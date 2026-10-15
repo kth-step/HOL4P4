@@ -1,10 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open p4Theory;
-
-open p4_symb_execLib;
-
-val _ = new_theory "conditional";
+Theory conditional
+Ancestors
+  p4 p4_symb_exec[qualified]
+Libs
+  liteLib p4_symb_execLib
 
 (* Test 1:
  * There's a single if-statement that branches on symbolic bits.
@@ -191,5 +189,3 @@ val (res_id1, res_cond1, res_thm1) = res_elem1
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
 val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
-
-val _ = export_theory ();

@@ -1,9 +1,8 @@
-open HolKernel boolLib bossLib;
-
-val _ = new_theory "p4_exec_sem_frames_soundness";
-
-open p4Lib;
-open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_stmt_soundnessTheory;
+Theory p4_exec_sem_frames_soundness
+Ancestors
+  list ott p4 p4_aux p4_exec_sem p4_exec_sem_stmt_soundness
+Libs
+  p4Lib
 
 Definition frame_list_exec_sound:
  (frame_list_exec_sound (type:'a itself) frame_list =
@@ -154,5 +153,3 @@ Cases_on `frame_list` >| [
  ]
 ]
 QED
-
-val _ = export_theory ();

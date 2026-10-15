@@ -1,10 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open p4Theory;
-
-open p4_symb_execLib;
-
-val _ = new_theory "table_unknown";
+Theory table_unknown
+Ancestors
+  p4 p4_symb_exec[qualified]
+Libs
+  liteLib p4_symb_execLib
 
 (* Test 6:
  * There are two table applications, one with two possible outcomes,
@@ -319,5 +317,3 @@ val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);
-
-val _ = export_theory ();

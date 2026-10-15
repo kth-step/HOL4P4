@@ -1,12 +1,9 @@
-open HolKernel boolLib;
-
-val _ = new_theory "p4_arch_aux";
-
-open p4Theory p4_coreTheory p4_ebpfTheory p4_v1modelTheory p4_vssTheory;
+Theory p4_arch_aux
+Ancestors
+  p4 p4_core p4_ebpf p4_v1model p4_vss
 
 (* This file contains all architecture-specific definitions that are used for importing to HOL4P4.
  * None of these should be found in imported Script files or used by the semantics *)
-
 
 (* Adding entries to tables *)
 
@@ -32,5 +29,3 @@ Definition v1model_add_ctrl_def:
  v1model_add_ctrl (astate:v1model_ascope astate) =
   add_ctrl_gen astate
 End
-
-val _ = export_theory ();

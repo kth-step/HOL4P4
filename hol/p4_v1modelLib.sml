@@ -1,12 +1,12 @@
 structure p4_v1modelLib :> p4_v1modelLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib bossLib;
 
-open listSyntax numSyntax pairSyntax;
+open pairSyntax;
 
 open p4Syntax p4_coreLib;
 
-open p4Theory p4_coreTheory p4_v1modelTheory;
+local open p4Theory p4_v1modelTheory in end;
 
 val v1model_arch_ty = ``:v1model_ascope``;
 

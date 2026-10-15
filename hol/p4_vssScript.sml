@@ -1,11 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_vss";
-
-open ottLib;
-open p4Theory p4_auxTheory p4_coreTheory;
-
-intLib.deprecate_int();
+Theory p4_vss
+Ancestors
+  p4 p4_aux p4_core
 
 Datatype:
  vss_v_ext =
@@ -319,5 +314,3 @@ Definition vss_set_oracle_index_def:
  vss_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):vss_ascope
 End
-
-val _ = export_theory ();

@@ -1,23 +1,13 @@
-open HolKernel boolLib simpLib bossLib;
-open arithmeticTheory listTheory;
+Theory p4_stmt_progress
+Ancestors
+  arithmetic list p4 p4_aux p4_e_subject_reduction p4_e_progress p4_stmt_subject_reduction option ott pair rich_list alist
+Libs
+  simpLib
 
-open p4Theory;
-open p4_auxTheory;
-open p4_e_subject_reductionTheory;
-open p4_e_progressTheory;
-open p4_stmt_subject_reductionTheory;
      
-open optionTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open alistTheory;
-
-
 
 fun OPEN_V_TYP_TAC v_term =
 (Q.PAT_X_ASSUM `v_typ v_term t bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once v_typ_cases] thm)))
-
 
                
 fun OPEN_EXP_RED_TAC exp_term =
@@ -46,7 +36,6 @@ fun OPEN_LVAL_TYP_TAC lval_term =
 
 
 
-val _ = new_theory "p4_stmt_progress";
 
    
 Definition prog_stmt_def:
@@ -902,15 +891,3 @@ Cases_on ‘h = stmt_empty’ >> gvs[] >| [
    ]
   ]
 QED
-
-
-
-
-
-
-
-val _ = export_theory ();
-
-
-
-

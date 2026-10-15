@@ -1,20 +1,10 @@
-open HolKernel boolLib simpLib bossLib;
-open arithmeticTheory listTheory;
-
-open p4Theory;
-open p4_auxTheory;
-open bitstringTheory;
-open optionTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open alistTheory;
-open numeralTheory;
-
-
+Theory p4_e_subject_reduction
+Ancestors
+  arithmetic list p4 p4_aux bitstring option ott pair rich_list alist numeral
+Libs
+  simpLib
 
 (*tactics*)
-
 
 fun OPEN_EXP_RED_TAC exp_term =
 (Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
@@ -40,7 +30,6 @@ val EXP_GOAL_TYP_IH_TAC = SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
                           fs[];
 
 
-val _ = new_theory "p4_e_subject_reduction";
 
 
 
@@ -5894,8 +5883,3 @@ rpt strip_tac >>
 fs[]
 ]
 QED
-
-
-
-
-val _ = export_theory ();

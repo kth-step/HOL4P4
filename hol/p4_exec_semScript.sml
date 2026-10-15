@@ -1,10 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_exec_sem";
-
-open p4Syntax;
-open ottTheory;
-open p4Theory p4_auxTheory;
+Theory p4_exec_sem
+Ancestors
+  p4 p4_aux
 
 (*********************************)
 (* Expression-related shorthands *)
@@ -2497,5 +2493,3 @@ Proof
  TODO
 QED
 *)
-
-val _ = export_theory ();

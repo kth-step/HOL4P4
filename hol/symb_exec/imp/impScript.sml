@@ -1,8 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-val _ = new_theory "imp";
-
-open listTheory alistTheory stringTheory;
+Theory imp
+Ancestors
+  list alist string symb_exec
+Libs
+  liteLib simpLib evalwrapLib symb_execLib
 
 (*************************)
 (* Auxiliary definitions *)
@@ -227,7 +227,6 @@ End
 (******************************************)
 (* Symbolic execution function parameters *)
 
-open symb_execTheory;
 
 (** imp_is_finished **)
 
@@ -269,7 +268,6 @@ fun mk_exec n = (fn state => mk_stmt_multi_exec (state, n));
 (* TODO: Test freezing compset *)
 fun imp_norewr_eval_ctxt st = EVAL (mk_exec 1 st);
 
-open evalwrapLib;
 
 fun imp_eval_ctxt path_cond state =
  eval_ctxt_gen [] [] (ASSUME path_cond) (mk_exec 1 state)
@@ -431,7 +429,6 @@ val debug_flag = true
 val path_cond = ASSUME T
 val fuel = 50
 
-open symb_execLib;
 
 val (res_path_tree, path_cond_step_list) = symb_exec (debug_flag, imp_regular_step, init_step_thm, imp_should_branch, imp_is_finished) path_cond fuel
 
@@ -473,5 +470,3 @@ fun prove_postconds debug_flag postcond path_cond_step_list =
 ;
 
 prove_postconds debug_flag postcond path_cond_step_list;
-
-val _ = export_theory();

@@ -1,11 +1,11 @@
 structure p4Syntax :> p4Syntax =
 struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib Parse;
 
 open stringSyntax optionSyntax pairSyntax listSyntax
      wordsSyntax numSyntax bitstringSyntax;
-open p4Theory;
+local open p4Theory in end;
 
 val ERR = mk_HOL_ERR "p4Syntax"
 

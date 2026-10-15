@@ -1,12 +1,9 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib bossLib;
 
-open pairSyntax wordsSyntax listSyntax bitstringSyntax numSyntax;
+open wordsSyntax listSyntax numSyntax;
 open p4Syntax;
-open testLib;
-open p4Lib p4_coreLib p4_vssLib p4_testLib;
+open p4_testLib;
 open p4_exec_semTheory p4_coreTheory p4_vssTheory p4_vss_exampleTheory;
-open blastLib;
-open computeLib;
 open alistTheory;
 
 (* This file includes complete test runs of the VSS example in the P4 spec. *)

@@ -1,20 +1,12 @@
-open HolKernel boolLib simpLib bossLib;
-open arithmeticTheory;
-
-open p4Theory ottTheory;
-open optionTheory;
-
-open p4_exec_semTheory p4_exec_sem_arch_soundnessTheory;
-
-val _ = new_theory "p4_concurrent";
-
-
+Theory p4_concurrent
+Ancestors
+  arithmetic p4 ott option p4_exec_sem p4_exec_sem_arch_soundness
+Libs
+  simpLib
 
 Definition trace_path_def:
  trace_path R (n:num) init fin = NRC R (n:num) init fin
 End
-
-
 
 (* The Compositionality of Trace Paths Theorem *)        
 Theorem paths_compose:
@@ -28,7 +20,6 @@ REPEAT STRIP_TAC >>
 IMP_RES_TAC NRC_ADD_I >>
 gvs[]
 QED     
-
 
       
 Theorem arch_paths_compose:
@@ -158,7 +149,3 @@ Definition p4_conc_finished_def:
  p4_conc_finished ((io1, io2, a), ((i1:num, gsl1, framel1, status1), (i2:num, gsl2, framel2, status2))) =
   (io1 = [] /\ i1 = 0 /\ i2 = 0 /\ status1 = status_running /\ status2 = status_running)
 End
-
-
-
-val _ = export_theory ();

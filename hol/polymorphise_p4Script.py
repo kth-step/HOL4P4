@@ -9,6 +9,12 @@ filename = os.path.dirname(os.path.realpath(__file__)) + os.sep + "p4Script.sml"
 #Ott-generated type abbreviations and Hol_datatypes that contain polymorphic types
 #TODO Perform a check that these lines are unchanged in the p4Script.sml file?
 od_hacks = OrderedDict([("Type ascope = ``:('a)``", ""), #Delete this type abbreviation
+                        #Replace the Ott preamble with the Trindemossen-2 header syntax (export_theory becomes implicit)
+                        ('open HolKernel boolLib Parse bossLib ottLib;\ninfix THEN THENC |-> ## ;\nlocal open arithmeticTheory stringTheory containerTheory pred_setTheory listTheory \n  finite_mapTheory in end;\n\nval _ = new_theory "p4";\n',
+                         'Theory p4\nAncestors[qualified]\n  string ott\nAncestors\n  bitstring words alist\n\ninfix THEN THENC |-> ## ;\n'),
+                        ('val _ = export_theory ();\n', ""),
+                        #The theories opened by the hol embeds in the ott sources are ancestors in the header instead
+                        ('open bitstringTheory;\n', ""), ('open wordsTheory;\n', ""), ('open alistTheory;\n', ""),
                         ("val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of ff\n`;",
                          "val _ = Hol_datatype ` \nffblock =  (* fixed-function block *)\n   ffblock_ff of 'a ff\n`;"),
                         ("Type ffblock_map = ``:((string, ffblock) alist)``",

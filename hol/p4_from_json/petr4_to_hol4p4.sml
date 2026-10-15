@@ -105,8 +105,7 @@ fun output_hol4_val outstream (name, tm, ty_opt) =
 
 fun output_hol4p4_incipit valname outstream =
  let
-  val _ = TextIO.output (outstream, "open HolKernel bossLib boolSyntax;\nopen p4_testLib p4_arch_auxTheory petr4_to_hol4p4Theory;\n\n");
-  val _ = TextIO.output (outstream, "val _ = new_theory \""^(valname^"\";\n\n"));
+  val _ = TextIO.output (outstream, "Theory "^valname^"\nAncestors\n  p4_arch_aux petr4_to_hol4p4 p4_exec_sem[qualified]\nLibs\n  p4_testLib\n\n");
  in
   ()
  end
@@ -114,7 +113,8 @@ fun output_hol4p4_incipit valname outstream =
 
 fun output_hol4p4_explicit outstream =
  let
-  val _ = TextIO.output (outstream, "val _ = export_theory ();");
+  (* export_theory is implicit with the Theory header *)
+  val _ = ();
  in
   ()
  end

@@ -1,30 +1,13 @@
-open HolKernel boolLib simpLib bossLib;
-open arithmeticTheory listTheory;
+Theory p4_frames_subject_reduction
+Ancestors
+  arithmetic list p4 p4_aux p4_e_subject_reduction p4_e_progress p4_stmt_subject_reduction p4_stmt_progress option ott pair rich_list alist
+Libs
+  simpLib
 
-open p4Theory;
-open p4_auxTheory;
-open p4_e_subject_reductionTheory;
-open p4_e_progressTheory;
-open p4_stmt_subject_reductionTheory;
-open p4_stmt_progressTheory;
      
-open optionTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open alistTheory;
-
-
-
-
 
 fun OPEN_LVAL_TYP_TAC lval_term =
 (Q.PAT_X_ASSUM `lval_typ (g1,q1) t (^lval_term) (tp)` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once lval_typ_cases] thm)))
-
-
-
-val _ = new_theory "p4_frames_subject_reduction";
-
 
 val t_scopes_consistent_list_def = Define ‘
  t_scopes_consistent_list funnl tsll t_scope_list_g (delta_g, delta_b, delta_x, delta_t) order =     
@@ -3327,10 +3310,3 @@ drule WT_state_of_copyout >> gvs[] >> REPEAT STRIP_TAC >> RES_TAC
 
 QED
         
-
-
-
-
-
-val _ = export_theory ();
-

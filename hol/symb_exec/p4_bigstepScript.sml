@@ -1,9 +1,8 @@
-open HolKernel boolLib simpLib Parse bossLib;
-
-val _ = new_theory "p4_bigstep";
-
-open p4Theory p4_auxTheory p4_exec_semTheory;
-open listTheory;
+Theory p4_bigstep
+Ancestors
+  p4 p4_aux p4_exec_sem list
+Libs
+  simpLib
 
 (* This file contains a big-step semantics for a fragment of P4 that
  * contains mostly local instructions *)
@@ -8814,5 +8813,3 @@ Proof
 cheat
 QED
 *)
-
-val _ = export_theory ();

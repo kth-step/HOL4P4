@@ -1,25 +1,10 @@
-open HolKernel boolLib simpLib Parse bossLib;
-open arithmeticTheory listTheory;
+Theory p4_frames_progress
+Ancestors
+  arithmetic list p4 p4_aux p4_e_subject_reduction p4_e_progress p4_stmt_subject_reduction p4_stmt_progress p4_frames_subject_reduction option ott pair rich_list alist
+Libs
+  simpLib
 
-open p4Theory;
-open p4_auxTheory;
-open p4_e_subject_reductionTheory;
-open p4_e_progressTheory;
-open p4_stmt_subject_reductionTheory;
-open p4_stmt_progressTheory;
-open p4_frames_subject_reductionTheory;
      
-open optionTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open alistTheory;
-
-
-
-
-
-val _ = new_theory "p4_frames_progress";
 
      
 Definition prog_state_def:
@@ -1263,7 +1248,4 @@ QED
 
 
 
-val _ = export_theory ();
         
-
-

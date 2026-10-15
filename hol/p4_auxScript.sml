@@ -1,10 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_aux";
-
-open listTheory rich_listTheory;
-open pairTheory optionTheory arithmeticTheory;
-open p4Theory;
+Theory p4_aux
+Ancestors
+  list rich_list pair option arithmetic p4
 
 (* OPTION_BIND as infix *)
 Definition app_opt_def[simp]:
@@ -2727,5 +2723,3 @@ C ==> B
 Proof
 metis_tac[]
 QED
-
-val _ = export_theory ();

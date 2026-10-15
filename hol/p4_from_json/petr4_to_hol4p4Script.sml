@@ -1,10 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "petr4_to_hol4p4";
-
-open stringTheory listTheory ASCIInumbersTheory;
-open parse_jsonTheory;
-open p4Theory p4_auxTheory p4_ebpfTheory p4_v1modelTheory p4_vssTheory;
+Theory petr4_to_hol4p4
+Ancestors
+  string list ASCIInumbers parse_json p4 p4_aux p4_ebpf p4_v1model p4_vss
 
 (* For EVAL *)
 
@@ -4189,5 +4185,3 @@ val vss_parse_debug1 = fst $ listSyntax.dest_list $ snd $ dest_comb $ rhs $ conc
 val list_elems = fst $ listSyntax.dest_list $ snd $ dest_comb $ rhs $ concl vss_parse_clean;
 
 *)
-
-val _ = export_theory ();

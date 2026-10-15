@@ -1,9 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open p4_testLib;
-
-open p4_symb_execLib;
-
-val _ = new_theory "basic_alt";
+Theory basic_alt
+Ancestors
+  p4_symb_exec[qualified]
+Libs
+  liteLib p4_testLib p4_symb_execLib
 
 (* IPsec example
  * Mid-size example based on https://github.com/didriklundberg/p4-ipsec
@@ -1413,4 +1412,3 @@ val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);
  
-val _ = export_theory ();

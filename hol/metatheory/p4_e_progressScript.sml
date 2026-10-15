@@ -1,16 +1,9 @@
 
-open HolKernel boolLib simpLib bossLib;
-open arithmeticTheory listTheory;
-
-open p4Theory;
-open p4_auxTheory;
-open optionTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open alistTheory;
-open p4_e_subject_reductionTheory;
-
+Theory p4_e_progress
+Ancestors
+  arithmetic list p4 p4_aux option ott pair rich_list alist p4_e_subject_reduction
+Libs
+  simpLib
 
 fun OPEN_EXP_RED_TAC exp_term =
 (Q.PAT_X_ASSUM `e_red c scope scopest ^exp_term exp2 fr` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_sem_cases] thm)))
@@ -25,7 +18,6 @@ fun OPEN_V_TYP_TAC v_term =
 fun OPEN_EXP_TYP_TAC exp_term =
 (Q.PAT_X_ASSUM ` e_typ (t1,t2) t ^exp_term ta bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once e_typ_cases] thm)))
 
-val _ = new_theory "p4_e_progress";
 
 
 (******    Type progress for expressions  ******)
@@ -2374,27 +2366,3 @@ REPEAT STRIP_TAC >>
 fs[]
 ]
 QED
-
-
-
-val _ = export_theory ();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

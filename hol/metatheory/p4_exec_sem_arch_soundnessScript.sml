@@ -1,9 +1,8 @@
-open HolKernel boolLib bossLib;
-
-val _ = new_theory "p4_exec_sem_arch_soundness";
-
-open p4Lib;
-open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_frames_soundnessTheory;
+Theory p4_exec_sem_arch_soundness
+Ancestors
+  list ott p4 p4_aux p4_exec_sem p4_exec_sem_frames_soundness
+Libs
+  p4Lib
 
 (* Type argument added to avoid "Unbound type variable(s) in definition: "'a"" *)
 Definition arch_exec_sound:
@@ -12,7 +11,6 @@ Definition arch_exec_sound:
   arch_exec actx (aenv, g_scope_list, arch_frame_list, status) = SOME astate' ==>
   arch_red actx (aenv, g_scope_list, arch_frame_list, status) astate')
 End
-
 
 Theorem arch_exec_sound_red:
 !arch_frame_list type. arch_exec_sound arch_frame_list type
@@ -237,5 +235,3 @@ Cases_on `arch_frame_list` >> (
  ]
 ]
 QED
-
-val _ = export_theory ();

@@ -1,12 +1,8 @@
-open HolKernel boolLib simpLib bossLib;
-open listTheory;
-
-open p4Theory p4_auxTheory ottTheory;
-open optionTheory;
-open pairTheory;
-open rich_listTheory;
-
-val _ = new_theory "p4_deter";
+Theory p4_deter
+Ancestors
+  list p4 p4_aux ott option pair rich_list
+Libs
+  simpLib
 
 (*Tactics*)
 
@@ -15,8 +11,6 @@ fun OPEN_EXP_RED_TAC exp_term =
 
 fun OPEN_STMT_RED_TAC stm_term =
 (Q.PAT_X_ASSUM `stmt_red ct (ab, gsl,[(fun,[^stm_term],gam)],st) stat` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once stmt_sem_cases] thm)))
-
-
 
 (*********** SAME SATE DEF *****************)
 
@@ -1052,8 +1046,3 @@ Cases_on `t` >| [
   ]
 ]]
 QED
-
-
-
-val _ = export_theory ();
-

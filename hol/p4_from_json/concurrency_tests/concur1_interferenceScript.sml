@@ -1,12 +1,8 @@
-open HolKernel Parse bossLib boolSyntax boolLib liteLib simpLib;
-
-val _ = new_theory "concur1_interference";
-
-open p4_testLib p4_arch_auxTheory;
-open p4_concurrentTheory p4_v1modelTheory;
-open bitstringTheory;
-
-open pairSyntax p4Syntax p4_concurrentSyntax p4_v1modelLib;
+Theory concur1_interference
+Ancestors
+  p4_concurrent p4_v1model bitstring
+Libs
+  p4_testLib pairSyntax p4Syntax p4_v1modelLib
 
 val concur1_actx = ``([arch_block_inp;
   arch_block_pbl "MyParser"
@@ -287,5 +283,3 @@ CONJ_TAC >| [
  ]
 ]
 QED
-
-val _ = export_theory ();

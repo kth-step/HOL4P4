@@ -1,9 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_core";
-
-open ottLib;
-open p4Theory p4_auxTheory;
+Theory p4_core
+Ancestors
+  p4 p4_aux
 
 (*****************)
 (* core ext type *)
@@ -635,5 +632,3 @@ Definition FOLDL_MATCH_alt_def:
    | NONE => FOLDL_MATCH_alt e_l (v, SOME prio) (acc+1) t
   else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
 End
-
-val _ = export_theory ();

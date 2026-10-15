@@ -4,9 +4,10 @@ open HolKernel boolLib liteLib simpLib Parse bossLib;
 (* wordsLib is loaded for its side effect of adding word arithmetic to the EVAL compset *)
 local open wordsLib in end;
 
-open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax stringLib;
+open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
 
-open p4Syntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory;
+open p4Syntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib;
+local open p4_vssTheory p4_ebpfTheory in end;
 
 open p4_exec_semTheory;
 

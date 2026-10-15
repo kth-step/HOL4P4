@@ -1,9 +1,8 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_v1model";
-
-open ottLib;
-open p4Theory p4Syntax p4_auxTheory p4_coreTheory p4_coreLib;
+Theory p4_v1model
+Ancestors
+  p4 p4_aux p4_core
+Libs
+  p4Syntax
 
 (* Useful documentation and reference links:
    https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
@@ -764,5 +763,3 @@ Definition v1model_set_oracle_index_def:
  v1model_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):v1model_ascope
 End
-
-val _ = export_theory ();
