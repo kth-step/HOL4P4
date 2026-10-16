@@ -126,8 +126,9 @@ val symb_exec2_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
-val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[],0),
+val p = “p:bool list”;
+
+val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^p,0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[],0),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);
@@ -149,13 +150,15 @@ val init_astate = symb_exec2_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “v2w [e1; e2; e3; e4; e5; e6; e7; e8] <+ (v2w [T; F; F; F; F; F; F; F]):word8”
+val first_byte = rhs $ concl $ EVAL “(packet_word 0 ^p):word8”;
+val path_cond = ASSUME “48 <= LENGTH ^p /\ ^first_byte <+ (v2w [T; F; F; F; F; F; F; F]):word8”
 val p4_is_finished_alt_opt = NONE
 val fuel = 2
 val n_max = 50;
-val postcond = “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
-val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
-val postcond_simpset = pure_ss
+val postcond = “(\s. packet_has_port s 1 /\
+                     (?bl. get_packet s = SOME bl /\ bl = packet_slice 0 48 ^p ++ DROP 48 ^p /\ LENGTH bl = LENGTH ^p)):v1model_ascope astate -> bool”;
+val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def, p4_symb_execTheory.get_packet_def, p4_symb_execTheory.packet_slice_def]
+val postcond_simpset = srw_ss() ++ numSimps.ARITH_ss
 
 (* For debugging:
 val comp_thm = INST_TYPE [Type.alpha |-> arch_ty] p4_exec_semTheory.arch_multi_exec_comp_n_tl_assl

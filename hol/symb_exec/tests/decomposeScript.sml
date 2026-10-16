@@ -8,7 +8,7 @@ Libs
  * Postcondition holds regardless of which path was taken.
  *
  * This tests if basic branching and unification works.
- * In addition, the verification is split up into verificaiton of the first
+ * In addition, the verification is split up into verification of the first
  * programmable block, and the subsequent. *)
 
 val symb_exec1_blftymap = ``[]:(string, ((funn, (p_tau list # p_tau)) alist)) alist``;
@@ -126,8 +126,9 @@ val symb_exec1_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
-val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[],0),
+val p = “p:bool list”;
+
+val symb_exec1_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^p,0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[],0),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);
@@ -149,7 +150,7 @@ val init_astate = symb_exec1_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = (ASSUME T)
+val path_cond = ASSUME “LENGTH ^p = 48”
 val p4_is_finished_alt_opt = NONE
 val n_max = 100;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
@@ -173,19 +174,19 @@ val (fv_index1, disj_thm1, step_thm1) = hd res_list1
 (* 1. Prove a contract from initial to intermediate state *)
 (* Last conjunct needed for block_index stop from 3 onwards *)
 val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
-                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8) /\
+                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit (packet_slice 0 8 ^p,8) /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "parsedHdr")) "h") s = SOME T (* /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T *) ):v1model_ascope astate -> bool”;
 (*
 (* If block_index_stop is 5 or later *)
 val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
-                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit ([e1; e2; e3; e4; e5; e6; e7; e8],8) /\
+                      p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit (packet_slice 0 8 ^p,8) /\
                       (p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_meta")) "egress_spec") s = SOME $ v_bit ([F; F; F; F; F; F; F; F; T],9) \/
                        p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_meta")) "egress_spec") s = SOME $ v_bit ([F; F; F; F; F; F; F; T; F],9)) /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "parsedHdr")) "h") s = SOME T /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T):v1model_ascope astate -> bool”;
 *)
-val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, p4_v1model_lookup_avar_validity_def, lookup_lval_def, p4_coreTheory.v_map_to_scope_def]
+val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, p4_v1model_lookup_avar_validity_def, lookup_lval_def, p4_coreTheory.v_map_to_scope_def, p4_symb_execTheory.packet_slice_def]
 (* DEBUG
 
 val p4_is_finished_alt_opt = p4_is_finished_alt_opt1

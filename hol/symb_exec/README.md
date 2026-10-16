@@ -72,6 +72,25 @@ sequences of local small steps into one step using the big-step semantics in
 and `bigstep_arch_exec_comp'_SOME`. A new architecture needs a lemma like
 `v1model_oracle_index_getter_setter_sane` in `p4_symb_execScript.sml`.
 
+## Symbolic packets
+
+The input packet of a program can be a symbolic variable `p` of type `bool list` instead
+of a list of bits by using `p4_append_input_list [(p, port)]` with the initial state.
+The size of this symbolic packet `p` is the branched on. No fresh variables are
+introduced. The theorems behind this are in `p4_symb_execScript.sml`, together with the
+definitions for referring to the packet in postconditions:
+
+* `packet_slice n w p` is the list of bits `n` to `n + w - 1` of `p` (as `EL` terms, with
+  bit `0` as `HD p`), and
+* `packet_word n p : 'a word` is the same as a word, with the width given by the type.
+
+Add `packet_slice_def` and `packet_word_def` to `postcond_rewr_thms` when they are used.
+Whether enough bits remain for a method is decided from the path condition
+(such as `336 <= LENGTH p` or `LENGTH p = 336` in the precondition). If neither
+that nor its negation follows, the symbolic execution branches on it, and the path on which
+the packet is too short (`PacketTooShort`) is explored as well. The postcondition prover
+needs `numSimps.ARITH_ss`.
+
 ## Tests and examples
 
 The tests are located in the `tests` subdirectory. After installation, run them by first executing

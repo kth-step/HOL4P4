@@ -156,8 +156,9 @@ val symb_exec4_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
-val symb_exec4_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
+val p = “p:bool list”;
+
+val symb_exec4_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [(^p,0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
   [("t",
     [(((λk.
             match_all
@@ -188,7 +189,7 @@ val init_astate = symb_exec4_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME T
+val path_cond = ASSUME “48 <= LENGTH ^p”
 val p4_is_finished_alt_opt = NONE
 val n_max = 60;
 val postcond = “(\s. packet_has_port s 42 \/ packet_has_port s 101):v1model_ascope astate -> bool”;

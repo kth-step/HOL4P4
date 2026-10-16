@@ -199,8 +199,9 @@ val symb_exec6_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
-val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8; F; F; F; T; F; F; F; T; F; F; F; T; F; F; F; T; F;
-   F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
+val p = “p:bool list”;
+
+val symb_exec6_astate_symb = rhs $ concl $ EVAL ``p4_append_input_list [(^p,0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
   [("t2",t2_ctrl);
    ("t1",
     [(((λk.
@@ -261,7 +262,7 @@ val init_astate = symb_exec6_astate_symb
 val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
-val path_cond = ASSUME “e8 = T /\ ^symb_exec6_wf_tbl_tm”
+val path_cond = ASSUME “48 <= LENGTH ^p /\ EL 7 ^p = T /\ ^symb_exec6_wf_tbl_tm”
 val p4_is_finished_alt_opt = NONE
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
