@@ -4,16 +4,13 @@
   app load ["pred_setTheory","finite_mapTheory","stringTheory","containerTheory","ottLib"];
 *)
 
-open HolKernel boolLib Parse bossLib ottLib;
+Theory p4
+Ancestors[qualified]
+  string ott
+Ancestors
+  bitstring words alist
+
 infix THEN THENC |-> ## ;
-local open arithmeticTheory stringTheory containerTheory pred_setTheory listTheory 
-  finite_mapTheory in end;
-
-val _ = new_theory "p4";
-
-open bitstringTheory;
-open wordsTheory;
-open alistTheory;
 
 Type x = ``:string`` (* string *)
 Type b = ``:bool`` (* boolean *)
@@ -26,7 +23,6 @@ Type num_exp = ``:num``
 Type bitv = ``:(bl # num)``
 
 Type boolv = ``:bool``
-
 
 val _ = Hol_datatype ` 
 funn = 
@@ -66,7 +62,6 @@ mk =  (* matching kinds *)
  | mk_optional
  | mk_selector
 `;
-
 
 val _ = Hol_datatype ` 
 binop = 
@@ -113,8 +108,6 @@ s =  (* set *)
  | s_univ (* universal *)
 `;
 
-
-
 Type s_list = ``:(s list)``
 val _ = Hol_datatype ` 
 e =  (* expression *)
@@ -133,7 +126,6 @@ e =  (* expression *)
  | e_header of boolv => (x#e) list (* header *)
 `;
 
-
 val _ = Hol_datatype ` 
 lval = 
    lval_varname of varn (* variable name *)
@@ -147,12 +139,9 @@ Type e_list = ``:(e list)``
 
 Type i_opt = ``:(num option)``
 
-
-
 Type scope = ``:((varn, (v # lval option)) alist)``
 
 Type g_scope = ``:scope``
-
 
 val _ = Hol_datatype ` 
 struct_ty = 
@@ -176,8 +165,6 @@ tau =  (* type *)
 `;
 
 Type Ftau = ``:( ( tau # x # d ) list # tau)``
-
-
 
 Type g_scope_list = ``:(scope list)``
 
@@ -203,10 +190,7 @@ Type ext_fun = ``:(('a # g_scope_list # scope_list) -> (('a # scope_list # statu
 
 Type d_list = ``:(d list)``
 
-
-
 Type t_scope = ``:((varn, ( tau # lval option)) alist)``
-
 
 val _ = Hol_datatype ` 
 stmt =  (* statement *)
@@ -221,8 +205,6 @@ stmt =  (* statement *)
  | stmt_ext (* extern *)
 `;
 
-
-
 Type func_map = ``:((string, (stmt # (string # d) list)) alist)``
 
 Type b_func_map = ``:((string, (stmt # (string # d) list)) alist)``
@@ -230,8 +212,6 @@ Type b_func_map = ``:((string, (stmt # (string # d) list)) alist)``
 Type in_out = ``:(bl # num)``
 
 Type ext_fun_map = ``:((string, ((string # d) list # 'a ext_fun)) alist)``
-
-
 
 Type ext_map = ``:((string, ((((string # d) list # 'a ext_fun) option) # 'a ext_fun_map)) alist)``
 
@@ -248,8 +228,6 @@ pbl_type =  (* programmable block type *)
  | pbl_type_control
 `;
 
-
-
 Type ff = ``:(('a aenv) -> ('a aenv) option)``
 val _ = Hol_datatype ` 
 ffblock =  (* fixed-function block *)
@@ -257,8 +235,6 @@ ffblock =  (* fixed-function block *)
 `;
 
 Type pblock = ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map)``
-
-
 
 Type pblock_map = ``:((string, pblock) alist)``
 
@@ -274,8 +250,6 @@ arch_block =  (* architectural block *)
  | arch_block_ffbl of x
  | arch_block_out
 `;
-
-
 
 Type get_oracle_index = ``:('a -> num)``
 
@@ -293,8 +267,6 @@ Type apply_table_f = ``:((x # e_list # mk_list # (x # e_list) # 'a) -> (x # e_li
 
 Type ab_list = ``:(arch_block list)``
 
-
-
 Type ctx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # 'a get_oracle_index # 'a set_oracle_index # random_oracle)``
 
 Type ectx = ``:('a apply_table_f # 'a ext_map # func_map # b_func_map # pars_map # tbl_map # i # random_oracle)``
@@ -305,12 +277,9 @@ Type stmt_stack = ``:(stmt list)``
 
 Type frame = ``:(funn # stmt_stack # scope_list)``
 
-
-
 Type frame_list = ``:(frame list)``
 
 Type state = ``:('a # g_scope_list # frame_list # status)``
-
 
 val _ = Hol_datatype ` 
 arch_frame_list =  (* architecture-level frame list *)
@@ -1337,7 +1306,6 @@ val slice_def = Define `
   slice (v, n) (vec1, len1) (vec2, len2) = bitv_bitslice (v , n) (v2n (vec1)) (v2n (vec2))
 `;
 
-
 (* given an lval being a slicing operation, take only the parts that are required in the slicing *)
 val slice_lval_def = Define `
   (slice_lval (v_bit (v, bl)) (e1) (e2) =
@@ -1349,7 +1317,6 @@ val slice_lval_def = Define `
      | _ => NONE
      ))
 `;
-
 
 val is_var_def = Define `
   (is_var (e_var _) = T) /\
@@ -1367,11 +1334,9 @@ val v_of_e_def = Define `
   (v_of_e _ = NONE)
 `;
 
-
 val vl_of_el_def = Define `
   vl_of_el el = MAP (\(e). THE (v_of_e e)) (el)
 `;
-
 
 (* Given a list of expresstions e1...en, find the first expression that is not a constant and return its index. 
 *  Returns the index of the expression. 
@@ -1392,7 +1357,6 @@ val find_topmost_map_def = Define `
     | NONE => NONE
 `;
 
-
 (* Extracts the topmost scope where the variable name x is mapped in *)
 val topmost_map_def = Define `
   topmost_map  (ss:((varn#'a) list) list) (x:varn) =
@@ -1400,7 +1364,6 @@ val topmost_map_def = Define `
     | SOME (i, y) => SOME y
     | _ => NONE
 `;
-
 
 (* Fetches the ('a, string option) tuple of the variable name x, 
 in the topmost scope where it is mapped *) 
@@ -1422,7 +1385,6 @@ val lookup_v_def = Define `
     | _ => NONE
 `;
 
-
 (* Fetches the (optional) argument variable name that might have been saved if
  * variable name x was mapped as a result of being an out-parameter in a
  * called function from the topmost scope where x is mapped *)
@@ -1433,15 +1395,12 @@ val lookup_out_def = Define `
     | _ => NONE
 `;
 
-
 val lookup_vexp2_def = Define `
   lookup_vexp2 (ss:scope list) (g_scope_list:scope list) x =
     case lookup_map (ss++g_scope_list) x of
     | SOME (v, str_opt) => SOME v
     | _ => NONE
 `;
-
-
 
 (* Look up the value of a l-value (variables + fields of struct-valued variables + slice) in
  * a scope stack. 
@@ -1481,7 +1440,6 @@ val is_d_out_def = Define `
   (is_d_out _ = F)
 `;
 
-
 val get_lval_of_e_def = Define `
   (get_lval_of_e (e_var x) = SOME (lval_varname x)) /\
   (get_lval_of_e (e_acc e x) =
@@ -1502,14 +1460,12 @@ val is_e_lval_def = Define `
     | NONE => F)
 `;
 
-
 (* Takes an expression list, and returns an option tuple (index, exp) of
  * the first index that has an unreduced expression*)
 val unred_mem = Define `
   unred_mem elist  = 
     INDEX_FIND 0 (\(e). ~(is_const e)) (elist) 
 `;
-
 
 (* retrives only the index of the unred_mem definition *)
 val unred_mem_index_def = Define `
@@ -1650,8 +1606,6 @@ rpt strip_tac >> (
 )
 End
 
-
-
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
@@ -1700,7 +1654,6 @@ val all_arg_update_for_newscope_def = Define `
   all_arg_update_for_newscope xlist dlist elist ss i random_oracle = 
     FOLDL (update_arg_for_newscope ss random_oracle) (SOME ([], i)) (ZIP (dlist, ZIP(xlist, elist)))
 `;
-
 
 (* full copyin definition *)
 val copyin_def = Define `
@@ -2062,8 +2015,6 @@ val is_short_circuitable_def = Define `
   (is_short_circuitable _ = F)
 `;
 
-
-
 (* Init the variable name star in the topmost scope and return only the scope *)
 val decl_init_star_def = Define `
   decl_init_star scope_list v (varn_star funn) =
@@ -2104,7 +2055,6 @@ val lookup_ext_fun_def = Define `
    | _ => NONE) /\
   (lookup_ext_fun (funn_name f) ext_map = NONE)
 `;
-
 
 (* Passes different global scope lists based on where the function funn is defined.
    If funn is global, then the function will return only the global scope,
@@ -2148,8 +2098,6 @@ val scopes_to_retrieve_def = Define `
    | _ => SOME ([EL 0 g_scope_list_og; EL 1 g_scope_list])
 `;
 
-
-
 (* if the function is defined locally, then the map of the locals will be passed 
    else it should be empty, because functions defined globally or extern should not be calling locals *)
 
@@ -2164,7 +2112,6 @@ val map_to_pass_def = Define `
    | _ => SOME []
 `;
 
-
 val tbl_to_pass_def = Define `
  tbl_to_pass (funn:funn) (b_func_map:b_func_map) (tbl_map:tbl_map) = 
   case funn of
@@ -2175,8 +2122,6 @@ val tbl_to_pass_def = Define `
     )
    | _ => SOME []
 `;
-
-
 
 (** definitions *)
 
@@ -2758,14 +2703,10 @@ Inductive conc_sem:
  ==> 
 ( ( conc_red  ( ab_list ,  pblock_map ,  ffblock_map ,  input_f ,  output_f ,  copyin_pbl ,  copyout_pbl ,  apply_table_f ,  ext_map ,  func_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ((   in_out_list  ,  in_out_list'  ,  ascope  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i'   ,  g_scope_list'  ,  arch_frame_list'  ,  status'  ) ))   ((   in_out_list''  ,  in_out_list'''  ,  ascope'  ) , ( (   i   ,  g_scope_list  ,  arch_frame_list  ,  status  ) , (   i''   ,  g_scope_list''  ,  arch_frame_list''  ,  status''  ) ))  )))
 End
-open bitstringTheory;
-open wordsTheory;
-
 
 Type t_scope_list_g = ``:(t_scope list)``
 
 Type t_scope_list = ``:(t_scope list)``
-
 
 Type t_scopes_frames = ``:(t_scope_list list)``
 
@@ -2789,13 +2730,11 @@ Type delta = ``:( delta_g # delta_b # delta_x # delta_t )``
 
 Type funn_list = ``:( funn list )``
 
-
 Type order = ``:(order_elem -> order_elem -> bool )``
 
 Type Prs_n = ``:(string list)``
 
 Type T_e = ``:( order # funn # delta )``
-
 
 (*************************************************)
 (****** Typing Rules Related definitions *********)
@@ -2806,7 +2745,6 @@ val bs_width_def = Define `
   bs_width (bl, (n:num)) = n
 `;
 
-
 val star_not_in_ts_def = Define `
 star_not_in_ts (s:t_scope) =
   ! f . (ALOOKUP s (varn_star f) = NONE)
@@ -2816,7 +2754,6 @@ val Err_not_in_ts_def = Define `
 Err_not_in_ts (s:t_scope) =
    (ALOOKUP s (varn_name "parseError") = NONE)
 `;
-
 
 val star_Err_not_in_ts_def = Define `
 star_Err_not_in_ts (s:t_scope) =
@@ -2855,7 +2792,6 @@ val find_star_in_globals_def = Define `
     | _ => NONE
 `;
 
-
 (* lookup the functions type *)
 
 val t_lookup_funn_def = Define `
@@ -2884,10 +2820,6 @@ val t_lookup_funn_def = Define `
   )
 `;
 
-
-
-
-
 val ext_is_defined_def = Define `
 ext_is_defined (delta_x:delta_x) funn =
 ! f . funn = funn_name f ⇒
@@ -2901,8 +2833,6 @@ ext_is_defined (delta_x:delta_x) funn =
          ALOOKUP ext_MoE x' = SOME (txdl, t)))
 `;
 
-
-
 val ext_not_defined_def = Define `
     ext_not_defined delta_g delta_b funn =
 ((∀f.    funn = funn_name f ⇒
@@ -2911,10 +2841,6 @@ val ext_not_defined_def = Define `
             ALOOKUP delta_g x = NONE ∧ ALOOKUP delta_b x = NONE) ∧
 (∀x x'. funn = funn_ext x x' ⇒
          ALOOKUP delta_g x = NONE ∧ ALOOKUP delta_b x = NONE))   `;  
-
-
-
-
 
 (* 
 given a record feild names and their types xtl, with result tau and a string x, make sure that 
@@ -2928,7 +2854,6 @@ tau_in_rec (xtl:(x#tau) list) (x:x) (t:tau) =
     | NONE => NONE
 `;
 
-
 (* Syntactic function to make the tau_in_rec retuens a boolean rather than option type*)
 val correct_field_type_def = Define `
   correct_field_type (xtl:(x#tau) list) (x:x) (t:tau) =
@@ -2937,7 +2862,6 @@ val correct_field_type_def = Define `
       else F
 `;
 
-
 (* checks the lengths of the constants during the slicing operation.
 (v,n) is the desired bitvector to slice from the index vec2 to vec1 
 *)
@@ -2945,7 +2869,6 @@ val bits_length_chec_def = Define `
 bits_length_check w (vec1) (vec2) =
      ( (0 <= vec2) /\ (vec2 <= vec1) /\ (vec1 < w) )
 `; 
-
 
 (* given three bitstrings that are aruments to the slicing operations, convert the 
 bitstrings into constants and check if they adhere to the specification's length requirements *)
@@ -3005,14 +2928,12 @@ vec_to_const (vec,len) =
       (v2n vec)
 `;
 
-
 (* check if the dir is out, then the boolean b must be lval *)
 
 val out_is_lval_def = Define `
 out_is_lval dl bl =
  ! i .  (i < LENGTH dl) ==> (is_d_out (EL i dl) ==> (EL i bl))
 `;
-
 
 (* returns true if the operation is conducted between two bitvectors and returnsa bitvector*)
 val is_bv_op_def = Define `
@@ -3061,7 +2982,6 @@ literials_in_P_state (xl: x list) (Prs_n:Prs_n) =
 EVERY (\(x). MEM x Prs_n) (xl)
 `;
 
-
 (* "order" is a STRICT partial relation that relates two components.
    This has the features of irreflexivity, antisymmetry, & transitivity 
    with order we mean that x defined before y *)
@@ -3071,17 +2991,11 @@ val WF_o_def = Define `
   		 ( !x y.   order x y  ==> ~order y x ) /\
        ( !x y z. order x y /\ order y z  ==> order x z ))`;
 
-
 (* given a list l and an order given by the configuration order *)
 val ordered_list_def = Define `
 ordered_list order l  =
     ! i . i < LENGTH l - 2  ==> order (EL i l) (EL (SUC i) l)
 `;
-
-
-
-
-
 
 (** definitions *)
 
@@ -3161,19 +3075,15 @@ Inductive s_typ:
 ( ( s_typ s_univ s_t_top )))
 End
 
-
 (* create a relation between two scopes *)
 
 (* Single scope similarity *)
 val similar_def = Define `
 similar R l1 l2 = LIST_REL (\x y . (R (SND x) (SND y) ) /\ (FST x = FST y) ) l1 l2 `;
 
-
 (*list of scopes similarity*)
 val similarl_def = Define `
 similarl R ll1 ll2 = LIST_REL (\l1 l2 . similar R l1 l2  ) ll1 ll2 `;
-
-
 
 (*check if a list of scopes can be typed with respect to a list of typing scopes 
        [t_scope1...t_scopen] |- [scope1 ... scopen]
@@ -3184,8 +3094,6 @@ type_scopes_list (sl:scope list) (tsl:t_scope list) =
  similarl (\(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sl tsl
 `;
 
-
-
 (* checks if a variable varn is a variable name or not, it is used later to check 
 that star is not a member of the local frame. WF property. 
 *)
@@ -3194,8 +3102,6 @@ val is_varn_name_def = Define `
   (is_varn_name _ = F)
 `;
 
-
-
 (*in a given scope and a typing scope, the domain is the same and also all variables are 
  not return /function place holders (aka var star) 
  *)
@@ -3203,7 +3109,6 @@ val star_not_in_s_def = Define `
 star_not_in_s (s:scope) =
   ! f . (ALOOKUP s (varn_star f) = NONE)
 `;
-
 
 (*in a given scope list (in one frame) and a typing scope (of one frame), the domain 
  of each scope in the list is the same and also none of the scopes contain 
@@ -3214,8 +3119,6 @@ star_not_in_sl (sl) =
  EVERY (\s.  (star_not_in_s s)  ) sl
 `;
 
-
-
 (* To type one single frame, all scopes (list of scopes) should be able to be typed 
    by the typyng list of scopes tsl, and also, the domain of each list is the same.
    The domains should comtain only variable names, and no var star
@@ -3225,8 +3128,6 @@ type_frame_tsl (sl:scope list) (tsl: t_scope list) =
 ( type_scopes_list sl tsl   /\
   star_not_in_sl (sl))
 `;
-
-
 
 (* type the global scope in a state: To type a global it is enough that all variables can 
 type each other. NOTE: the global frames we keep the return functions variables stars. 
@@ -3239,7 +3140,6 @@ type_globals_tsl (sl:scope list) (tsl: t_scope list)  =
  similarl (\(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sl tsl
 `;
 
-
 (* To type all frame's scopes, all frames's scopes should be able to be typed 
    by the typing list of scopes tsll, and also, the domain of each frame is the same.
 *)
@@ -3248,7 +3148,6 @@ type_state_tsll (sll:scope_list list) (tsll: t_scope_list list) =
  ! i . i < LENGTH sll ==>
 type_frame_tsl (EL i sll) (EL i tsll)
 `;
-
 
 (** definitions *)
 
@@ -3495,16 +3394,12 @@ type_ith_stmt t_scope_list_g t_scope_list T_e Prs_n stmt_stack =
       stmt_typ (t_scope_list_g, ( DROP i t_scope_list)  ) T_e Prs_n (EL i stmt_stack)
 `;
 
-
 (* checks if the first (initial) typing scope of the frame contains the same types as the one expected from 
    the functions args in the context tl *)
 val args_t_same_def = Define `
 args_t_same (tl:tau list) (t_scope_list:t_scope_list) =
 (MAP (\(x,t,lvop).t) (LAST t_scope_list) = tl)  
 `;
-
-
-
 
 (* given a list of strings, mk_varn makes a list of variable names for that list *)
 
@@ -3513,19 +3408,15 @@ mk_varn (xl:string list) =
     MAP (\x. varn_name x ) xl
 `;
 
-
-
 val extract_elem_tri_def = Define ‘
    extract_elem_tri l =
      (MAP (λ(a,b,c). a) l, MAP (λ(a,b,c). b) l , MAP (λ(a,b,c). c) l )                                        
 ’;
 
-
 val out_lval_consistent_def = Define ‘
    out_lval_consistent (lol:lval option list) (dl:d list) =
    LIST_REL (λ lop d. lop ≠ NONE ⇔ is_d_out d)  lol dl             
 ’;
-
 
 val sig_tscope_consistent_def = Define ‘
     sig_tscope_consistent (f:funn) delta_g delta_b delta_x (t_scope_list:t_scope_list) =
@@ -3539,19 +3430,11 @@ val sig_tscope_consistent_def = Define ‘
       mk_varn xl = varnl ∧ tl = tl' ∧ out_lval_consistent lol dl)
 ’;
 
-
-
 val t_scopes_consistent_def = Define ‘
     t_scopes_consistent T_e (t_scope_list_caller:t_scope_list) (t_scope_list_g: t_scope_list_g) (t_scope_list_called: t_scope_list) =
     ∀ x t lop. ALOOKUP (LAST t_scope_list_called) x = SOME (t, SOME lop) ⇒
                        lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t)
 ’;
-
-
-
-
-
-
 
 (** definitions *)
 
@@ -3587,8 +3470,6 @@ Inductive frame_typ:
 ( ( frame_typ  ( t_scope_list_g  ,  t_scope_list )   (  order  ,  funn  ,   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )   )  Prs_n g_scope_list scope_list stmt_stack )))
 End
 
-
-
 (* given a statement, check whether the end statement is a return statement *)
 
 val end_stmt_is_ret_def = Define `
@@ -3603,7 +3484,6 @@ val end_stmt_is_ret_def = Define `
   (end_stmt_is_ret (stmt_seq stmt1 stmt2) = (end_stmt_is_ret (stmt1) \/ end_stmt_is_ret (stmt2)) ) 
 `;
 
-
 (* given a list of (tau,string,dir) list and a list of lval, return a typing scope *)
     val mk_tscope_def = Define `
     mk_tscope (txdl: (tau#string#d) list) (lol: (lval option) list) =
@@ -3615,8 +3495,6 @@ val end_stmt_is_ret_def = Define `
     same_dir_x xdl txdl =
    (xdl = MAP SND txdl)
    `;
-
-
 
 val t_scopes_to_pass_def = Define `
  t_scopes_to_pass (funn:funn) (delta_g:delta_g) (delta_b:delta_b) (t_scope_list_g:t_scope_list_g) =
@@ -3633,13 +3511,10 @@ val t_scopes_to_pass_def = Define `
    | _ => SOME ([ []; EL 1 t_scope_list_g])
 `;
 
-
-
  val not_parseError_str =  Define `
 not_parseError_str xdl =
    EVERY (\(x,d). x ≠ "parseError") xdl
 `;
-
 
 (* should we simplify it? we already know t_scopes_to_pass should always the second part? *)
 (*based on the specs, the extern cannot be called from functions *)
@@ -3663,10 +3538,6 @@ func_map_typed (func_map:func_map) order (t_scope_list_g:t_scope_list_g) delta_g
    ( end_stmt_is_ret stmt))
 `;
 
-
-
-
-
 val func_map_blk_typed_def = Define `
 func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n =
 ! f stmt xdl x lol.
@@ -3687,16 +3558,11 @@ func_map_blk_typed (b_func_map:b_func_map) order t_scope_list_g delta_g delta_b 
 
 `;
 
-
-
 (* a definition to check that the lval op is always NONE 
    and also the varn names are still the same, this we get from similarl definition *)
 val ext_sc_same_as_input_def = Define `
 ext_sc_same_as_input (scopest: scope_list) (scopest_out : scope_list) =
 similarl (\ si so . (SND si = SND so)) scopest scopest_out `;
-
-
-
 
 (*note the statement here can only be the black box*)
 
@@ -3728,7 +3594,6 @@ extern_map_IoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_
    (! t_scopel''. (type_scopes_list local_scopes t_scopel'') ==> (type_scopes_list scope_list' t_scopel''))
 `;
 
-
 val extern_MoE_typed_def = Define `
 extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
 
@@ -3755,12 +3620,9 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
    (! t_scopel''. (type_scopes_list local_scopes t_scopel'') ==> (type_scopes_list scope_list' t_scopel''))
 `;
 
-
-
 (************************************)
 (* f from table call is well typed **)
 (************************************)
-
 
 (* f'  : default action 
    el' : keys to match with 
@@ -3768,13 +3630,9 @@ extern_MoE_typed (ext_map: 'a ext_map) t_scope_list_g delta_g delta_b delta_x  =
    vl  : is action data   
    the action can never be an extern *)
 
-
-
-
 val is_directionless_def = Define `
 is_directionless dl =  EVERY (\d. d = d_none) dl
 `;
-
 
 (* el is the key list, f' is default action, el' default action's data/args
 Here we mean that the function/action being called from the table can be in either global or local  *)
@@ -3800,21 +3658,17 @@ table_map_typed (tbl_map: tbl_map) (apply_table_f: 'a apply_table_f) delta_g del
 (*****************)
 (* takes two lists and checks if the current contents of the domains are different*)
 
-
-
 (* use this definition whereever the equivelent holds *)
 val is_lookup_defined_def = Define `
     is_lookup_defined l1 x =
      ? y . ALOOKUP l1 x = SOME y 
 `;
 
-
 (* NOTE: this will be used for functions maps and the types of the functions *)
 val dom_eq_def = Define `
 dom_eq l1 l2 =
 ! f . ((is_lookup_defined l1 f) <=> (is_lookup_defined l2 f)) 
 `;
-
 
 (* domain empty intersection, given two assosiative lists, the domains should not intersect 
    with eachother *)
@@ -3823,20 +3677,17 @@ dom_empty_intersection l1 l2 =
 ! f . (ALOOKUP l1 f = NONE \/ ALOOKUP l2 f = NONE)
 `;
 
-
 (* functions map empty intersection *)
 val dom_map_ei_def = Define `
 dom_map_ei (func_map:func_map) (b_func_map:b_func_map) =
   dom_empty_intersection func_map b_func_map
 `;
 
-
 (* domain of the typing function map *)
 val dom_tmap_ei_def = Define `
 dom_tmap_ei (delta_g:delta_g) (delta_b:delta_b) =
   dom_empty_intersection delta_g delta_b
 `;
-
 
 val typying_domains_ei_def = Define `
 typying_domains_ei (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) =
@@ -3845,13 +3696,10 @@ typying_domains_ei (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) =
   dom_empty_intersection delta_g delta_b)
 `;
 
-
 val dom_g_eq_def = Define `
 dom_g_eq (delta_g:delta_g) (func_map:func_map) =
   dom_eq delta_g func_map
 `;
-
-
 
 val dom_b_eq_def = Define `
 dom_b_eq (delta_b:delta_b) (b_func_map:b_func_map) =
@@ -3862,7 +3710,6 @@ val dom_t_eq_def = Define `
 dom_t_eq (delta_t:delta_t) (tbl_map:tbl_map) =
   dom_eq delta_t tbl_map
 `;
-
 
 val dom_x_eq_def = Define `
 dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
@@ -3877,21 +3724,12 @@ dom_x_eq (delta_x:delta_x) (ext_map: 'a ext_map) =
 	 )
 `;
 
-
-
-
-
-
-
-
 val f_in_apply_tbl_def = Define ‘
      f_in_apply_tbl (tbl_map:tbl_map) (apply_table_f: 'a apply_table_f) =
 ∀ s mk x el key_list ascope.
 ALOOKUP tbl_map s = SOME (mk, x ,el) ⇒
  ∃ f vl .   apply_table_f (s,key_list,mk,(x,el),ascope) = SOME (f,vl)    
     ’;
-
-
 
 (* represents 
 !f ∈ domain( Fg ). var(star,f) ∈ domain(gsl_t[1])
@@ -3904,15 +3742,12 @@ Fg_star_defined (func_map:func_map) (t_scope_list_g:t_scope_list_g) =
       (is_lookup_defined (EL 1 t_scope_list_g) (varn_star (funn_name x)))
 `;
 
-
 val Fb_star_defined_def = Define `
 Fb_star_defined (b_func_map:b_func_map) (t_scope_list_g:t_scope_list_g) =
 ! x . (is_lookup_defined b_func_map x)
              <=>
       (is_lookup_defined (EL 0 t_scope_list_g) (varn_star (funn_name x)))
 `;
-
-
 
 val X_star_defined_def = Define `
 X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
@@ -3922,15 +3757,11 @@ X_star_defined (ext_map: 'a ext_map) (t_scope_list_g:t_scope_list_g) =
             (is_lookup_defined (EL 1 t_scope_list_g) (varn_star f)))
 `;
 
-
-
-
 val X_star_not_defined_def = Define `
 X_star_not_defined (t_scope_list_g:t_scope_list_g) =
 ! f x x' . (f = funn_inst x \/ f = funn_ext x x') ==> (
             ~ (is_lookup_defined (EL 0 t_scope_list_g) (varn_star f)))
 `;
-
 
 (** definitions *)
 
@@ -4032,8 +3863,6 @@ Inductive WT_c:
 ( ( WT_c  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )  order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n )))
 End
 
-
-
 val t_map_to_pass_def = Define `
  t_map_to_pass (funn:funn) (delta_b:delta_b) =
   case funn of
@@ -4056,11 +3885,7 @@ val t_tbl_to_pass_def = Define `
    | _ => SOME []
 `;
 
-
-
        
-
-
 
 val type_frames_def = Define `
 type_frames (g_scope_list:g_scope_list) (frames_list:frame_list) (Prs_n:Prs_n)
@@ -4082,10 +3907,6 @@ func_map b_func_map =
           frame_typ (passed_tslg,EL i t_scopes_frames) (order,EL i funnl,delta_g,passed_delta_b,delta_x,passed_delta_t) Prs_n passed_gscope (EL i scl) (EL i stml))     
 `;
 
-
-
-
-
 val f_decl_in_def = Define
 ‘f_decl_in (funn_name x) l =
  ∃ sig . ALOOKUP l x = SOME sig ’;
@@ -4106,7 +3927,6 @@ val MoE_decl_in_def = Define `
     ( ∃ ext_MoE sig a1. ALOOKUP l x = SOME (a1, ext_MoE) ∧ ALOOKUP ext_MoE x' = SOME sig ) 
 `;
 
-
 val deltas_order_def = Define
  ` deltas_order (delta_g:delta_g) (delta_b:delta_b) (delta_x:delta_x) (order:order) =
 
@@ -4118,13 +3938,11 @@ val deltas_order_def = Define
 (∀s s' s''. MoE_decl_in (funn_ext s s') delta_x ∧ f_decl_in (funn_name s'') delta_g ⇒
             order (order_elem_f (funn_ext s s')) (order_elem_f (funn_name s''))) ∧
 
-
     (* order of global and local functions : global defined before local *)           
 
 (∀s s'.   f_decl_in (funn_name s) delta_g ∧ f_decl_in (funn_name s') delta_b ⇒
           order (order_elem_f (funn_name s)) (order_elem_f (funn_name s'))))
  `;
-
 
 (** definitions *)
 
@@ -4155,8 +3973,3 @@ Inductive WT_state:
  ==> 
 ( ( WT_state  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . (funn_,stmt_stack_,scope_list_)) funn_stmt_stack_scope_list_t_scope_list_list)) )  ,  status )  Prs_n order t_scope_list_g  ( ((MAP (\(funn_,stmt_stack_,scope_list_,t_scope_list_) . t_scope_list_) funn_stmt_stack_scope_list_t_scope_list_list)) )   (  delta_g  ,  delta_b  ,  delta_x  ,  delta_t  )  )))
 End
-
-val _ = export_theory ();
-
-
-

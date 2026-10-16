@@ -1,8 +1,8 @@
 structure auxLib :> auxLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib listSyntax;
+open HolKernel Abbrev;
 
-open alistTheory;
+local open alistTheory in end;
 
 (* TODO: Upstream? *)
 val (alookup_tm,  mk_alookup, dest_alookup, is_alookup) =

@@ -1,22 +1,17 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_vss";
-
-open ottLib;
-open p4Theory p4_auxTheory p4_coreTheory;
-
-intLib.deprecate_int();
+Theory p4_vss
+Ancestors
+  p4 p4_aux p4_core
 
 Datatype:
  vss_v_ext =
    vss_v_ext_ipv4_checksum (word16 list)
 End
-val _ = type_abbrev("vss_sum_v_ext", ``:(core_v_ext, vss_v_ext) sum``);
+Type vss_sum_v_ext = “:(core_v_ext, vss_v_ext) sum”
 
-val _ = type_abbrev("vss_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+Type vss_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
 
 (* The architectural state type of the VSS architecture model *)
-val _ = type_abbrev("vss_ascope", ``:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl # num)``);
+Type vss_ascope = “:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) # vss_ctrl # num)”
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -319,5 +314,3 @@ Definition vss_set_oracle_index_def:
  vss_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
   (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):vss_ascope
 End
-
-val _ = export_theory ();

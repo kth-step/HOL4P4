@@ -1,12 +1,12 @@
 structure p4_vssLib :> p4_vssLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel Abbrev;
 
-open listSyntax numSyntax;
+open numSyntax;
 
 open p4Syntax p4_coreLib;
 
-open p4Theory p4_coreTheory p4_vssTheory;
+local open p4Theory p4_coreTheory p4_vssTheory in end;
 
 val vss_arch_ty = ``:vss_ascope``;
 

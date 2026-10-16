@@ -1,10 +1,8 @@
 structure p4_coreLib :> p4_coreLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel Abbrev;
 
-open p4Syntax;
-
-open p4Theory p4_coreTheory;
+local open p4Theory p4_coreTheory in end;
 
 (* Below are some terms containing stuff that is defined in core.p4.
  * See also p4_coreScript.sml, which contains the HOL4 functions

@@ -1,9 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_ebpf";
-
-open ottLib;
-open p4Theory p4_auxTheory p4_coreTheory;
+Theory p4_ebpf
+Ancestors
+  p4 p4_aux p4_core
 
 (* TODO: Put all the stuff that's shared between this and VSS in coreTheory *)
 
@@ -15,12 +12,12 @@ Datatype:
  | ebpf_v_ext_hash_table
 End
 
-val _ = type_abbrev("ebpf_sum_v_ext", ``:(core_v_ext, ebpf_v_ext) sum``);
+Type ebpf_sum_v_ext = “:(core_v_ext, ebpf_v_ext) sum”
 
-val _ = type_abbrev("ebpf_ctrl", ``:(string, (((e_list -> bool) # num), string # e_list) alist) alist``);
+Type ebpf_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
 
 (* The architectural state type of the eBPF architecture model *)
-val _ = type_abbrev("ebpf_ascope", ``:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl # num)``);
+Type ebpf_ascope = “:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist) # ebpf_ctrl # num)”
 
 (**********************************************************)
 (*               SPECIALISED CORE METHODS                 *)
@@ -276,5 +273,3 @@ Definition ebpf_set_oracle_index_def:
  ebpf_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):ebpf_ascope
 End
-
-val _ = export_theory ();

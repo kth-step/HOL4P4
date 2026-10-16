@@ -2,10 +2,6 @@ signature p4Syntax =
 sig
   include Abbrev
 
-val clause_name_tm : term
-val dest_clause_name : term -> term
-val is_clause_name : term -> bool
-val mk_clause_name : term -> term
 
 val dest_varn_name : term -> term
 val is_varn_name : term -> bool
@@ -296,6 +292,15 @@ val dest_arch_frame_list_regular : term -> term
 val is_arch_frame_list_regular : term -> bool
 val mk_arch_frame_list_regular : term -> term
 
+val dest_quinop : term -> exn -> term -> term * term * term * term * term
+val mk_quinop : term -> term * term * term * term * term -> term
+val syntax_fns5 :
+   string -> string ->
+     term * (term * term * term * term * term -> term) *
+     (term -> term * term * term * term * term) * (term -> bool)
+
+val dest_ascope : term -> term * term * term * term * term
+val random_oracle_tm : term
 val dest_actx :
    term ->
      term * term * term * term * term * term * term * term * term * term * term * term * term

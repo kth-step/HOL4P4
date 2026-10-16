@@ -1,15 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-val _ = new_theory "p4_test_vss_ttl";
-
-open pairSyntax wordsSyntax listSyntax bitstringSyntax numSyntax;
-open p4Syntax;
-open testLib;
-open p4Lib p4_coreLib p4_vssLib p4_testLib;
-open p4_exec_semTheory p4_coreTheory p4_vssTheory p4_vss_exampleTheory;
-open blastLib;
-open computeLib;
-open alistTheory;
+Theory p4_test_vss_ttl
+Ancestors
+  p4_exec_sem p4_core p4_vss p4_vss_example alist
+Libs
+  pairSyntax wordsSyntax listSyntax numSyntax p4Syntax p4_vssLib p4_testLib
 
 (* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. *)
 
@@ -224,6 +217,3 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 181``;
 (* Takes 65 steps, then another 103, then 13 *)
 (* Theorem on line below proves data non-interference using proof approach 3 *)
 GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [65, 103, 13];
-
-
-val _ = export_theory ();

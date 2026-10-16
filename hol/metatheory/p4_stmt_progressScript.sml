@@ -1,33 +1,13 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+Theory p4_stmt_progress
+Ancestors
+  arithmetic list p4 p4_aux p4_e_subject_reduction p4_e_progress p4_stmt_subject_reduction option ott pair rich_list alist
+Libs
+  simpLib
 
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_deterTheory;
-open p4_e_subject_reductionTheory;
-open p4_e_progressTheory;
-open p4_stmt_subject_reductionTheory;
      
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;
-open pairTheory;
-open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
-
-
 
 fun OPEN_V_TYP_TAC v_term =
 (Q.PAT_X_ASSUM `v_typ v_term t bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once v_typ_cases] thm)))
-
 
                
 fun OPEN_EXP_RED_TAC exp_term =
@@ -56,11 +36,10 @@ fun OPEN_LVAL_TYP_TAC lval_term =
 
 
 
-val _ = new_theory "p4_stmt_progress";
 
    
-val prog_stmt_def = Define `
- prog_stmt (stmt) (ty:'a itself) =
+Definition prog_stmt_def:
+prog_stmt (stmt) (ty:'a itself) =
 ∀ ascope gscope (scopest:scope list) status  t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
       
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
@@ -77,29 +56,30 @@ val prog_stmt_def = Define `
        ∃ stmtl scopest' framel gscope' status' ascope'.
        (stmt_red c ( ascope ,  gscope  ,           [ (f, [stmt], scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status'))
-
-`;
-
-
-      
-
+End
 
 
       
-val vl_of_el_ev = prove (“                       
+
+
+
+      
+Triviality vl_of_el_ev:
 ∀ vl .
 is_consts vl ⇒
-vl = MAP (λv_. e_v v_) (vl_of_el vl) ”,
+vl = MAP (λv_. e_v v_) (vl_of_el vl)
+Proof
 Induct >> rw[] >> gvs[vl_of_el_def, is_consts_def] >>
-Cases_on ‘h’ >> gvs[is_const_def, v_of_e_def]                         
-);
+Cases_on ‘h’ >> gvs[is_const_def, v_of_e_def]
+QED
 
         
 
-val index_not_const_EL = prove ( “
+Triviality index_not_const_EL:
 ∀ el x .
   x < LENGTH el ∧ index_not_const el = SOME x ⇒
-  ¬is_const (EL x el)”,
+  ¬is_const (EL x el)
+Proof
 Induct >>
 rw[] >>
 IMP_RES_TAC index_not_const_in_range >>
@@ -108,14 +88,15 @@ gvs[index_not_const_def] >>
 Cases_on ‘INDEX_FIND 0 (λe. ¬is_const e) (h::el)’ >> gvs[] >>
 PairCases_on ‘x'’ >> gvs[] >>                                           
 IMP_RES_TAC INDEX_FIND_EQ_SOME_0 >> gvs[]
-);
+QED
 
 
 
-val oDROP_exists = prove (“
+Triviality oDROP_exists:
 ∀ sl i .
    LENGTH sl ≥ 3 ∧ i = LENGTH sl − 2 ⇒
-   ∃l l'. SOME l = oDROP (i) sl ”,
+   ∃l l'. SOME l = oDROP (i) sl
+Proof
 Induct >>
 Induct_on ‘i’ >>            
 
@@ -129,13 +110,14 @@ Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >-
 ‘i + 2 =LENGTH sl’ by gvs[] >>
 Cases_on ‘i’ >> gvs[] >>
 gvs[oDROP_def]
-);
+QED
 
 
-val oTAKE_exists = prove (“
+Triviality oTAKE_exists:
 ∀ sl i .
    LENGTH sl ≥ 3 ∧ i = LENGTH sl − 2 ⇒
-   ∃l l'. SOME l = oTAKE (i) sl ”,
+   ∃l l'. SOME l = oTAKE (i) sl
+Proof
 Induct >>
 Induct_on ‘i’ >>            
 
@@ -150,34 +132,34 @@ Cases_on ‘LENGTH sl ≥ 3 ’ >> gvs[] >>
 
 ‘i + 2 =LENGTH sl’ by gvs[] >> Cases_on ‘i’ >> gvs[] >>
 gvs[oTAKE_def]  >> fs[]
-);
+QED
 
 
 
 
-val separate_exists = prove (“
+Triviality separate_exists:
 ∀ sl.
  LENGTH sl ≥ 3 ⇒
- ∃ l l' . (SOME l , SOME l' ) = separate sl ”,
-
+ ∃ l l' . (SOME l , SOME l' ) = separate sl
+Proof
 REPEAT STRIP_TAC  >>
 fs[separate_def] >>
 gvs[ADD1, oDROP_def, oTAKE_def ] >>
 IMP_RES_TAC oDROP_exists >>
 IMP_RES_TAC oTAKE_exists >>
 gvs[] >> METIS_TAC []
-);
+QED
 
 
 
         
-val lval_typ_imp_e_typ = prove ( “      
+Triviality lval_typ_imp_e_typ:
 ∀ l tau gtsl tsl T_e .
   lval_typ (gtsl,tsl) T_e l (tau) ⇒
     ∃ e.  is_e_lval e ∧
       get_lval_of_e e = SOME l ∧
-      e_typ (gtsl,tsl) T_e e tau T ”,
-
+      e_typ (gtsl,tsl) T_e e tau T
+Proof
 Induct >>                       
 REPEAT GEN_TAC >> STRIP_TAC >| [
  Q.EXISTS_TAC ‘e_var v’ >>
@@ -211,17 +193,18 @@ REPEAT GEN_TAC >> STRIP_TAC >| [
  ,
  OPEN_LVAL_TYP_TAC “(lval_paren l)”  >> gvs[] 
   ]
-);
+QED
 
 
 
 
-val lookup_lval_empty = prove ( “        
+Triviality lookup_lval_empty:
 ∀ l .
-lookup_lval [] l = NONE ”,
- Induct_on ‘l’ >>
+lookup_lval [] l = NONE
+Proof
+Induct_on ‘l’ >>
  gvs[lookup_lval_def, lookup_v_def, lookup_map_def, topmost_map_def, find_topmost_map_def, INDEX_FIND_def]
-);
+QED
 
 
 
@@ -843,8 +826,8 @@ QED
 
 
    
-val prog_stmtl_def = Define `
- prog_stmtl (stmtl) (ty:'a itself) =
+Definition prog_stmtl_def:
+prog_stmtl (stmtl) (ty:'a itself) =
 ∀ ascope gscope (scopest:scope list) status  t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n .
       
        type_scopes_list  (gscope)  (t_scope_list_g) ∧
@@ -860,8 +843,7 @@ val prog_stmtl_def = Define `
        ∃ stmtl' scopest' framel gscope' status' ascope'.
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status'))
-
-`;
+End
 
   
 
@@ -909,15 +891,3 @@ Cases_on ‘h = stmt_empty’ >> gvs[] >| [
    ]
   ]
 QED
-
-
-
-
-
-
-
-val _ = export_theory ();
-
-
-
-

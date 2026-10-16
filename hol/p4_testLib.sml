@@ -1,10 +1,13 @@
 structure p4_testLib :> p4_testLib = struct
 
 open HolKernel boolLib liteLib simpLib Parse bossLib;
+(* wordsLib is loaded for its side effect of adding word arithmetic to the EVAL compset *)
+local open wordsLib in end;
 
-open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax stringLib;
+open pairSyntax optionSyntax wordsSyntax bitstringSyntax listSyntax numSyntax;
 
-open p4Syntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib p4_vssTheory p4_ebpfTheory;
+open p4Syntax p4_auxTheory p4_exec_semSyntax testLib evalwrapLib;
+local open p4_vssTheory p4_ebpfTheory in end;
 
 open p4_exec_semTheory;
 
@@ -369,40 +372,6 @@ fun eval_step ascope_ty actx astate =
   else eval_step' actx comp_thm step_thm
  end
 end;
-
-(* TODO: Move to syntax file *)
-(* TODO: This happens to work with all current architectures *)
-fun dest_ascope ascope =
- let
-  val (counter, ascope') = dest_pair ascope
-  val (ext_obj_map, ascope'') = dest_pair ascope'
-  val (v_map, ascope''') = dest_pair ascope''
-  val (ctrl, oracle_index) = dest_pair ascope'''
- in
-  (counter, ext_obj_map, v_map, ctrl, oracle_index)
- end
-;
-
-(* TODO: Move to syntax file *)
-(* TODO: This happens to work with all current architectures *)
-fun dest_actx actx =
- let
-  val (ab_list, actx') = dest_pair actx
-  val (pblock_map, actx'') = dest_pair actx'
-  val (ffblock_map, actx''') = dest_pair actx''
-  val (input_f, actx'''') = dest_pair actx'''
-  val (output_f, actx''''') = dest_pair actx''''
-  val (copyin_pbl, actx'''''') = dest_pair actx'''''
-  val (copyout_pbl, actx''''''') = dest_pair actx''''''
-  val (apply_table_f, actx'''''''') = dest_pair actx'''''''
-  val (ext_map, actx''''''''') = dest_pair actx''''''''
-  val (func_map, actx'''''''''') = dest_pair actx'''''''''
-  val (get_oracle_index, actx''''''''''') = dest_pair actx''''''''''
-  val (set_oracle_index, random_oracle) = dest_pair actx'''''''''''
- in
-  (ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle)
- end
-;
 
 (* This tactic is used in the automatic tests derived from the .stf files of the P4 examples *)
 local

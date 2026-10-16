@@ -1,7 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-open pairTheory optionTheory stringTheory;
-
-val _ = new_theory "ott";
+Theory ott
+Ancestors
+  pair option string
 
 Definition list_minus_def:
  (list_minus [] ys = [])
@@ -123,5 +122,3 @@ QED
 Definition clause_name_def:
  clause_name (x:string) = T
 End
-
-val _ = export_theory ();

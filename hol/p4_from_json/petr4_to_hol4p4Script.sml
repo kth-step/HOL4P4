@@ -1,13 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-val _ = new_theory "petr4_to_hol4p4";
-
-open stringTheory listTheory ASCIInumbersTheory;
-open parse_jsonTheory;
-open p4Theory p4_auxTheory;
+Theory petr4_to_hol4p4
+Ancestors
+  string list ASCIInumbers parse_json p4 p4_aux p4_ebpf p4_v1model p4_vss
 
 (* For EVAL *)
-open ASCIInumbersLib;
 
 (* Finds an element e obeying P in l, then returns a tuple of e and l with e removed *)
 Definition FIND_EXTRACT_def:
@@ -241,13 +236,13 @@ End
 
 (* Some types which are used throughout the .p4 parser which are not part of the HOL4P4 state or
  * context *)
-val _ = type_abbrev("tyenv", ``:(string, p_tau) alist``);
-val _ = type_abbrev("enummap", ``:(string # (string, v) alist) list``);
-val _ = type_abbrev("ftymap", ``:((funn, (p_tau list # p_tau)) alist)``);
+Type tyenv = “:(string, p_tau) alist”
+Type enummap = “:(string # (string, v) alist) list”
+Type ftymap = “:((funn, (p_tau list # p_tau)) alist)”
 
 (* pblock and tbl_map with list of actions stored *)
-val _ = type_abbrev("tbl_map_extra", ``:((string, ((mk list) # x_list # (x # e_list))) alist)``);
-val _ = type_abbrev("pblock_extra", ``:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map_extra)``);
+Type tbl_map_extra = “:((string, ((mk list) # x_list # (x # e_list))) alist)”
+Type pblock_extra = “:(pbl_type # ((string # d) list) # b_func_map # t_scope # pars_map # tbl_map_extra)”
 
 (* The tau signifies the type argument(s) *)
 Datatype:
@@ -4017,17 +4012,6 @@ Definition p4_pblock_of_tbl_def:
   | NONE => NONE
 End
 
-(* TODO: Move *)
-Definition FILTER_DUPLICATES_def:
- (FILTER_DUPLICATES [] = []) /\
- (FILTER_DUPLICATES (h::t) =
-  (h::(FILTER_DUPLICATES (FILTER ($<> h) t))))
-Termination
-WF_REL_TAC `measure LENGTH` >>
-rpt strip_tac >>
-ASSUME_TAC (Q.SPECL [`(\y. h <> y)`, `t`] rich_listTheory.LENGTH_FILTER_LEQ) >>
-fs[prim_recTheory.LESS_THM]
-End
 
 (* TODO: Put in files with other arch-specific stuff? *)
 (* Get initial mappings for ctrl from the programmable blocks map *)
@@ -4201,5 +4185,3 @@ val vss_parse_debug1 = fst $ listSyntax.dest_list $ snd $ dest_comb $ rhs $ conc
 val list_elems = fst $ listSyntax.dest_list $ snd $ dest_comb $ rhs $ concl vss_parse_clean;
 
 *)
-
-val _ = export_theory ();

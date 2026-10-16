@@ -1,10 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open p4Theory;
-
-open p4_symb_execTheory p4_symb_execLib;
-
-val _ = new_theory "decompose";
+Theory decompose
+Ancestors
+  p4 p4_symb_exec
+Libs
+  liteLib p4_symb_execLib
 
 (* There's a single if-statement that branches on symbolic bits.
  * Postcondition holds regardless of which path was taken.
@@ -215,5 +213,3 @@ val wellformed_def = p4_v1model_parser_wellformed_def
 
 *)
 val combined_contract = p4_combine_contracts contract_thm1 contract_thm2 p4_v1model_parser_wellformed_def;
-
-val _ = export_theory ();

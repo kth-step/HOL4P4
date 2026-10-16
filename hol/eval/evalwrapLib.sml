@@ -1,7 +1,7 @@
 structure evalwrapLib :> evalwrapLib =
 struct
 
-open HolKernel Parse boolLib bossLib;
+open HolKernel Parse boolLib;
 open computeLib hurdUtils;
 
 (*

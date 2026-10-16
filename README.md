@@ -10,9 +10,9 @@ HOL4P4 is a small-step, heapless formalisation and a type system of the P4 langu
 ## Content
 
 * [Semantics](ott/p4_sem.ott) and [type system](ott/p4_types.ott) in Ott
-* [Proof of determinism for the semantics](hol/p4_deterScript.sml)
-* [Type preservation](hol/p4_frames_subject_reductionScript.sml) and [progress](hol/p4_frames_progressScript.sml) proofs up to the frame level
-* [Executable semantics](hol/p4_exec_semScript.sml) with [soundness proof](hol/p4_exec_sem_arch_soundnessScript.sml)
+* [Proof of determinism for the semantics](hol/metatheory/p4_deterScript.sml)
+* [Type preservation](hol/metatheory/p4_frames_subject_reductionScript.sml) and [progress](hol/metatheory/p4_frames_progressScript.sml) proofs up to the frame level
+* [Executable semantics](hol/p4_exec_semScript.sml) with [soundness proof](hol/metatheory/p4_exec_sem_arch_soundnessScript.sml)
 * [.p4 import tool (using Petr4 as backend)](hol/p4_from_json)
 * [Symbolic execution tool](hol/symb_exec)
 * Architecture models:

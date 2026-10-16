@@ -24,6 +24,6 @@ if [ ! -e "HOL/bin/Holmake" ]; then
 	bin/build
 fi
 # For bash
-echo 'export PATH=$PATH:${INSTALL_DIR}/HOL/bin' >> ~/.bashrc
+echo "export PATH=\$PATH:${INSTALL_DIR}/HOL/bin" >> ~/.bashrc
 source ~/.bashrc
 cd ${CURR_DIR}

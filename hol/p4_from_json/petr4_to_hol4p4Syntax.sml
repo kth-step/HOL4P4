@@ -1,11 +1,9 @@
 structure petr4_to_hol4p4Syntax :> petr4_to_hol4p4Syntax =
 struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel Abbrev optionSyntax;
 
-open stringSyntax optionSyntax pairSyntax listSyntax
-     wordsSyntax numSyntax bitstringSyntax;
-open petr4_to_hol4p4Theory;
+local open petr4_to_hol4p4Theory in end;
 
 val (SOME_msg_tm, mk_SOME_msg, dest_SOME_msg, is_SOME_msg) =
   syntax_fns1 "petr4_to_hol4p4" "SOME_msg";

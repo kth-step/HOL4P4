@@ -1,6 +1,6 @@
 structure p4_symb_exec_v1modelLib :> p4_symb_exec_v1modelLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel boolLib liteLib simpLib bossLib;
 
 open bitstringSyntax listSyntax numSyntax optionSyntax pairSyntax;
 
@@ -8,14 +8,7 @@ open symb_execTheory p4_symb_execTheory p4_v1modelTheory;
 
 open p4_v1modelLib p4Syntax p4_testLib;
 
-open auxLib symb_execSyntax p4_convLib;
-
-(* TODO: Move? *)
-val (wellformed_register_array_tm, mk_wellformed_register_array, dest_wellformed_register_array, is_wellformed_register_array) =
-  syntax_fns2 "p4_symb_exec" "wellformed_register_array";
-
-(* TODO: Move up *)
-val random_oracle_tm = “random_oracle:random_oracle”
+open auxLib symb_execSyntax p4_symb_execSyntax p4_convLib;
 
 (***********************************************)
 (* Approximation functions for v1model externs *)

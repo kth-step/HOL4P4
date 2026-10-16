@@ -1,13 +1,9 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+open HolKernel boolLib simpLib bossLib;
+open stringTheory listTheory finite_mapTheory;
 
-open blastLib bitstringLib;
 open p4Theory;
 open bitstringTheory;
-open wordsTheory;
 open optionTheory;
-open sumTheory;
 
 
 val STMT_SIMP = RW.ONCE_RW_TAC[stmt_red_cases] >> EVAL_TAC>> FULL_SIMP_TAC std_ss [];

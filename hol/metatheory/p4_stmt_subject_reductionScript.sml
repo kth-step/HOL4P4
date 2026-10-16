@@ -1,36 +1,18 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-open arithmeticTheory stringTheory containerTheory pred_setTheory
-     listTheory finite_mapTheory;
+Theory p4_stmt_subject_reduction
+Ancestors
+  arithmetic list p4 p4_aux p4_e_subject_reduction p4_e_progress option ott pair rich_list alist
+Libs
+  simpLib
 
-open p4Lib;
-open blastLib bitstringLib;
-open p4Theory;
-open p4_auxTheory;
-open p4_deterTheory;
-open p4_e_subject_reductionTheory;
-open p4_e_progressTheory;
      
-open bitstringTheory;
-open wordsTheory;
-open optionTheory;
-open sumTheory;
-open stringTheory;
-open ottTheory;  
-open pairTheory;
-open rich_listTheory;
-open arithmeticTheory;
-open alistTheory;
-open numeralTheory;
 
         
      
            
 (*tactics*)
 
-
 fun OPEN_V_TYP_TAC v_term =
 (Q.PAT_X_ASSUM `v_typ v_term t bll` (fn thm => ASSUME_TAC (SIMP_RULE (srw_ss()) [Once v_typ_cases] thm)))
-
 
                
 fun OPEN_EXP_RED_TAC exp_term =
@@ -70,7 +52,6 @@ fun OPEN_LVAL_TYP_TAC lval_term =
 
          
 
-val _ = new_theory "p4_stmt_subject_reduction";
 
     
 (* represent the definition of:
@@ -312,8 +293,8 @@ QED
 
       
 (* NOTE that in the res_frame, we take the previous T_e to calculate the new T_e *)
-val frame_typ_imp_res_frame_single = prove (
-  “ ∀  Prs_n gscope t_scope_list_g t_scope_list_fr f_called copied_in_scope
+Triviality frame_typ_imp_res_frame_single:
+∀  Prs_n gscope t_scope_list_g t_scope_list_fr f_called copied_in_scope
        stmt_called func_map b_func_map passed_gscope passed_delta_b
        passed_delta_t passed_tslg order delta_g delta_b delta_x delta_t f t_scope_list.
       order (order_elem_f f_called) (order_elem_f f) ∧        
@@ -330,15 +311,15 @@ t_scopes_consistent (order,f,delta_g,delta_b,delta_x,delta_t)
       ⇒
                 
 res_frame_typ (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n t_scope_list_g t_scope_list_fr gscope
-          [(f_called,[stmt_called],copied_in_scope)] func_map b_func_map t_scope_list”,
-
+          [(f_called,[stmt_called],copied_in_scope)] func_map b_func_map t_scope_list
+Proof
 fs[res_frame_typ_def] >>
 REPEAT STRIP_TAC >>
 ‘i=0’ by fs[] >>       
 fs[Once EL] >>
 Q.EXISTS_TAC ‘Prs_n’ >>              
-gvs[] 
-);
+gvs[]
+QED
 
       
 
@@ -408,7 +389,7 @@ fun INST_SR_EXP_FOR (e', tau, b) = FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e
 
                                                                
 (* here we know that also the frame we create and trying to type is empty*)
-val SR_stmt_newframe = prove (“
+Triviality SR_stmt_newframe:
 ∀ stmt stmtl ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e
    (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n apply_table_f ext_map func_map b_func_map pars_map tbl_map.
       
@@ -418,9 +399,8 @@ val SR_stmt_newframe = prove (“
        (frame_typ  ( t_scope_list_g  ,  t_scope_list ) T_e Prs_n  gscope scopest [stmt] ) ∧
        (stmt_red c ( ascope ,  gscope  ,           [ (f, [stmt], scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl , scopest')] , status')) ⇒
-       (∃ t_scope_list'. res_frame_typ (order,f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map t_scope_list) ”,
-
-                                  
+       (∃ t_scope_list'. res_frame_typ (order,f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map t_scope_list)
+Proof
 Induct >>
 REPEAT STRIP_TAC >| [
  fs[Once stmt_sem_cases]
@@ -570,20 +550,19 @@ REPEAT STRIP_TAC >| [
  gvs[] >>
  fs[res_frame_typ_def]   
   ]
-       
-);
+QED
 
 
 
 
 
-val tsl_singletone_exists = prove (“
- ∀ scopest ts .        
+Triviality tsl_singletone_exists:
+∀ scopest ts .        
  type_scopes_list scopest [ts] ⇒
  (LENGTH scopest = 1 ∧ ∃ sc . scopest  = [sc] ∧
  type_scopes_list [sc] [ts] )
-                                               ”,
- REPEAT GEN_TAC >>
+Proof
+REPEAT GEN_TAC >>
  STRIP_TAC >>
            
  IMP_RES_TAC type_scopes_list_LENGTH >>
@@ -592,31 +571,30 @@ val tsl_singletone_exists = prove (“
 
  fs[type_scopes_list_def] >>
  gvs[similarl_def]
-);
+QED
         
 
 
 
-val similar_normalize2 = prove ( ``
+Triviality similar_normalize2:
 ∀ R l l' h h'.
        similar R (h::l) (h'::l') ⇔
        similar R [h] [h'] ∧
-       similar R l l'``,
-
+       similar R l l'
+Proof
 REPEAT STRIP_TAC >>
 fs[similar_def]
-);
+QED
 
 
 
-val similar_ext_out_scope_lemma = prove (“
+Triviality similar_ext_out_scope_lemma:
 ∀ sc sc' varnl varnl' tl.
 similar (λsi so. SND si = SND so) sc sc' ∧
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl,tl)) ∧
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc (ZIP (varnl',tl)) ⇒
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl',tl))
-
-                                     ”,
+Proof
 reverse (               
 Induct_on ‘sc’ >>
 Induct_on ‘sc'’ >>
@@ -645,18 +623,17 @@ gvs[similar_def] >>
  TRY(PairCases_on ‘y’) >>
  fsrw_tac [][LENGTH_ZIP_MIN] >>
  rfs[ZIP_def]
-);
+QED
 
                                         
 
-val similar_ext_out_scope_lemma2 = prove (“
+Triviality similar_ext_out_scope_lemma2:
 ∀ sc sc' varnl varnl' tl.
 similar (λsi so. SND si = SND so ∧ SND si = NONE) sc sc' ∧
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl,tl)) ∧
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc (ZIP (varnl',tl)) ⇒
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc' (ZIP (varnl',tl))
-
-                                     ”,
+Proof
 reverse (               
 Induct_on ‘sc’ >>
 Induct_on ‘sc'’ >>
@@ -685,46 +662,47 @@ gvs[similar_def] >>
  TRY(PairCases_on ‘y’) >>
  fsrw_tac [][LENGTH_ZIP_MIN] >>
  rfs[ZIP_def]
-);
+QED
         
 
 
            
 
-val typ_ext_out_scope_lemma = prove (“
+Triviality typ_ext_out_scope_lemma:
 ∀ sc sc' tl varnl varnl'.
 ext_sc_same_as_input [sc] [sc'] ∧
 type_scopes_list [sc'] [ZIP (varnl, tl)] ∧
 type_scopes_list [sc]  [ZIP(varnl', tl)] ⇒
-type_scopes_list [sc'] [ZIP(varnl', tl)] ”,
+type_scopes_list [sc'] [ZIP(varnl', tl)]
+Proof
 REPEAT STRIP_TAC >>
 gvs[ext_sc_same_as_input_def] >>
 gvs[type_scopes_list_def] >>
 gvs[similarl_def] >>
 IMP_RES_TAC similar_ext_out_scope_lemma
-);
+QED
 
 
-val ext_sc_same_as_input_LENGTH = prove (“
+Triviality ext_sc_same_as_input_LENGTH:
 ∀ scopest tsl .
 ext_sc_same_as_input scopest tsl ⇒
-LENGTH scopest =  LENGTH tsl”,
-
+LENGTH scopest =  LENGTH tsl
+Proof
 gvs[ext_sc_same_as_input_def] >>
 fs[type_scopes_list_def, similarl_def, similar_def] >>
 REPEAT STRIP_TAC >>
 IMP_RES_TAC LIST_REL_LENGTH
-);
+QED
 
 
-val LOL_ext_sc_same_as_input = prove (“
+Triviality LOL_ext_sc_same_as_input:
 ∀ sc outsc tsc'  tsc lol.        
   ext_sc_same_as_input [outsc] [sc] ∧
   MAP (λx. SND (SND x)) tsc' = lol ∧
 type_scopes_list [sc] [tsc'] ∧
 type_scopes_list [outsc] [tsc] ⇒
-MAP (λx. SND (SND x)) tsc = lol ”,
-
+MAP (λx. SND (SND x)) tsc = lol
+Proof
 gvs[type_scopes_list_def]>>
 gvs[ext_sc_same_as_input_def] >>
 gvs[similarl_def] >>
@@ -743,24 +721,24 @@ Induct_on ‘tsc’) >- (
   gvs[similar_def] >>
 METIS_TAC []) >>
 gvs[similar_def]
-);
+QED
 
 
 
 
 
-val map_lemma_local_tmp = prove (“
+Triviality map_lemma_local_tmp:
 ∀ txdl lol .
 MAP (λx. SND (SND x))
           (ZIP
              (mk_varn (MAP (λx. FST (SND x)) txdl),
               ZIP (MAP FST txdl,MAP (λtxd. lol) txdl))) =
-        MAP (λtxd. lol) txdl ”,
-
+        MAP (λtxd. lol) txdl
+Proof
 Induct >>
 REPEAT STRIP_TAC >>
 gvs[mk_varn_def]
-);
+QED
 
 
 
@@ -775,8 +753,8 @@ gvs[mk_varn_def]
         
 
         
-val typ_scope_list_ext_out_scope_lemma = prove (
-  “ ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map set_oracle_index get_oracle_index random_oracle
+Triviality typ_scope_list_ext_out_scope_lemma:
+∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map set_oracle_index get_oracle_index random_oracle
     order tslg delta_g delta_b delta_x ascope ascope'
           gscope scopest  scopest' v ext_fun tsl tau txdl delta_t Prs_n.
           
@@ -789,8 +767,8 @@ type_scopes_list gscope tslg ∧
 star_not_in_sl scopest ∧
 SOME ext_fun = lookup_ext_fun f ext_map ∧
 SOME (ascope',scopest',v) = ext_fun (ascope,gscope,scopest) ⇒
-   (type_scopes_list scopest' tsl ∧ star_not_in_sl scopest')”,                
-                     
+   (type_scopes_list scopest' tsl ∧ star_not_in_sl scopest')
+Proof
 Cases_on ‘f’ >>
 fs[lookup_ext_fun_def] >>
 REPEAT GEN_TAC >>
@@ -840,7 +818,7 @@ STRIP_TAC  >| [
  gvs[] >>
  Cases_on ‘ext_fun (ascope,gscope,scopest)’ >> gvs[]
   ]
-);
+QED
                 
 
 
@@ -851,8 +829,10 @@ STRIP_TAC  >| [
 
             
 
-val directionless_lval_f = prove (“∀ dl.
-is_directionless (dl) ⇒ out_is_lval (dl) (MAP (λd. F) dl)”,
+Triviality directionless_lval_f:
+∀ dl.
+is_directionless (dl) ⇒ out_is_lval (dl) (MAP (λd. F) dl)
+Proof
 Induct >>
 gvs[is_d_out_def, out_is_lval_def] >>                                     
 REPEAT STRIP_TAC >>
@@ -869,7 +849,7 @@ fs[Once EL_compute] >> Cases_on ‘i=0’ >> gvs[EL_CONS] >| [
    `~ (i ≤ 1)` by fs[] >>
   gvs[] >>
   fs[GSYM EL] >> fs[ADD1] (* TODO add this everywherre i needed to show something about the tail*) ]
-);     
+QED
 
 
 
@@ -1067,29 +1047,17 @@ QED
 
 
            
-Theorem LENGTH_imp_NULL:
- ∀ l1 l2 .          
-LENGTH l1 = LENGTH l2 ⇒
-(¬NULL l1 = ¬NULL l2)
-Proof
-Induct >> Induct_on ‘l2’ >> gvs[NULL]
-QED
 
 
-
-
-
-
-
-
-val map_tmp_lemma = prove (“
+Triviality map_tmp_lemma:
 ∀ (l: (x#v#tau) list ) l' .       
 MAP (λ(x_,v_,tau_). (x_,tau_)) l' = MAP (λ(x_,v_,tau_). (x_,tau_)) l
 ⇔
 (MAP (λ(x_,v_,tau_). (x_)) l' = MAP (λ(x_,v_,tau_). (x_)) l
  ∧
 MAP (λ(x_,v_,tau_). (tau_)) l' = MAP (λ(x_,v_,tau_). (tau_)) l
-)  ”,
+)
+Proof
 Induct_on `l` >>
 Induct_on `l'` >>
 FULL_SIMP_TAC list_ss [] >>
@@ -1098,42 +1066,42 @@ PairCases_on `h` >>
 PairCases_on `h'` >>
 REV_FULL_SIMP_TAC list_ss [] >>
 METIS_TAC []
-);
+QED
 
 
         
 (* this property is applied only on the base type. It does not include the parer names*)
-val deter_v_typed_def = Define `
- deter_v_typed (v:v) (ty:'a itself) =
+Definition deter_v_typed_def:
+deter_v_typed (v:v) (ty:'a itself) =
  ∀ tau tau'.           
 v_typ v (t_tau tau) F  ∧
 v_typ v (t_tau tau') F  ⇒
 tau = tau'
-`;
+End
 
 
-val deter_svl_typed_def = Define `
- deter_svl_typed (svl: (string # v) list ) (ty:'a itself) =
+Definition deter_svl_typed_def:
+deter_svl_typed (svl: (string # v) list ) (ty:'a itself) =
    !  (v:v) . MEM v (SND (UNZIP svl)) ==> deter_v_typed (v) (ty:'a itself)
-`;
+End
 
-val deter_sv_tup_typed_def = Define `
- deter_sv_tup_typed (tup : (string#v) ) (ty:'a itself) =
+Definition deter_sv_tup_typed_def:
+deter_sv_tup_typed (tup : (string#v) ) (ty:'a itself) =
      deter_v_typed ((SND tup)) (ty:'a itself)
-`;
+End
 
 
 
-val EL_MEM_2 = prove (“
+Triviality EL_MEM_2:
 ∀l x.
 x < LENGTH l ⇒  
 MEM (EL x (MAP (λ(a,b,c). a) l)) (MAP (λ(a,b,c). a) l) ∧
 MEM (EL x (MAP (λ(a,b,c). b) l)) (MAP (λ(a,b,c). b) l) ∧
-MEM (EL x (MAP (λ(a,b,c). c) l)) (MAP (λ(a,b,c). c) l) ”,       
-
+MEM (EL x (MAP (λ(a,b,c). c) l)) (MAP (λ(a,b,c). c) l)
+Proof
 REPEAT STRIP_TAC >>        
-rfs[EL_MEM] 
-);
+rfs[EL_MEM]
+QED
 
 
 
@@ -1397,16 +1365,16 @@ QED
 
 
 
-val lookup_same_in_topmost_lemma = prove (“
+Triviality lookup_same_in_topmost_lemma:
 ∀ sl varn n scope v' x.      
 find_topmost_map sl (varn) = SOME (n,scope) ∧
 ALOOKUP scope (varn) = SOME (v',x) ⇒     
-lookup_map sl (varn) = SOME (v',x)  ”,                                 
-
+lookup_map sl (varn) = SOME (v',x)
+Proof
 REPEAT STRIP_TAC >>                                                                          
 gvs[lookup_map_def] >>
 gvs[topmost_map_def]
-);   
+QED
 
 
                      
@@ -1629,11 +1597,12 @@ EVAL “oDROP 0 [b;c]”
 
 
 
-val oDROP_l_2 = prove (“
+Triviality oDROP_l_2:
 ∀ l i gl.
   LENGTH l > 1 ∧ i = (LENGTH l − 2) ∧
   SOME gl = oDROP i l ⇒
-  LENGTH gl = 2 ” ,
+  LENGTH gl = 2
+Proof
 Induct >>            
 Induct_on ‘i’ >>
 
@@ -1644,15 +1613,15 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`gl`])) >> gvs[] >>
 
 ‘i = LENGTH l − 2’ by gvs[] >>
 fs[]
-);     
+QED
 
 
-val oTAKE_l_2 = prove (“
+Triviality oTAKE_l_2:
 ∀ l i scl.
   LENGTH l > 0 ∧ i = (LENGTH l − 2)  ∧
   SOME scl = oTAKE i l ⇒
-  LENGTH scl = LENGTH l − 2”,
-
+  LENGTH scl = LENGTH l − 2
+Proof
 Induct >>            
 Induct_on ‘i’ >>
 
@@ -1666,23 +1635,23 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`x`])) >> gvs[] >>
             
 ‘i = LENGTH l − 2’ by gvs[] >>
 fs[]
-);                          
+QED
 
 
 
      
-val separate_LENGTH = prove (“
+Triviality separate_LENGTH:
 ∀ l gl scl.
   LENGTH l > 1 ∧ (SOME gl,SOME scl) = separate l ⇒
-  LENGTH gl = 2 ∧ LENGTH scl = LENGTH l - 2 ”,
-                             
+  LENGTH gl = 2 ∧ LENGTH scl = LENGTH l - 2
+Proof
 REPEAT GEN_TAC >>
 STRIP_TAC >>
 fs[separate_def] >>
 IMP_RES_TAC oTAKE_l_2 >>
 IMP_RES_TAC oDROP_l_2 >>
 gvs[]
-);
+QED
 
 
 Theorem oDROP_lemma:
@@ -1719,30 +1688,30 @@ QED
 
 
         
-val separate_normalize = prove (“
+Triviality separate_normalize:
 ∀ gscope scopest h h'' l.
  LENGTH l ≥ 2 ∧ 
  (SOME gscope,SOME (h::scopest)) = separate (h''::l) ⇒
- (SOME gscope,SOME scopest) = separate l”,
-
+ (SOME gscope,SOME scopest) = separate l
+Proof
 gvs[separate_def] >>
 REPEAT STRIP_TAC >>
 gvs[ADD1] >>
 gvs[oDROP_lemma] >>
 
 IMP_RES_TAC oTAKE_lemma >>
-gvs[] 
-);
+gvs[]
+QED
                                         
 
 
 
-val oTAKE_head = prove (
-“∀ l i h h' scopest.
+Triviality oTAKE_head:
+∀ l i h h' scopest.
  LENGTH l > 0 ∧ i = LENGTH l − 1 ∧  
  SOME (h::scopest) = oTAKE i (h'::l) ⇒
- h=h' ”,
-
+ h=h'
+Proof
 Induct_on ‘i’ >>
 
 gvs[oTAKE_def] >> 
@@ -1750,23 +1719,24 @@ REPEAT STRIP_TAC >> gvs[] >>
 
 Cases_on ‘oTAKE i l’ >>       
 gvs[ADD1]
-);
+QED
 
 
         
 
 
-val separate_head = prove ( 
-“ ∀ gscope scopest h h' l.
+Triviality separate_head:
+∀ gscope scopest h h' l.
 LENGTH l > 0 ∧ 
 (SOME gscope,SOME (h::scopest)) = separate (h'::l) ⇒
-h = h'”,
+h = h'
+Proof
 gvs[separate_def] >>
 REPEAT STRIP_TAC >>
 gvs[ADD1] >>
 IMP_RES_TAC oTAKE_head >>
 gvs[]
-);
+QED
 
 
 
@@ -1842,15 +1812,15 @@ QED
 
 
 
-val star_not_in_sl_normalization = prove (“
+Triviality star_not_in_sl_normalization:
 ∀ h scl.
 star_not_in_sl (h::scl) ⇔
 star_not_in_sl [h] ∧
-star_not_in_sl scl    ”,     
-        
+star_not_in_sl scl
+Proof
 REPEAT STRIP_TAC >>
 gvs[star_not_in_sl_def]
-);
+QED
 
 
 
@@ -1859,12 +1829,12 @@ gvs[star_not_in_sl_def]
 
            
 
-val star_not_in_ts_similar = prove (“
+Triviality star_not_in_ts_similar:
 ∀ sc ts f.
 similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) sc ts ∧
 star_not_in_sl [sc] ⇒
-ALOOKUP ts (varn_star f) = NONE ”,          
-                              
+ALOOKUP ts (varn_star f) = NONE
+Proof
 REPEAT STRIP_TAC >>
 fs[star_not_in_sl_def, star_not_in_s_def] >>
 
@@ -1872,50 +1842,50 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`f`])) >>
 
 IMP_RES_TAC  R_ALOOKUP_NONE_scopes >>
 gvs[]
-);                
+QED
 
 
 
                   
-val star_not_in_ts_typed = prove (“
+Triviality star_not_in_ts_typed:
 ∀ scopest ts f.              
 type_scopes_list scopest [ts] ∧
 star_not_in_sl scopest ⇒
-ALOOKUP ts (varn_star f) = NONE ”,
-
+ALOOKUP ts (varn_star f) = NONE
+Proof
 REPEAT STRIP_TAC >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
 fs[type_scopes_list_def] >>
 
 fs[quantHeuristicsTheory.LIST_LENGTH_1] >>
 gvs[similarl_def] >> IMP_RES_TAC star_not_in_ts_similar >> gvs[]
-);
+QED
 
 
 
 
-val star_not_in_tsl_head_typed = prove (“
+Triviality star_not_in_tsl_head_typed:
 ∀ scopest tsl ts f.              
 type_scopes_list scopest (ts::tsl) ∧
 star_not_in_sl scopest ⇒
-ALOOKUP ts (varn_star f) = NONE ”,
-
+ALOOKUP ts (varn_star f) = NONE
+Proof
 REPEAT STRIP_TAC >>
 IMP_RES_TAC type_scopes_list_LENGTH >>
 fs[type_scopes_list_def] >>
 gvs[similarl_def] >>
 IMP_RES_TAC star_not_in_sl_normalization >>       
 IMP_RES_TAC star_not_in_ts_similar >> gvs[]
-);
+QED
 
 
 
-val star_not_in_tsl_INDEX_FIND = prove ( 
-“∀ tsl scopest f. 
+Triviality star_not_in_tsl_INDEX_FIND:
+∀ tsl scopest f. 
 type_scopes_list scopest (tsl) ∧
 star_not_in_sl scopest ⇒
-INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (tsl) = NONE ”,
-
+INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (tsl) = NONE
+Proof
 Induct >>
 gvs[] >-
 fs[INDEX_FIND_def] >>
@@ -1938,7 +1908,7 @@ conj_tac >| [
  IMP_RES_TAC P_NONE_hold >>
  gvs[]
 ]
-);
+QED
                           
 
 
@@ -1950,14 +1920,14 @@ conj_tac >| [
 
 
 
-val star_not_in_sl_INDEX_FIND_cases = prove (“   
+Triviality star_not_in_sl_INDEX_FIND_cases:
 ∀ tsl tslg scopest scope i f. 
  type_scopes_list scopest tsl ∧
  star_not_in_sl scopest ∧
  INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (tsl ⧺ tslg) = SOME (i,scope) ⇒
  (∃ i'. INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (tslg) = SOME (i',scope)) ∧
- INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (tsl) = NONE ”,
-                                                                
+ INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (tsl) = NONE
+Proof
 REPEAT GEN_TAC >> STRIP_TAC >> gvs[] >>
 IMP_RES_TAC star_not_in_tsl_INDEX_FIND >> gvs[] >>
 
@@ -1971,7 +1941,7 @@ ASSUME_TAC (INST_TYPE [``:'a`` |-> ``:(varn#tau#lval option)list``] index_find_c
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
  [‘tslg’,`tsl`, ‘(i,scope)’, ‘(x0,x1)’, ‘(λsc. IS_SOME (ALOOKUP sc (varn_star f)))’])) >>
 gvs[]
-);
+QED
 
         
         
@@ -2012,13 +1982,13 @@ QED
 
 
                 
-val star_not_in_ts_scope_lemma = prove (“
+Triviality star_not_in_ts_scope_lemma:
 ∀ sc sc' ts.
 type_scopes_list [sc] [ts] ∧
 type_scopes_list [sc'] [ts] ∧
 star_not_in_sl [sc] ⇒
-star_not_in_sl [sc'] ”,
-
+star_not_in_sl [sc']
+Proof
 REPEAT STRIP_TAC >>
 
 subgoal ‘∀f. ALOOKUP ts (varn_star f) = NONE’ >-
@@ -2029,7 +1999,7 @@ subgoal ‘∀f. ALOOKUP ts (varn_star f) = NONE’ >-
 gvs[star_not_in_sl_def, star_not_in_s_def] >>
 gvs[type_scopes_list_def, similarl_def] >>
 IMP_RES_TAC R_ALOOKUP_NONE_scopes >> gvs[]
-);
+QED
         
    
 
@@ -2164,14 +2134,15 @@ QED
 
 
 
-val lval_typ_strct_lemma1 = prove (“
+Triviality lval_typ_strct_lemma1:
 ∀ tslg ts l T_e x_tau_list struct_ty.
 lval_typ (tslg,ts) T_e l (t_tau (tau_xtl struct_ty x_tau_list)) ⇒
-∃ varn lval x. l = lval_varname varn ∨ l = lval_field lval x ”,
+∃ varn lval x. l = lval_varname varn ∨ l = lval_field lval x
+Proof
 fs[Once lval_typ_cases] >>
 REPEAT STRIP_TAC >>
 gvs[]
-);
+QED
 
 
 
@@ -2284,14 +2255,15 @@ QED
 
         
     
-val lookup_struct_is_wt = prove (“
+Triviality lookup_struct_is_wt:
 ∀l v tslg ts x_tau_list T_e struct_ty tsl gscope scopest.
  type_scopes_list gscope tslg ∧                                   
  type_scopes_list scopest tsl ∧
  star_not_in_sl scopest ∧
  lval_typ (tslg,tsl) T_e l (t_tau (tau_xtl struct_ty x_tau_list)) ∧                  
  lookup_lval (scopest ⧺ gscope) l  = SOME v ⇒
-    ( v_typ v (t_tau (tau_xtl struct_ty x_tau_list)) F) ”,
+    ( v_typ v (t_tau (tau_xtl struct_ty x_tau_list)) F)
+Proof
 Induct >>
 REPEAT STRIP_TAC >>
 IMP_RES_TAC lval_typ_strct_lemma1 >> gvs[] >| [
@@ -2307,14 +2279,15 @@ IMP_RES_TAC lval_typ_strct_lemma1 >> gvs[] >| [
 
  IMP_RES_TAC acc_struct_val_typed 
 ]
-);
+QED
 
 
 
-val INDEX_FIND_exists_pair_lemma = prove (“
+Triviality INDEX_FIND_exists_pair_lemma:
 ∀ x_v_tau_list i x s .
 INDEX_FIND 0 (λxm. xm = s) (MAP (λ(x_,v_,tau_). x_) x_v_tau_list) =  SOME (i,x) ⇒
-∃v. INDEX_FIND 0 (λ(xm,tm). xm = s) (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) =  SOME (i,x,v) ”,
+∃v. INDEX_FIND 0 (λ(xm,tm). xm = s) (MAP (λ(x_,v_,tau_). (x_,v_)) x_v_tau_list) =  SOME (i,x,v)
+Proof
 Induct >>
 gvs[INDEX_FIND_def] >>
 REPEAT STRIP_TAC >>
@@ -2329,20 +2302,21 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i-1`,`x`,‘s’])) >>
 gvs[] >>
 
 IMP_RES_TAC P_implies_next >>
-gvs[GSYM ADD1] 
-);  
+gvs[GSYM ADD1]
+QED
 
                                                                                                 
 
 
 
    
-val LUPDATE_pair_lemma = prove (“
- ∀ l i s v .
+Triviality LUPDATE_pair_lemma:
+∀ l i s v .
 i < LENGTH l ⇒
 LUPDATE (s,v) i (MAP (λ(x_,v_,tau_). (x_,v_)) l) =
         ZIP (LUPDATE s i (MAP (λ(x_,v_,tau_). x_) l),
-             LUPDATE v i (MAP (λ(x_,v_,tau_). v_) l)) ”, 
+             LUPDATE v i (MAP (λ(x_,v_,tau_). v_) l))
+Proof
 Induct >>
 Induct_on ‘i’ >>
  gvs[LUPDATE_def] >|[
@@ -2355,15 +2329,16 @@ Induct_on ‘i’ >>
  REPEAT STRIP_TAC >>
  PairCases_on ‘h’ >> gvs[]
 ]
-);
+QED
 
 
 
 
-val LUPDATE_EL_lemma = prove (“
+Triviality LUPDATE_EL_lemma:
 ∀ l i s .
 i < LENGTH l ∧  EL i l = s ⇒            
-LUPDATE s i l = l”,  
+LUPDATE s i l = l
+Proof
 Induct >>
 Induct_on ‘i’ >>
 gvs[] >| [
@@ -2374,7 +2349,7 @@ gvs[] >| [
  RES_TAC >> 
  gvs[LUPDATE_def]
 ]
-);
+QED
 
 
 
@@ -2445,14 +2420,15 @@ QED
 
 
 
-val lookup_SLICE_is_wt = prove (“
+Triviality lookup_SLICE_is_wt:
 ∀l tslg T_e tsl gscope scopest w p.
   type_scopes_list gscope tslg ∧
   type_scopes_list scopest tsl ∧
   star_not_in_sl scopest ∧
   lval_typ (tslg,tsl) T_e l (t_tau (tau_bit w)) ∧
   lookup_lval (scopest ⧺ gscope) l = SOME (v_bit p) ⇒
-       v_typ (v_bit p) (t_tau (tau_bit w))  F ”,
+       v_typ (v_bit p) (t_tau (tau_bit w))  F
+Proof
 Induct >>
 REPEAT STRIP_TAC >>
 gvs[Once lval_typ_cases] >| [
@@ -2495,7 +2471,7 @@ gvs[Once lval_typ_cases] >| [
   OPEN_LVAL_TYP_TAC “lval_paren l” >> gvs[]
 
 ]
-);
+QED
 
 
 
@@ -2533,8 +2509,8 @@ QED
 
 
 
-val assign_typed_verbose = prove (“
- ∀l scopest tsl gscope tslg T_e scopest' gscope' tau b assigned_sl v.
+Triviality assign_typed_verbose:
+∀l scopest tsl gscope tslg T_e scopest' gscope' tau b assigned_sl v.
    LENGTH tslg = 2 ∧ type_scopes_list scopest tsl ∧
    star_not_in_sl scopest ∧
    type_scopes_list gscope tslg ∧
@@ -2543,8 +2519,8 @@ val assign_typed_verbose = prove (“
    SOME assigned_sl = assign (scopest ⧺ gscope) v l ∧
    (SOME gscope',SOME scopest') = separate assigned_sl ⇒
      type_scopes_list gscope' tslg ∧ type_scopes_list scopest' tsl ∧
-     star_not_in_sl scopest'  ”,      
-                    
+     star_not_in_sl scopest'
+Proof
 Induct >>
 REPEAT GEN_TAC>>
 STRIP_TAC >| [
@@ -2638,28 +2614,30 @@ STRIP_TAC >| [
 
  OPEN_LVAL_TYP_TAC “(lval_paren l)” >> rfs[]
 ]
-);
+QED
 
 
 
 
 
 
-val F_list_lemma = prove (“
+Triviality F_list_lemma:
 ∀ l i .
- i < LENGTH l ⇒ (EL i (MAP (λtd. F) l) = F) ”,
+ i < LENGTH l ⇒ (EL i (MAP (λtd. F) l) = F)
+Proof
 Induct_on ‘l’ >>
 Induct_on ‘i’ >>
 gvs[]
-);
+QED
 
 
 
-val vl_of_el_normalise = prove (“
+Triviality vl_of_el_normalise:
 ∀ vl h .
-vl_of_el (h::vl) = (THE (v_of_e h) :: (vl_of_el (vl))) ”,
+vl_of_el (h::vl) = (THE (v_of_e h) :: (vl_of_el (vl)))
+Proof
 gvs[vl_of_el_def]
-);
+QED
 
 
 Theorem v_types_ev:
@@ -2672,13 +2650,13 @@ QED
 
 
 
-val vl_types_evl_F = prove (“
+Triviality vl_types_evl_F:
 ∀ i vl tl T_e tslg ts.        
  i < LENGTH vl ∧ LENGTH vl = LENGTH tl ∧
  is_consts vl ∧
  v_typ (EL i (vl_of_el vl)) (t_tau (EL i tl)) F ⇒
-  e_typ (tslg,ts) T_e (EL i vl) (t_tau (EL i tl)) F ”,                                 
-
+  e_typ (tslg,ts) T_e (EL i vl) (t_tau (EL i tl)) F
+Proof
 Induct_on ‘vl’ >>
 Induct_on ‘tl’ >>
 Induct_on ‘i’ >>
@@ -2693,7 +2671,7 @@ REPEAT STRIP_TAC >| [
  gvs[vl_of_el_normalise] >>
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`i`,‘tl’,‘T_e’,‘tslg’,‘ts’])) >> gvs[is_consts_def]
 ]
-);
+QED
 
 
 
@@ -2726,12 +2704,13 @@ QED
 
               
 
-val lookup_map_gsl_only = prove ( 
-“∀ tsl tslg varn x t .
+Triviality lookup_map_gsl_only:
+∀ tsl tslg varn x t .
  lookup_map tslg varn = SOME t ∧
  lookup_map tsl  varn  = NONE ∧
  lookup_map (tsl ⧺ tslg) varn = SOME x ⇒
-  x = t ”,
+  x = t
+Proof
 REPEAT GEN_TAC >>
 gvs[lookup_map_def] >>
 REPEAT (CASE_TAC >> gvs[]) >>
@@ -2746,20 +2725,20 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 
 IMP_RES_TAC index_find_concat2 >>
 gvs[] >>
-gvs[INDEX_FIND_EQ_SOME_0]     
-);
+gvs[INDEX_FIND_EQ_SOME_0]
+QED
 
 
 
 
     
 
-val lookup_map_imp_gsl = prove ( 
-“∀ tsl tslg varn x .
+Triviality lookup_map_imp_gsl:
+∀ tsl tslg varn x .
 lookup_map tsl  varn  = NONE ∧
 lookup_map (tsl ⧺ tslg) varn = SOME x ⇒
-lookup_map tslg varn = SOME x ”,
-
+lookup_map tslg varn = SOME x
+Proof
 REPEAT GEN_TAC >>
 gvs[lookup_map_def] >>
 REPEAT (CASE_TAC >> gvs[]) >>
@@ -2775,8 +2754,8 @@ REPEAT (BasicProvers.FULL_CASE_TAC >> gvs[]) >>
 IMP_RES_TAC index_find_concat1 >>      
 IMP_RES_TAC index_find_concat2 >>
 gvs[] >>
-gvs[INDEX_FIND_EQ_SOME_0] 
-);
+gvs[INDEX_FIND_EQ_SOME_0]
+QED
 
 
 
@@ -2805,16 +2784,17 @@ QED
 
 
 
-val ordered_apply_call = prove  ( 
-“∀ order s f f'.
+Triviality ordered_apply_call:
+∀ order s f f'.
  WF_o order ∧  
  order (order_elem_t s) (order_elem_f f) ∧
  order (order_elem_f (funn_name f')) (order_elem_t s) ⇒
- order (order_elem_f (funn_name f')) (order_elem_f f) ”,
+ order (order_elem_f (funn_name f')) (order_elem_f f)
+Proof
 REPEAT STRIP_TAC >>                    
 gvs[WF_o_def] >>
-RES_TAC       
-);
+RES_TAC
+QED
 
 
 
@@ -2835,7 +2815,7 @@ PairCases_on ‘c’ >> rename1 ‘WT_c (apply_table_f,ext_map,func_map,b_func_m
    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘get_oracle_index ascope’, ‘random_oracle’])) >> gvs[]
 
 
-val stmt_to_stmt_single = prove (“
+Triviality stmt_to_stmt_single:
 ∀ stmt stmt'  c order delta_g delta_b delta_x  delta_t tslg tsl
        scopest scopest' gscope gscope' ascope ascope' status status'  framel f Prs_n 
        txdl tau.                                      
@@ -2853,8 +2833,8 @@ val stmt_to_stmt_single = prove (“
 
  stmt_typ (tslg,tsl) (order,f,delta_g,delta_b,delta_x,delta_t) Prs_n stmt' ∧   
  type_frame_tsl scopest' tsl ∧
- type_scopes_list gscope' tslg ”,
-
+ type_scopes_list gscope' tslg
+Proof
 Induct >>
 REPEAT GEN_TAC >>
 STRIP_TAC >|  [
@@ -3275,8 +3255,8 @@ STRIP_TAC >|  [
  imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
  qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
  gvs[]
-]                                                                          
-);                                  
+]
+QED
 
 
 
@@ -3309,11 +3289,12 @@ QED
 
 
 
-val stmtl_stmt_seq_typed_lemma = prove (“
+Triviality stmtl_stmt_seq_typed_lemma:
 ∀ stmt_res stmt Prs_n T_e t_scope_list_g  t_scope_res t_scope_list.
 stmtl_typ (t_scope_list_g,t_scope_res::t_scope_list) T_e Prs_n [stmt_res; stmt] ⇒
 stmt_typ  (t_scope_list_g,t_scope_res::t_scope_list) T_e Prs_n  stmt_res ∧
-stmt_typ  (t_scope_list_g,t_scope_list) T_e Prs_n  stmt ”,                                     
+stmt_typ  (t_scope_list_g,t_scope_list) T_e Prs_n  stmt
+Proof
 gvs[stmtl_typ_cases] >>
 gvs[type_ith_stmt_def] >>
 REPEAT STRIP_TAC >| [
@@ -3323,8 +3304,8 @@ REPEAT STRIP_TAC >| [
  ,
  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘1’])) >>
  gvs[]     
-]                
-);
+]
+QED
 
 
 
@@ -3531,38 +3512,7 @@ REWRITE_TAC[GSYM FOLDL_init_from_tau_SNOC] >>
 gs[]
 QED
 
-(* TODO: Move *)
-Theorem ZIP_FRONT:
-∀l1 l2.
-l1 ≠ [] ∧ l2 ≠ [] ⇒
-FRONT (ZIP (l1,l2)) =
- ZIP (FRONT l1,FRONT l2)
-Proof
-Induct_on ‘l1’ >> Induct_on ‘l2’ >> gs[] >>
-rpt strip_tac >>
-Cases_on ‘l2’ >> gs[ZIP_def] >>
-Cases_on ‘l1’ >> gs[ZIP_def] >>
-qpat_x_assum ‘!l2. _’ (fn thm => assume_tac $ Q.SPECL [‘h''::t’] thm) >>
-gs[]
-QED
 
-(* TODO: Move *)
-Theorem ZIP_LAST:
-∀l a b l1 l2.
-LENGTH l1 = LENGTH l2 ⇒
-l ++ [(a,b)] = ZIP(l1,l2) ⇒ LAST l1 = a
-Proof
-Induct >> (
- rpt strip_tac >>
- gs[] >>
- Cases_on ‘l1’ >> Cases_on ‘l2’ >> gvs[ZIP_def, LAST_DEF]
-) >- (
- Cases_on ‘t’ >>  Cases_on ‘t'’ >> gs[ZIP_def]
-) >>
-res_tac >>
-gs[] >>
-Cases_on ‘t’ >> gs[ZIP_def]
-QED
 
 (* L-folding using init_from_tau preserves the IDs as the first
  * list elements *)
@@ -3630,20 +3580,6 @@ REWRITE_TAC[GSYM ZIP_def] >>
 gs[ZIP_FRONT]
 QED
 
-(* TODO: Move *)
-Theorem MAP_SND_EL:
-∀l i.
-i < LENGTH l ⇒
-SND (EL i l) = EL i (MAP SND l)
-Proof
-Induct >- (
- gs[]
-) >>
-rpt strip_tac >>
-Cases_on ‘i’ >> (
- gs[]
-)
-QED
 
 Theorem init_from_tau_is_typed:
 !(ty:'a itself).
@@ -4046,7 +3982,7 @@ res_tac >>
 Cases_on ‘ALOOKUP l k2’ >> gs[]
 QED
 
-val v_decl_lookup_lemma = prove (“
+Triviality v_decl_lookup_lemma:
 !l i random_oracle varn:varn.
 ALOOKUP l varn = NONE ==>
 ALOOKUP
@@ -4054,8 +3990,8 @@ ALOOKUP
    (FOLDR
       (λ(x,t,lvalop:lval option) (f,i').
            (λ(v',i''). (x,v',NONE:lval option)::f,i'')
-             (init_from_tau random_oracle i' t)) ([],i) l)) varn = NONE”,
-
+             (init_from_tau random_oracle i' t)) ([],i) l)) varn = NONE
+Proof
 Induct >> gvs[] >>
 REPEAT STRIP_TAC >>
 PairCases_on ‘h’ >> gvs[] >>
@@ -4076,7 +4012,7 @@ gs[] >>
  gs[]
 ) >>
 gs[ALOOKUP_AUPDATE]
-);
+QED
 
 Theorem star_not_in_decl_ts:                       
 ∀ l i random_oracle. 
@@ -4099,25 +4035,25 @@ QED
 
 
 
-val extract_tri_LAST = prove (“                     
+Triviality extract_tri_LAST:
 ∀ t_scope_list l.
 LENGTH t_scope_list ≥ 1 ⇒
-(extract_elem_tri (LAST (l::t_scope_list)) = extract_elem_tri (LAST (t_scope_list)))”,
-
+(extract_elem_tri (LAST (l::t_scope_list)) = extract_elem_tri (LAST (t_scope_list)))
+Proof
 REPEAT STRIP_TAC >>
 gvs[extract_elem_tri_def] >>
 Cases_on ‘t_scope_list’ >> gvs[]
-);
+QED
 
 
 
         
-val  sig_tsc_consist_LAST1 = prove (“       
+Triviality sig_tsc_consist_LAST1:
 ∀ f delta_g delta_b delta_x t_scope_list l.
 LENGTH t_scope_list ≥ 1 ∧  
 sig_tscope_consistent f delta_g delta_b delta_x t_scope_list ⇒
-sig_tscope_consistent f delta_g delta_b delta_x (l::t_scope_list)”,
-
+sig_tscope_consistent f delta_g delta_b delta_x (l::t_scope_list)
+Proof
 gvs[sig_tscope_consistent_def] >>
 REPEAT GEN_TAC >> STRIP_TAC >>
 REPEAT GEN_TAC >> STRIP_TAC >>
@@ -4125,16 +4061,16 @@ STRIP_TAC >>
 IMP_RES_TAC extract_tri_LAST >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [ ‘l’ ])) >>
 METIS_TAC []
-);
+QED
 
 
 
-val  sig_tsc_consist_LAST2 = prove (“       
+Triviality sig_tsc_consist_LAST2:
 ∀ f delta_g delta_b delta_x t_scope_list l.
 LENGTH t_scope_list ≥ 1 ⇒
 sig_tscope_consistent f delta_g delta_b delta_x (l::t_scope_list) ⇒
-sig_tscope_consistent f delta_g delta_b delta_x (t_scope_list)”,
-
+sig_tscope_consistent f delta_g delta_b delta_x (t_scope_list)
+Proof
 gvs[sig_tscope_consistent_def] >>
 REPEAT GEN_TAC >> STRIP_TAC >>
 REPEAT GEN_TAC >> STRIP_TAC >>
@@ -4142,7 +4078,7 @@ STRIP_TAC >>
 IMP_RES_TAC extract_tri_LAST >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [ ‘l’ ])) >>
 METIS_TAC []
-);                               
+QED
                    
 
         
@@ -4186,9 +4122,9 @@ fun STMT_STMT_SR_TAC stmt_term =
 (************************************)        
 (************************************)  
 
-val SR_single_block = prove (“
-∀ ty stmt . sr_stmt stmt ty ”,
-                     
+Triviality SR_single_block:
+∀ ty stmt . sr_stmt stmt ty
+Proof
 STRIP_TAC >>
 Induct >>
 rw[sr_stmt_def] >>
@@ -4404,15 +4340,15 @@ gvs[] >| [
    STMT_STMT_SR_TAC ‘stmt_ext’
  ]
 ]
-);
+QED
 
 
 
         
 
 
-val sr_stmtl_def = Define `
- sr_stmtl (stmtl) (ty:'a itself) =
+Definition sr_stmtl_def:
+sr_stmtl (stmtl) (ty:'a itself) =
 ∀ stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n  n apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle.
       
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ) ∧                               
@@ -4434,8 +4370,8 @@ val sr_stmtl_def = Define `
        LENGTH stmtl > LENGTH stmtl' ⇒
        n = (LENGTH stmtl - LENGTH stmtl') ⇒
         frame_typ  ( t_scope_list_g  ,  (DROP n t_scope_list) ) T_e Prs_n  gscope' scopest' stmtl'
-       )                    
-`;
+       )
+End
 
 
 
@@ -4449,19 +4385,19 @@ QED
 
 
 
-val clause_name_stmtl_red_exec_enter = prove (“
- ∀ ascope ascope' gscope gscope' status status' framel scopest scopest' f h h' t t'  c.
+Triviality clause_name_stmtl_red_exec_enter:
+∀ ascope ascope' gscope gscope' status status' framel scopest scopest' f h h' t t'  c.
 
 LENGTH t ≤ LENGTH t' ∧
 stmt_red c (ascope,gscope,[(f,h::t,scopest)],status)
           (ascope',gscope',framel ⧺ [(f,h'::t',scopest')],status') ⇒
 (∀ x . (clause_name x = clause_name "stmt_block_exec") ∧ t=t' ∨
-       clause_name x = clause_name "stmt_block_enter" ∧ ~(t=t') ) ”,
-
+       clause_name x = clause_name "stmt_block_enter" ∧ ~(t=t') )
+Proof
 REPEAT STRIP_TAC >>
 gvs[Once stmt_sem_cases] >>
 gvs[clause_name_def]
-);
+QED
 
 
 
@@ -4497,38 +4433,38 @@ QED
 
 
 
-val EL_2_lemma = prove (
-“∀ l i h h' .
+Triviality EL_2_lemma:
+∀ l i h h' .
 i>1 ⇒
-EL (i) (h::h'::l) = (EL (i − 2) l) ”,
-
+EL (i) (h::h'::l) = (EL (i − 2) l)
+Proof
 REPEAT STRIP_TAC >>
 ‘i>=2’ by gvs[] >>
 fs[Once EL_compute] >> gvs[PRE_SUB1] >>
 fs[Once EL_compute] >> gvs[PRE_SUB1]
-);
+QED
 
 
-val EL_3_lemma = prove (
-“∀ l i h h' .
+Triviality EL_3_lemma:
+∀ l i h h' .
 i>2 ⇒
-EL (i − 1) (h::h'::l) = (EL (i − 3) l) ”,
-
+EL (i − 1) (h::h'::l) = (EL (i − 3) l)
+Proof
 REPEAT STRIP_TAC >>
 ‘i>=3’ by gvs[] >>
 fs[Once EL_compute] >> gvs[PRE_SUB1] >>
 fs[Once EL_compute] >> gvs[PRE_SUB1]
-);
+QED
 
         
                                 
 
-val frame_type_seq_in_sr1 = prove (“
+Triviality frame_type_seq_in_sr1:
 ∀ t_scope_list_g  t_scope_list ts T_e Prs_n   gscope' scopest' gscope scopest s1 h h' t'  .                        
 frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope' scopest' [s1] ∧
 frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope  scopest (h::h'::t') ⇒
-frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope' scopest' (s1::h'::t') ”,
-
+frame_typ (t_scope_list_g,t_scope_list) T_e  Prs_n  gscope' scopest' (s1::h'::t')
+Proof
 REPEAT STRIP_TAC >>                                       
 fs[Once frame_typ_cases] >>
 qexistsl_tac [‘tau_x_d_list’,‘tau’] >>
@@ -4555,20 +4491,19 @@ Cases_on ‘PRE i = 0’ >> gvs[] >| [
   gvs[] >>
   ‘i>1’ by gvs[] >> gvs[EL_2_lemma]
 ]
-
-);
-
+QED
 
 
-        
 
         
-val frame_type_seq_in_sr2 = prove (“
+
+        
+Triviality frame_type_seq_in_sr2:
 ∀ t_scope_list_g  t_scope_list ts T_e Prs_n   gscope' scopest' gscope scopest s1 s2 h h' t'  .                        
 frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n  gscope' scopest' [s1; s2] ∧
 frame_typ (t_scope_list_g,t_scope_list)     T_e  Prs_n  gscope  scopest (h::h'::t') ⇒
-frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n  gscope' scopest' (s1::s2::h'::t')”,
-        
+frame_typ (t_scope_list_g,ts::t_scope_list) T_e  Prs_n  gscope' scopest' (s1::s2::h'::t')
+Proof
 REPEAT STRIP_TAC >>                                       
 fs[Once frame_typ_cases] >>
 qexistsl_tac [‘tau_x_d_list’,‘tau’] >>
@@ -4619,7 +4554,7 @@ Cases_on ‘i=0’ >> gvs[]   >|  [
     ]
   ]                                   
 ]
-);
+QED
 
 
 
@@ -4628,12 +4563,12 @@ Cases_on ‘i=0’ >> gvs[]   >|  [
                       
         
 
-val frame_type_block_exit_in_sr = prove (“
+Triviality frame_type_block_exit_in_sr:
 ∀ t_scope_list_g  t_scope_list ts T_e Prs_n   gscope scopest stmt stmtl  .
   stmtl ≠ [] ∧
 frame_typ (t_scope_list_g,t_scope_list) T_e Prs_n  gscope scopest (stmt::stmtl) ⇒
-frame_typ (t_scope_list_g,DROP 1 t_scope_list) T_e  Prs_n  gscope (TL scopest) stmtl”,
-
+frame_typ (t_scope_list_g,DROP 1 t_scope_list) T_e  Prs_n  gscope (TL scopest) stmtl
+Proof
 REPEAT STRIP_TAC >>
 
 REPEAT STRIP_TAC >>                                       
@@ -4674,7 +4609,7 @@ srw_tac [boolSimps.DNF_ss][] >| [
  gvs[ADD1] >>
  gvs[Once EL_compute] >> gvs[PRE_SUB1]                         
 ]
-);
+QED
 
 
 
@@ -4684,7 +4619,7 @@ srw_tac [boolSimps.DNF_ss][] >| [
 
 
 (* here we know that also the frame we create and trying to type, the is empty*)
-val SR_stmtl_newframe = prove (“
+Triviality SR_stmtl_newframe:
 ∀ stmtl stmtl' ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e (c:'a ctx) order delta_g delta_b delta_t delta_x f Prs_n apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle.
        
        (c = ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ) ∧        
@@ -4694,8 +4629,8 @@ val SR_stmtl_newframe = prove (“
        (stmt_red c ( ascope ,  gscope  ,           [ (f, stmtl, scopest )] , status)
                    ( ascope',  gscope' , framel ++ [ (f, stmtl' , scopest')] , status')) ⇒
        (∃ t_scope_list'.
-         res_frame_typ (order, f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map t_scope_list) ”,
-
+         res_frame_typ (order, f,(delta_g, delta_b, delta_x, delta_t)) Prs_n t_scope_list_g t_scope_list' gscope framel func_map b_func_map t_scope_list)
+Proof
 STRIP_TAC >>
 Cases_on ‘stmtl’ >| [
 
@@ -4721,7 +4656,7 @@ Cases_on ‘stmtl’ >| [
      ]
    ]                               
 ]
-);
+QED
         
 
 
@@ -4819,5 +4754,3 @@ Cases_on ‘stmtl’ >| [
  ]
 ]]
 QED
-
-val _ = export_theory ();

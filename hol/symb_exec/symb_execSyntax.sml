@@ -1,9 +1,9 @@
 structure symb_execSyntax :> symb_execSyntax =
 struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib listSyntax;
+open HolKernel Abbrev listSyntax;
 
-open symb_execTheory;
+local open symb_execTheory in end;
 
 val (disj_list_tm,  mk_disj_list', dest_disj_list', is_disj_list) =
   syntax_fns1 "symb_exec" "disj_list";

@@ -1,12 +1,12 @@
 structure p4_ebpfLib :> p4_ebpfLib = struct
 
-open HolKernel boolLib liteLib simpLib Parse bossLib;
+open HolKernel Abbrev;
 
-open listSyntax numSyntax;
+open numSyntax;
 
-open p4Syntax p4_coreLib;
+open p4_coreLib;
 
-open p4Theory p4_coreTheory p4_ebpfTheory;
+local open p4Theory p4_coreTheory p4_ebpfTheory in end;
 
 val ebpf_arch_ty = ``:ebpf_ascope``;
 

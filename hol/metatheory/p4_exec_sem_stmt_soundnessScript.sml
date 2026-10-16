@@ -1,9 +1,8 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_exec_sem_stmt_soundness";
-
-open p4Lib;
-open listTheory ottTheory p4Theory p4_auxTheory p4_exec_semTheory p4_exec_sem_e_soundnessTheory;
+Theory p4_exec_sem_stmt_soundness
+Ancestors
+  list ott p4 p4_aux p4_exec_sem p4_exec_sem_e_soundness
+Libs
+  p4Lib
 
 (* Note that this definition is phrased for given singleton statement lists, not on the frame list,
  * so soundness block nesting rules and comp1 and comp2 rules are excluded *)
@@ -471,5 +470,3 @@ Cases_on `stmt_stack` >> (
 assume_tac (SPECL [``type:'a itself``, ``h:stmt``] stmt_exec_sound_red) >>
 fs[stmt_exec_sound]
 QED
-
-val _ = export_theory ();

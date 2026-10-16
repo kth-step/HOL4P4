@@ -1,15 +1,14 @@
-open HolKernel boolLib Parse bossLib ;
-open BasicProvers boolSimps markerLib optionTheory ;
-open listTheory rich_listTheory ;
-open stringTheory ASCIInumbersTheory arithmeticTheory ;
+Theory parse_json
+Ancestors
+  option list rich_list string ASCIInumbers arithmetic
+Libs
+  BasicProvers markerLib
 
 (*
  * This file offers functionality to evaluate a term given preconditions.
  * This is a copy of functionality hosted in a branch of a HOL4 fork:
  *   https://github.com/kth-step/HOL/tree/json
  *)
-
-val _ = new_theory "parse_json";
 
 (*
 HOL4 integer operations are not evaluatable:
@@ -622,6 +621,3 @@ EVAL ``parse (OUTL $ lex "{\"1\": {\"2\": {\"3\": [{\"4\": {}}]}}}" []) [] T``
 EVAL ``CONCAT $ json_to_string $ Object [("a",Array [])]``
 EVAL ``CONCAT $ json_to_string $ String "\u0022"``
 *)
-
-val _ = export_theory();
-

@@ -1,10 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open p4Theory;
-
-open p4_symb_execLib;
-
-val _ = new_theory "register_read";
+Theory register_read
+Ancestors
+  p4 p4_v1model[qualified]
+Libs
+  liteLib p4_symb_execLib
 
 (* Test 7:
  * There is a large register array. This is read from at an index using symbolic bits.
@@ -312,5 +310,3 @@ val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);
-
-val _ = export_theory ();

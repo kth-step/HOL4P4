@@ -1,10 +1,8 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open p4Theory;
-
-open p4_symb_execLib;
-
-val _ = new_theory "table_known";
+Theory table_known
+Ancestors
+  p4 p4_symb_exec[qualified]
+Libs
+  liteLib p4_symb_execLib
 
 (* Test 4:
  * There's a single table application, with two possible outcomes.
@@ -229,5 +227,3 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 *)
 
 val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
-
-val _ = export_theory ();

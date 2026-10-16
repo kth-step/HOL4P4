@@ -1,6 +1,4 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-val _ = new_theory "symb_exec";
+Theory symb_exec
 
 Theorem symb_exec_add_postcond:
 !P f s s' Q.
@@ -139,5 +137,3 @@ Theorem IMP_ADD_CONJ:
 Proof
 fs[]
 QED
-
-val _ = export_theory ();

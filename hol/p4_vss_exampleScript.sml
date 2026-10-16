@@ -1,11 +1,8 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_vss_example";
-
-open p4Theory p4_vssTheory;
-open pairSyntax listSyntax p4Syntax;
-
-open p4_vssLib;
+Theory p4_vss_example
+Ancestors
+  p4 p4_vss
+Libs
+  pairSyntax listSyntax p4Syntax p4_vssLib
 
 (* This file contains the VSS example program. Specifically, it saves a theorem
  * that contains the architectural context of the program. *)
@@ -259,5 +256,3 @@ val vss_actx =
 Definition p4_vss_actx_def:
   p4_vss_actx r = ^vss_actx
 End
-
-val _ = export_theory ();

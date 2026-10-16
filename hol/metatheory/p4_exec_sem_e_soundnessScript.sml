@@ -1,9 +1,8 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_exec_sem_e_soundness";
-
-open p4Lib;
-open ottTheory listTheory rich_listTheory arithmeticTheory p4_auxTheory p4Theory p4_exec_semTheory;
+Theory p4_exec_sem_e_soundness
+Ancestors
+  ott list rich_list arithmetic p4_aux p4 p4_exec_sem
+Libs
+  p4Lib
 
 Definition e_exec_sound:
  (e_exec_sound (type:('a itself)) e =
@@ -46,15 +45,6 @@ Induct_on `x` >> (
 )
 QED
 
-(* TODO: Move *)
-Theorem oEL_cons_PRE:
-!e x h l.
-(x > 0) /\ (SOME e = oEL x (h::l)) ==>
-(SOME e = oEL (PRE x) l)
-Proof
-rpt strip_tac >>
-fs [oEL_def, PRE_SUB1]
-QED
 
 Theorem l_sound_equiv:
 !type l. l_sound type l <=> l_sound_exec type l
@@ -811,5 +801,3 @@ rpt strip_tac >| [
  metis_tac[(valOf o find_clause_e_red) "e_lookup", clause_name_def]
 ]
 QED
-
-val _ = export_theory ();

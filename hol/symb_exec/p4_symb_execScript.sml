@@ -1,17 +1,15 @@
-open HolKernel boolLib liteLib simpLib Parse bossLib;
-
-open p4Theory listTheory;
-
-open symb_execTheory;
+Theory p4_symb_exec
+Ancestors
+  p4 list symb_exec p4_v1model p4_bigstep p4_ebpf[qualified] p4_vss[qualified]
+Libs
+  wordsLib[qualified]
+(* wordsLib is loaded for its side effect of adding the word simpsets to srw_ss *)
 
 (* TODO: Hack, sort out *)
-open p4_v1modelTheory;
 
 (* For the oracle index sanity lemmas of the architectures *)
-open p4_bigstepTheory;
 
 (* TODO: Split into file used by symbolic execution and file used by contract derivation *)
-val _ = new_theory "p4_symb_exec";
 
 Definition packet_has_port_def:
  packet_has_port (((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status):'a astate) port_ok =
@@ -546,5 +544,3 @@ rpt strip_tac >> (
  gvs[p4_ebpfTheory.ebpf_get_oracle_index_def, p4_ebpfTheory.ebpf_set_oracle_index_def]
 )
 QED
-
-val _ = export_theory ();

@@ -1,19 +1,21 @@
 # Import Tool
 
 This directory contains an import tool to obtain HOL4P4 representations of P4 programs and STF specifications.
-The simplest way to try this out is to use the `Makefile` in the root directory of this repository: `make validate`. You can also run them directly from this directory via `.validate.sh`.
+The simplest way to try this out is to use the `Makefile` in the root directory of this repository: `make validate`. You can also run `./p4_from_json.sh validate` directly from this directory.
 
-## Shell scripts
+## The `p4_from_json.sh` script
 
-`petr4_json_export.sh` uses petr4 to transform .p4 programs to JSON. It takes a path to a directory with .p4 programs and a path to common includes (e.g. architecture descriptions such as v1model.p4, ...) as command line arguments and will transform all .p4 programs found to .json representation.
+All shell-level steps of the import are subcommands of `p4_from_json.sh`, which can be run from any directory:
 
-`strip_json_info.sh` takes a file name as a command-line argument and tries to remove debug information from the JSON in the file, shrinking the size of the .json considerably.
+* `p4_from_json.sh fetch-tests [PETR4_CLONE]` copies the common include files (core.p4, v1model.p4, ebpf_model.p4 and the skeleton files) into `p4include` and the `.p4`/`.stf` test pairs into `validation_tests`, all taken from the examples of petr4 0.1.2. It reads them from an existing petr4 clone if one is given and otherwise clones a temporary copy.
 
-`petr4_to_hol4p4.sh` takes a path and a log file as command-line arguments and tries to transform all .json files found in the path into HOL4P4 .sml files. This uses a hard-coded remove_debug flag to decide whether the `strip_json_info.sh` script will be used on all .json files involved.
+* `p4_from_json.sh export DIR [INCLUDE_DIR]` uses petr4 to transform every `.p4` program in `DIR` to its JSON representation, with `INCLUDE_DIR` defaulting to `p4include`.
 
-`petr4_to_hol4p4_dir.sh` is the version of `petr4_to_hol4p4.sh` for entire directories. It takes a path and a number of threads. Rule of thumb: don't use all (virtual) cores on your computer, or instability may ensue. Note that this has a hard-coded log variable for the log file to write results for every test, by default `petr4_to_hol4p4_stf.log`.
+* `p4_from_json.sh convert FILE.json [--mode MODE] [--arch ARCH] [--log FILE] [--keep-info]` transforms one JSON file into a HOL4P4 `Script.sml` next to it. `MODE` is `concrete`, `stf` (concrete, with the tests of the accompanying `.stf` file) or `symbolic` (for the symbolic executor); by default `stf` is used when an `.stf` file exists and `concrete` otherwise. The architecture is detected from the package type the program instantiates (`V1Switch`, `ebpfFilter` or `VSS`) and can be overridden with `--arch vss|ebpf|v1model`. petr4's source-position fields are stripped before parsing, which makes it a lot faster; `--keep-info` keeps them. The result of every conversion is appended to the log file, by default `p4_from_json.log` in this directory.
 
-`validate.sh` runs both `petr4_json_export.sh` and `petr4_to_hol4p4_dir.sh` targeted at `validation_tests`, and compiles the result with `Holmake` afterward. Note that this takes a number of parallel processes to use as an optional argument.
+* `p4_from_json.sh convert-dir DIR [-j N] [--mode MODE] [--log FILE] [--keep-info]` converts all JSON files in `DIR`, `N` at a time. Rule of thumb: don't use all (virtual) cores on your computer, or instability may ensue. The log is started afresh and a summary of OK, FAIL and EXCLUDED results is printed at the end.
+
+* `p4_from_json.sh validate [-j N]` runs `export` and `convert-dir` on `validation_tests` and then compiles the result with `Holmake`.
 
 ## HOL4 files
 
@@ -21,9 +23,7 @@ The simplest way to try this out is to use the `Makefile` in the root directory 
 
 `parse_jsonScript.sml` is a theory of generic JSON objects.
 
-`parse_stf.sml` parses an `.stf` specification of a test.
-
-`petr4_to_hol4p4.sml` is the internal mechanism of `petr4_to_hol4p4_dir.sh` that does the actual format transformation from petr4 JSON to HOL4P4. `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
+`petr4_to_hol4p4.sml` is the internal mechanism of `p4_from_json.sh convert` that does the actual format transformation from petr4 JSON to HOL4P4; it also contains the parser for the `.stf` specification of a test (the `parse_stf` functions). `petr4_to_hol4p4Script.sml` holds the theorems needed for this, and `petr4_to_hol4p4Syntax.sml` the syntax library.
 
 ## Program transformations
 
@@ -116,11 +116,11 @@ expect 0 FFFFFFFF FFFFFFFE 00
 Here, `packet` signifies the incoming packet and `expect` the outgoing one, with the first 0 after each of these commands being the port number. You may use * for wildcard bits in both input and output. Adapt as needed for your program, copy the `Holmakefile` from `hol/p4_from_json/validation_tests/` to `hol/p4_from_json/user_tests`, and then run
 
 ```
-./petr4_json_export.sh user_tests/ p4include/
+./p4_from_json.sh export user_tests
 
-./petr4_to_hol4p4_dir.sh user_tests/
+./p4_from_json.sh convert-dir user_tests
 ```
 
-in the `hol/p4_from_json` directory, generating the .sml file (note that hyphens in the .p4 file name will also be replaced with underscores). `petr4_to_hol4p4_dir.sh` takes an optional second argument which is the number of threads which should perform the conversions in parallel, in case you have extra horsepower to spare. To compile the test, then run
+in the `hol/p4_from_json` directory, generating the .sml file (note that hyphens in the .p4 file name will also be replaced with underscores). `convert-dir` takes `-j N` to perform `N` conversions in parallel, in case you have extra horsepower to spare. To compile the test, then run
 
 	cd user_tests && Holmake arith2_bmv2Theory

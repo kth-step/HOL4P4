@@ -1,10 +1,6 @@
-open HolKernel boolLib Parse bossLib;
-
-val _ = new_theory "p4_aux";
-
-open listTheory rich_listTheory;
-open pairTheory optionTheory arithmeticTheory;
-open p4Theory;
+Theory p4_aux
+Ancestors
+  list rich_list pair option arithmetic p4
 
 (* OPTION_BIND as infix *)
 Definition app_opt_def[simp]:
@@ -661,23 +657,26 @@ QED
 
 (********* lval and is_const lemmas ************)
 
-val lemma_const_notlval =
-prove (``!e. is_const e ==> ~ is_e_lval e``,
+Triviality lemma_const_notlval:
+!e. is_const e ==> ~ is_e_lval e
+Proof
 Cases_on `e` >>
 EVAL_TAC
-);
+QED
 
-val lemma_lval_notconst =
-prove (``!e. is_e_lval e ==> ~ is_const e``,
+Triviality lemma_lval_notconst:
+!e. is_e_lval e ==> ~ is_const e
+Proof
 Cases_on `e` >>
 EVAL_TAC
-);
+QED
 
-val lemma_dir_EQ =
-prove (``!d. (¬is_d_out d = is_d_none_in d) /\ (is_d_out d = ¬is_d_none_in d) ``,
+Triviality lemma_dir_EQ:
+!d. (¬is_d_out d = is_d_none_in d) /\ (is_d_out d = ¬is_d_none_in d)
+Proof
 Cases_on `d` >>
 EVAL_TAC
-);
+QED
 
 
 
@@ -689,49 +688,49 @@ Q is ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
 show that P ==> not Q
 **************************)
 
-val dir_const_imp1 =
-prove(`` ! d e.(is_d_none_in d ∧ ¬is_const e)
-	     ==> ~((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e)) ``,
+Triviality dir_const_imp1:
+! d e.(is_d_none_in d ∧ ¬is_const e)
+	     ==> ~((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
+Proof
 NTAC 3 STRIP_TAC >>
 SIMP_TAC std_ss [] >>
 DISJ1_TAC>>
 METIS_TAC[]
-);
+QED
 
 
-val dir_const_imp2 =
-prove(``
+Triviality dir_const_imp2:
 (∀y. (λ(d,e). is_d_none_in (d) ∧ ¬is_const (e)) y ⇒
              ($¬ ∘
               (λ(d,e).
                    (is_d_none_in (d) ⇒ is_const (e)) ∧
-                   (¬is_d_none_in (d) ⇒ is_e_lval (e)))) y)``,
-
+                   (¬is_d_none_in (d) ⇒ is_e_lval (e)))) y)
+Proof
 STRIP_TAC>>
 Cases_on `y`>>
-FULL_SIMP_TAC std_ss [dir_const_imp1] 
-);
+FULL_SIMP_TAC std_ss [dir_const_imp1]
+QED
 
 
 
-val dir_const_imp3 =
-prove(`` ! d e. ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
-                     ==> ~(is_d_none_in d ∧ ¬is_const e) ``,
+Triviality dir_const_imp3:
+! d e. ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
+                     ==> ~(is_d_none_in d ∧ ¬is_const e)
+Proof
 NTAC 3 STRIP_TAC >>
 SIMP_TAC std_ss [] >>
 METIS_TAC[]
-);
+QED
 
 
-val dir_const_imp4 =
-prove(``
+Triviality dir_const_imp4:
 (∀y. (λ(d,e). ¬is_arg_red d e) y ⇒
-             ¬(λ(d,e). is_arg_red d e) y)``,
-
+             ¬(λ(d,e). is_arg_red d e) y)
+Proof
 STRIP_TAC>>
 Cases_on `y`>>
 FULL_SIMP_TAC std_ss [dir_const_imp1, is_arg_red_def, lemma_dir_EQ]
-);
+QED
 
 
 (***************************
@@ -739,9 +738,10 @@ Show that
 INDEX_FIND 0 P l = SOME x ==> P(x)
 ****************************)
 
-val index_some1 =
-prove(``!l n. ((INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = SOME x)  ==> 
-               (λ(d,e). is_d_none_in d ∧ ¬is_const e) (SND x) ``,
+Triviality index_some1:
+!l n. ((INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = SOME x)  ==> 
+               (λ(d,e). is_d_none_in d ∧ ¬is_const e) (SND x)
+Proof
 Induct >| [
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]
 ,
@@ -754,7 +754,7 @@ Q.PAT_X_ASSUM `∀n. _`
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]>>
 RW_TAC (list_ss) [] 
 ]
-);
+QED
 
 
 (***************************
@@ -762,9 +762,10 @@ Show that
 (INDEX_FIND n P l = NONE) = ~ EXISTS P l
 ****************************)
 
-val index_some2 =
-prove(``! l n. (( INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = NONE) =
-       ~(EXISTS (λ(d,e). is_d_none_in d ∧ ¬is_const e) l)``,
+Triviality index_some2:
+! l n. (( INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = NONE) =
+       ~(EXISTS (λ(d,e). is_d_none_in d ∧ ¬is_const e) l)
+Proof
 Induct >|[
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]
 ,
@@ -775,7 +776,7 @@ FULL_SIMP_TAC list_ss [SND]
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]
 ]
 ]
-);
+QED
 
 
 (***************************
@@ -783,8 +784,9 @@ Show that for a generic P (Lemma T4)
 (INDEX_FIND n P l = NONE) = ~ EXISTS P
 ****************************)
 
-val index_none_not_exist =
-prove(``! l  n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)``,
+Triviality index_none_not_exist:
+! l  n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)
+Proof
 Induct >|[
 FULL_SIMP_TAC list_ss [INDEX_FIND_def]
 ,
@@ -793,7 +795,7 @@ REPEAT STRIP_TAC >>
 Cases_on `P h` >>
 FULL_SIMP_TAC list_ss []
 ]
-);
+QED
 
 
 (***************************
@@ -884,12 +886,13 @@ Show Lemma T2.1
 ****************************)
 
 
-val P_Q_mono1 =
-prove (``! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
+Triviality P_Q_mono1:
+! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
 ((EXISTS P l) ==>
-(EXISTS Q l)))``,
+(EXISTS Q l)))
+Proof
 metis_tac[MONO_EXISTS, EXISTS_MEM]
-);
+QED
 
 
 Theorem P_Q_mono2:
@@ -981,20 +984,22 @@ QED
 
 
 (*******list of const and const thms  **************)
-val not_exist_every =
-prove(``  ! el . ~(EXISTS (\e. ~(is_const e)) el) = (EVERY (\e. is_const e ) el) ``,
+Triviality not_exist_every:
+! el . ~(EXISTS (\e. ~(is_const e)) el) = (EVERY (\e. is_const e ) el)
+Proof
 STRIP_TAC >>
 EQ_TAC >>
 REWRITE_TAC[EVERY_NOT_EXISTS]>>
 fs[]
-);
+QED
 
 
-val lconst_every =
-prove(``  ! el . is_consts el = (EVERY (\e. is_const e ) el) ``,
+Triviality lconst_every:
+! el . is_consts el = (EVERY (\e. is_const e ) el)
+Proof
 REWRITE_TAC[is_consts_def]>>
 fs[not_exist_every]
-);
+QED
 
 
 
@@ -1063,28 +1068,28 @@ Induct >>
 RW_TAC list_ss [MAP]
 QED
 
-val map_fst_snd_EQ =
-prove(``
-!l. MAP (λx. FST (SND x)) l = (MAP SND (MAP (λx. (FST x,FST (SND x))) l)) ``,
+Triviality map_fst_snd_EQ:
+!l. MAP (λx. FST (SND x)) l = (MAP SND (MAP (λx. (FST x,FST (SND x))) l))
+Proof
 Induct >>
 RW_TAC list_ss [MAP]
-);
+QED
 
 
 
-val mem_el_map1 =
-prove(`` ! l i .
+Triviality mem_el_map1:
+! l i .
 MEM (EL i (MAP (λ(f_,e_). e_) l))
                (MAP (λ(f_,e_). e_) l) ==>
 MEM (EL i (MAP (λ(f_,e_). e_) l))
-               (SND (UNZIP (MAP (λ(f_,e_). (f_,e_)) l)))	``,
-
+               (SND (UNZIP (MAP (λ(f_,e_). (f_,e_)) l)))
+Proof
 REPEAT STRIP_TAC >>
 FULL_SIMP_TAC list_ss [UNZIP_MAP] >>
 FULL_SIMP_TAC list_ss [SND_EQ_EQUIV, SND_PAIR_MAP] >>
 fs [ELIM_UNCURRY] >>
 FULL_SIMP_TAC list_ss [map_snd_EQ]
-);
+QED
 
 
 Theorem mem_el_map2:
@@ -1437,21 +1442,20 @@ QED
 
 
 
-val EL_not_prob_on_list = prove ( “
+Triviality EL_not_prob_on_list:
 ∀ l h P j.
 j < LENGTH l + 1 ∧  
 (∀j'. j' < j ⇒ ¬P (EL j' (h::l))) ⇒
-∀j'. j' < j − 1 ⇒ ¬P (EL j' l) ”, 
-
-
+∀j'. j' < j − 1 ⇒ ¬P (EL j' l)
+Proof
 REPEAT STRIP_TAC >>
 gvs[] >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘j'+1’])) >>
 gvs[] >>
 Cases_on ‘l’ >>     
 gvs[ADD1]>>
-gvs[EL_CONS, PRE_SUB1] 
-);                         
+gvs[EL_CONS, PRE_SUB1]
+QED
 
 
                 
@@ -2048,6 +2052,79 @@ gvs[] >>
 REPEAT STRIP_TAC >>
 PairCases_on ‘h’ >> gvs[]
 QED
+
+Theorem LENGTH_imp_NULL:
+ ∀ l1 l2 .          
+LENGTH l1 = LENGTH l2 ⇒
+(¬NULL l1 = ¬NULL l2)
+Proof
+Induct >> Induct_on ‘l2’ >> gvs[NULL]
+QED
+
+Theorem MAP_SND_EL:
+∀l i.
+i < LENGTH l ⇒
+SND (EL i l) = EL i (MAP SND l)
+Proof
+Induct >- (
+ gs[]
+) >>
+rpt strip_tac >>
+Cases_on ‘i’ >> (
+ gs[]
+)
+QED
+
+Theorem ZIP_FRONT:
+∀l1 l2.
+l1 ≠ [] ∧ l2 ≠ [] ⇒
+FRONT (ZIP (l1,l2)) =
+ ZIP (FRONT l1,FRONT l2)
+Proof
+Induct_on ‘l1’ >> Induct_on ‘l2’ >> gs[] >>
+rpt strip_tac >>
+Cases_on ‘l2’ >> gs[ZIP_def] >>
+Cases_on ‘l1’ >> gs[ZIP_def] >>
+qpat_x_assum ‘!l2. _’ (fn thm => assume_tac $ Q.SPECL [‘h''::t’] thm) >>
+gs[]
+QED
+
+Theorem ZIP_LAST:
+∀l a b l1 l2.
+LENGTH l1 = LENGTH l2 ⇒
+l ++ [(a,b)] = ZIP(l1,l2) ⇒ LAST l1 = a
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gs[] >>
+ Cases_on ‘l1’ >> Cases_on ‘l2’ >> gvs[ZIP_def, LAST_DEF]
+) >- (
+ Cases_on ‘t’ >>  Cases_on ‘t'’ >> gs[ZIP_def]
+) >>
+res_tac >>
+gs[] >>
+Cases_on ‘t’ >> gs[ZIP_def]
+QED
+
+Theorem oEL_cons_PRE:
+!e x h l.
+(x > 0) /\ (SOME e = oEL x (h::l)) ==>
+(SOME e = oEL (PRE x) l)
+Proof
+rpt strip_tac >>
+fs [oEL_def, PRE_SUB1]
+QED
+
+Definition FILTER_DUPLICATES_def:
+ (FILTER_DUPLICATES [] = []) /\
+ (FILTER_DUPLICATES (h::t) =
+  (h::(FILTER_DUPLICATES (FILTER ($<> h) t))))
+Termination
+WF_REL_TAC `measure LENGTH` >>
+rpt strip_tac >>
+ASSUME_TAC (Q.SPECL [`(\y. h <> y)`, `t`] rich_listTheory.LENGTH_FILTER_LEQ) >>
+fs[prim_recTheory.LESS_THM]
+End
 
 
 
@@ -2646,5 +2723,3 @@ C ==> B
 Proof
 metis_tac[]
 QED
-
-val _ = export_theory ();
