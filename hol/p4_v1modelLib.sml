@@ -27,7 +27,8 @@ val v1model_objectless_map =
  ``[("mark_to_drop", ([("standard_metadata", d_inout)], v1model_mark_to_drop));
     ("verify", ([("condition", d_in); ("err", d_in)], v1model_verify));
     ("verify_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_in); ("algo", d_none)], v1model_verify_checksum));
-    ("update_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_inout); ("algo", d_none)], v1model_update_checksum))]``;
+    ("update_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_inout); ("algo", d_none)], v1model_update_checksum));
+    ("hash", ([("result", d_out); ("algo", d_none); ("base", d_in); ("data", d_in); ("max", d_in)], v1model_hash random_oracle))]``;
 
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
