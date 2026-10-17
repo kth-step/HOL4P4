@@ -287,7 +287,7 @@ End
 Definition get_oracle_calls_array_def:
  (get_oracle_calls_array width oracle_index random_oracle 0 = []) /\
  (get_oracle_calls_array width oracle_index random_oracle (SUC amount) =
-  (get_oracle_calls width oracle_index random_oracle, width)::(get_oracle_calls_array width oracle_index random_oracle amount))
+  (get_oracle_calls width oracle_index random_oracle, width)::(get_oracle_calls_array width (oracle_index + width) random_oracle amount))
 End
 
 Definition v1model_register_construct_inner_def:
@@ -586,12 +586,11 @@ val v1model_header_uninit =
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
 Definition v1model_input_f_def:
- (v1model_input_f (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+ (v1model_input_f n (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, ascope:v1model_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
-   (* TODO: Currently, no garbage collection in ext_obj_map is done *)
-   (* let counter' = ^v1model_init_counter in *)
+   let (counter, ext_obj_map, v_map, ctrl, oracle_index) = reset_ext_obj_map_gen n ascope in
    let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext_packet bl));
                                                 (counter+1, INL (core_v_ext_packet []))] in
    let counter' = counter + 2 in
@@ -602,7 +601,7 @@ Definition v1model_input_f_def:
                                     ("parsedHdr", tau1_uninit_v);
                                     ("hdr", tau1_uninit_v);
                                     ("meta", tau2_uninit_v)] in
-    SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
+    SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index):v1model_ascope))
 End
 
 (* TODO: Generalise and move to core? Duplicated in all three architectures... *)

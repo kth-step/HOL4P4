@@ -150,10 +150,11 @@ End
 (* NOTE: "b" renamed to "b_in" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition ebpf_input_f_def:
- (ebpf_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
+ (ebpf_input_f n (io_list:in_out_list, ascope:ebpf_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
+   let (counter, ext_obj_map, v_map, ctrl, oracle_index) = reset_ext_obj_map_gen n ascope in
    (case ALOOKUP v_map "packet" of
     | SOME (v_ext_ref i) =>
      let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet bl)) in

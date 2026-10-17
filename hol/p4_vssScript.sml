@@ -148,10 +148,11 @@ End
 (* NOTE: "b" renamed to "b_in" *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition vss_input_f_def:
-  (vss_input_f (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+  (vss_input_f n (io_list:in_out_list, ascope:vss_ascope) =
    case io_list of
    | [] => NONE
    | ((bl,p)::t) =>
+    let (counter, ext_obj_map, v_map, ctrl, oracle_index) = reset_ext_obj_map_gen n ascope in
     let frame_length = LENGTH bl in
     let optional_bits = get_optional_bits bl in
     (case oTAKE (272+optional_bits) bl of

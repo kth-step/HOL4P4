@@ -2,7 +2,7 @@ Theory concur1_interference
 Ancestors
   p4_concurrent p4_v1model bitstring
 Libs
-  p4_testLib pairSyntax p4Syntax p4_v1modelLib
+  p4_testLib pairSyntax p4Syntax p4_v1modelLib p4_concurrency_testLib p4_concurrentSyntax
 
 val concur1_actx = ``([arch_block_inp;
   arch_block_pbl "MyParser"
@@ -22,17 +22,15 @@ val concur1_actx = ``([arch_block_inp;
   arch_block_pbl "MyDeparser"
     [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_out],
  [("MyParser",
-   pblock_regular pbl_type_parser
-     [("MyParser",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),
-       [("packet",d_none); ("hdr",d_out); ("meta",d_inout);
-        ("standard_metadata",d_inout)])] []
-     [("start",stmt_seq stmt_empty (stmt_trans (e_v (v_str "accept"))))] []);
+   (pbl_type_parser,
+    [("packet",d_none); ("hdr",d_out); ("meta",d_inout); ("standard_metadata",d_inout)],
+    [("MyParser",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])], [],
+    [("start",stmt_seq stmt_empty (stmt_trans (e_v (v_str "accept"))))], []));
   ("MyVerifyChecksum",
-   pblock_regular pbl_type_control
-     [("MyVerifyChecksum",stmt_seq stmt_empty stmt_empty,
-       [("hdr",d_inout); ("meta",d_inout)])] [] [] []);
+   (pbl_type_control, [("hdr",d_inout); ("meta",d_inout)],
+    [("MyVerifyChecksum",stmt_seq stmt_empty stmt_empty,[])], [], [], []));
   ("MyIngress",
-   pblock_regular pbl_type_control
+   (pbl_type_control, [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)],
      [("read_register",
        stmt_seq
          (stmt_seq
@@ -64,25 +62,21 @@ val concur1_actx = ``([arch_block_inp;
          stmt_empty
          (stmt_block []
             (stmt_seq (stmt_app "flowlet" []) (stmt_app "new_flowlet" []))),
-       [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)])]
-     [(varn_name "tmp",tau_bit 16,NONE)] []
+       [])],
+     [(varn_name "tmp",tau_bit 16,NONE)], [],
      [("flowlet",[],"read_register",[]);
-      ("new_flowlet",[],"write_register",[])]);
+      ("new_flowlet",[],"write_register",[])]));
   ("MyEgress",
-   pblock_regular pbl_type_control
-     [("MyEgress",stmt_seq stmt_empty stmt_empty,
-       [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)])]
-     [] [] []);
+   (pbl_type_control, [("hdr",d_inout); ("meta",d_inout); ("standard_metadata",d_inout)],
+    [("MyEgress",stmt_seq stmt_empty stmt_empty,[])], [], [], []));
   ("MyComputeChecksum",
-   pblock_regular pbl_type_control
-     [("MyComputeChecksum",stmt_seq stmt_empty stmt_empty,
-       [("hdr",d_inout); ("meta",d_inout)])] [] [] []);
+   (pbl_type_control, [("hdr",d_inout); ("meta",d_inout)],
+    [("MyComputeChecksum",stmt_seq stmt_empty stmt_empty,[])], [], [], []));
   ("MyDeparser",
-   pblock_regular pbl_type_control
-     [("MyDeparser",stmt_seq stmt_empty stmt_empty,
-       [("packet",d_none); ("hdr",d_in)])] [] [] [])],
+   (pbl_type_control, [("packet",d_none); ("hdr",d_in)],
+    [("MyDeparser",stmt_seq stmt_empty stmt_empty,[])], [], [], []))],
  [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f (v_struct [],v_struct []),v1model_output_f,
+ v1model_input_f 1 (v_struct [],v_struct []),v1model_output_f,
  v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
@@ -100,10 +94,11 @@ val concur1_actx = ``([arch_block_inp;
    [("emit",[("this",d_in); ("data",d_in)],v1model_packet_out_emit)]);
   ("register",
    SOME
-     ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct),
-   [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read);
+     ([("this",d_out); ("size",d_none); ("targ1",d_in)],register_construct random_oracle),
+   [("read",[("this",d_in); ("result",d_out); ("index",d_in)],register_read random_oracle);
     ("write",[("this",d_in); ("index",d_in); ("value",d_in)],register_write)])],
- [("NoAction",stmt_seq stmt_empty (stmt_ret (e_v v_bot)),[])]):v1model_ascope actx``;
+ [("NoAction",stmt_seq stmt_empty (stmt_ret (e_v v_bot)),[])],
+ v1model_get_oracle_index,v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
 val concur1_astate =
  ``((0, (* Block index *)
@@ -113,7 +108,8 @@ val concur1_astate =
      1, (* Number of extern objects *)
      [(0, INR (v1model_v_ext_register [(fixwidth 16 [], 16)]))],
      (^v1model_init_v_map++["r", v_ext_ref 0]),
-     [("flowlet",[]); ("new_flowlet",[])]), (* End of 'a env *)
+     [("flowlet",[]); ("new_flowlet",[])],
+     0), (* End of 'a env *)
     [[(varn_name "r", (v_ext_ref 0, NONE))]], (* g_scope_list *)
     arch_frame_list_empty, (* frame_list *)
     status_running (* status *)
@@ -126,7 +122,8 @@ val concur1_shared_s =
     (1:num, (* Number of extern objects *)
      [(0:num, INR (v1model_v_ext_register [(fixwidth 16 [], 16)]))]:(num # (core_v_ext + v1model_v_ext)) list,
      (^v1model_init_v_map++["r", v_ext_ref 0]),
-     [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])])
+     [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])],
+     0:num)
    )``;
 
 val concur1_t1_s =
@@ -163,59 +160,6 @@ Second witness from
  val (_, ((i, _, in_out_list', _), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 55
 *)
 
-val (_, ((i1', _, _, _), g_scope_list1', arch_frame_list1', status1')) = debug_arch_from_step "v1model" concur1_actx concur1_astate 55
-
-val t1_s' = “(0:num, ^g_scope_list1', arch_frame_list_empty, status_running)”;
-val t2_s' = “(0:num, ^g_scope_list1', arch_frame_list_empty, status_running)”;
-
-(*
-val (_, ((_, io_list, io_list', ascope'), _, _, _)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 55
-*)
-
-val shared_s'_standard_metadata =
- listSyntax.mk_list
-  (map pairSyntax.mk_pair
-   [(``"ingress_port"``, mk_v_bitii (2, 9)),
-    (``"egress_spec"``, mk_v_bitii (0, 9)),
-    (``"egress_port"``, mk_v_bitii (0, 9)),
-    (``"instance_type"``, mk_v_bitii (0, 32)),
-    (``"packet_length"``, mk_v_bitii (0, 32)),
-    (``"enq_timestamp"``, mk_v_bitii (0, 32)),
-    (``"enq_qdepth"``, mk_v_bitii (0, 19)),
-    (``"deq_timedelta"``, mk_v_bitii (0, 32)),
-    (``"deq_qdepth"``, mk_v_bitii (0, 19)),
-    (``"ingress_global_timestamp"``, mk_v_bitii (0, 48)),
-    (``"egress_global_timestamp"``, mk_v_bitii (0, 48)),
-    (``"mcast_grp"``, mk_v_bitii (0, 16)),
-    (``"egress_rid"``, mk_v_bitii (0, 16)),
-    (``"checksum_error"``, mk_v_bitii (0, 1)),
-    (``"parser_error"``, mk_v_bitii (0, 32)),
-    (``"priority"``, mk_v_bitii (0, 3))],
-   “:(string # v)”);
-val shared_s' =
-“([]:(bool list # num) list,[([F], 0:num); ([F], 0)],5:num,
-  [(0:num,INR (v1model_v_ext_register [(w2v (1w:word16),16)]));
-   (1,INL (core_v_ext_packet [])); (2,INL (core_v_ext_packet [T]));
-   (3,INL (core_v_ext_packet [])); (4,INL (core_v_ext_packet [F]))],
-  [("parseError",v_bit (w2v (0w:word32),32)); ("r",v_ext_ref 0); ("b",v_ext_ref 3);
-   ("b_temp",v_ext_ref 4);
-   ("standard_metadata",
-    v_struct ^shared_s'_standard_metadata);
-   ("parsedHdr",v_struct []); ("hdr",v_struct []); ("meta",v_struct [])],
-  [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])])”;
-
-val shared_s'' =
-“([]:(bool list # num) list,[([T], 0:num); ([F], 0)],5:num,
-  [(0:num,INR (v1model_v_ext_register [(w2v (2w:word16),16)]));
-   (1,INL (core_v_ext_packet [])); (2,INL (core_v_ext_packet [T]));
-   (3,INL (core_v_ext_packet [])); (4,INL (core_v_ext_packet [F]))],
-  [("parseError",v_bit (w2v (0w:word32),32)); ("r",v_ext_ref 0); ("b",v_ext_ref 3);
-   ("b_temp",v_ext_ref 4);
-   ("standard_metadata",
-    v_struct ^shared_s'_standard_metadata);
-   ("parsedHdr",v_struct []); ("hdr",v_struct []); ("meta",v_struct [])],
-  [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])])”;
-
 val init_conc_state = list_mk_pair[concur1_shared_s, concur1_t1_s, concur1_t2_s];
 
 val trace1_thm =
@@ -238,6 +182,17 @@ val trace2_thm =
  in
   thm2
  end;
+
+fun trace_final_state thm =
+ let
+  val (_, _, _, final) = dest_trace_path $ concl thm
+  val (shared_s, thread_states) = pairSyntax.dest_pair final
+  val (t1_s, t2_s) = pairSyntax.dest_pair thread_states
+ in
+  (shared_s, t1_s, t2_s)
+ end;
+val (shared_s', t1_s', t2_s') = trace_final_state trace1_thm;
+val (shared_s'', _, _) = trace_final_state trace2_thm;
 
 Theorem concur1_trace_path_interference:
 ?n t1_s' t2_s' shared_s' shared_s''.

@@ -1887,7 +1887,7 @@ fun p4_get_bigstep_comp_thms ctx_def =
  end
 ;
 
-fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm use_eval_in_ctxt step_thm =
+fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
   val time_start = Time.now();
@@ -2001,16 +2001,16 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
     val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
      (* Non-function argument reduction *)
-     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 (* OLD
      then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 *)
      (* Function argument reduction *)
-     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC RESTR_HOL4P4_CONV_stop_consts)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
-    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ RESTR_HOL4P4_CONV_stop_consts bigstep_tm
+    val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ shortcut_conv bigstep_tm
 
     (* DEBUG *)
     val _ = dbg_print debug_flag (String.concat ["Shortcutting ",
@@ -2228,7 +2228,8 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
 *)
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
-  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm
+  val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts)
+  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
@@ -2236,7 +2237,8 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
  in
 (* DEBUG:
 val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def;
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms) comp_thm;
+val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts);
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm;
 val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
@@ -2582,9 +2584,12 @@ fun p4_prove_wellformed_state astate wf_def =
    val (block_index, io_list, io_list', ascope) = dest_aenv aenv
    val (ext_obj_index, ext_obj_map, v_map, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
 
-   (* TODO: Fix this *)
-   (* 1. Variables from ext_obj_map
-    *    * Remaining input packet *)
+   (* 1. Symbolic parts of the persistent extern objects and of ctrl *)
+   val (_, abstract_ext_obj_map, _, abstract_ctrl, _) = p4_v1modelLib.dest_v1model_ascope $ #4 $ dest_aenv $ #1 $ dest_astate abstract_state
+   val abstract_ext_obj_ctrl = mk_pair (abstract_ext_obj_map, abstract_ctrl)
+   val ext_obj_ctrl_vars = List.filter (fn v => free_in v abstract_ext_obj_ctrl) vars
+   val ext_obj_ctrl_witnesses = map (subst (fst $ match_term abstract_ext_obj_ctrl (mk_pair (ext_obj_map, ctrl)))) ext_obj_ctrl_vars
+   (* TODO: Remaining input packet *)
 (*
    val input_packet_tail_var = snd $ dest_comb $ fst $ sumSyntax.dest_inl $ snd $ dest_pair $ hd $ fst $ dest_list ext_obj_map
 *)
@@ -2600,7 +2605,9 @@ fun p4_prove_wellformed_state astate wf_def =
 (*
    exists_tac input_packet_tail_var >>
 *)
+   (map_every $ exists_tac) ext_obj_ctrl_witnesses >>
    (map_every $ exists_tac) v_map_bits >>
+   exists_tac oracle_index >>
    (map_every $ exists_tac) g_scope_list_bits
   end
   ) >>
@@ -2698,7 +2705,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag postcond_rewr_thms stop_consts_rewr postcond_simpset postcond path_cond_step_list
+   prove_postconds debug_flag postcond_rewr_thms (stop_consts_rewr@stop_consts_never) postcond_simpset postcond path_cond_step_list
 (*
    if debug_flag
    then
@@ -2941,14 +2948,20 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   (* Obtain the function maps for generating star variables *)
   val (_, _, _, input_f, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
 
-  (* Obtain the control plane configuration from the initial state - this is used directly
-   * for the intermediate state *)
+  (* Control plane configuration and persistent extern objects come from the initial state *)
   val aenv = #1 $ dest_astate init_astate
   val ascope = #4 $ dest_aenv aenv
-  val (_, _, _, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
+  val (_, ext_obj_map, _, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
 
   (* TODO: V1Model hack *)
-  val (tau1_v, tau2_v) = dest_pair $ snd $ dest_comb input_f
+  val (input_f', tparams) = dest_comb input_f
+  val n_tm = snd $ dest_comb input_f'
+  val n = int_of_term n_tm
+  val (tau1_v, tau2_v) = dest_pair tparams
+
+  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map) [(^n_tm, INL (core_v_ext_packet [])); (^(term_of_int (n+1)), INL (core_v_ext_packet []))]”
+  val ext_obj_ctrl_vars = free_varsl [ext_obj_map', ctrl]
+  val counter' = term_of_int (n+2)
   val tau1 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau1_v”
   val tau2 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau2_v”
 
@@ -2962,8 +2975,8 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   val (fv_index''', m_name_v) = free_vars_v_of_name_tau fv_prefix fv_index'' (mk_pair(fromMLstring "meta" , tau2))
 
   val v_map' = mk_list ([mk_pair (fromMLstring "parseError", pe_v),
-                         mk_pair (fromMLstring "b", mk_v_ext_ref $ term_of_int 0),
-                         mk_pair (fromMLstring "b_temp", mk_v_ext_ref $ term_of_int 1),
+                         mk_pair (fromMLstring "b", mk_v_ext_ref n_tm),
+                         mk_pair (fromMLstring "b_temp", mk_v_ext_ref $ term_of_int (n+1)),
                          sm_name_v, ph_name_v, h_name_v, m_name_v],
                         mk_prod (string_ty, v_ty))
 
@@ -2987,14 +3000,14 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
 (* OLD
   val def_free_vars = [“packet_tail:bool list”]@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[hit_var, miss_var]@ar_free_vars
 *)
-  val def_free_vars = (fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  val def_free_vars = ext_obj_ctrl_vars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
  in
   (* TODO: Adjust block index for the block in question, adjust extern map? *)
   Defn.mk_defn "p4_v1model_parser_wellformed"
    “p4_v1model_parser_wellformed astate <=>
      ^(list_mk_exists(def_free_vars, 
      “(astate:v1model_ascope astate) =
-     ((^block_index_stop, [], [], (2, [(0,INL (core_v_ext_packet [])); (1,INL (core_v_ext_packet []))], ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+     ((^block_index_stop, [], [], (^counter', ^ext_obj_map', ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
  end
 ;
 

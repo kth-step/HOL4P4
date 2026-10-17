@@ -658,7 +658,63 @@ fun ebpf_add_param_vars_to_v_map init_v_map tau =
  end
 ;
 
-fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm oracle_index =
+fun tie_ext_insts k0 top_inits pblock_map =
+ let
+  val res = eval_rhs ``p4_tie_ext_insts ^k0 ^top_inits ^pblock_map``
+  val (n, res') = dest_pair res
+  val (g_scope_ties, res'') = dest_pair res'
+  val (pblock_map', insts) = dest_pair res''
+ in
+  (n, g_scope_ties, pblock_map', fst $ dest_list insts)
+ end
+;
+
+(* Runs each constructor once on the initial state *)
+fun construct_ext_objs ext_map stop_consts n insts ascope =
+ let
+  fun construct (inst, ascope) =
+   let
+    val (k, inst') = dest_pair inst
+    val (ext_name, args) = dest_pair inst'
+    val ext_name_str = stringLib.fromHOLstring ext_name
+    fun fail msg = raise Fail ("extern object "^(ext_name_str^(" at index "^((term_to_string k)^(": "^msg)))))
+    val (params, ctor) =
+     case total (dest_pair o dest_some o fst o dest_pair o dest_some) (eval_rhs ``ALOOKUP ^ext_map ^ext_name``) of
+       SOME res => res
+     | NONE => fail "no constructor in the extern map of the architecture"
+    val param_names = map (stringLib.fromHOLstring o fst o dest_pair) (fst $ dest_list params)
+    val _ = if not (null param_names) andalso hd param_names = "this" then () else fail "constructor without a \"this\" parameter"
+    val arg_tms = fst $ dest_list args
+    val _ = if length arg_tms = length param_names - 1 then () else fail "wrong number of constructor arguments"
+    fun arg_val e =
+     case total dest_some (eval_rhs ``exp_to_val ([]:scope) ^e``) of
+       SOME v => v
+     | NONE => fail ("constructor argument is not a compile-time constant: "^(term_to_string e))
+    fun mk_entry (name, v) = mk_pair (``varn_name ^(stringLib.fromMLstring name)``, mk_pair (v, ``NONE:lval option``))
+    val scope = mk_list (mk_entry ("this", ``v_bot``)::(map mk_entry (zip (tl param_names) (map arg_val arg_tms))), ``:(varn # (v # lval option))``)
+    val scope_list = mk_list ([scope], scope_ty)
+    val (ascope', res') =
+     case total (dest_pair o dest_some) (rhs $ concl $ computeLib.RESTR_EVAL_CONV stop_consts ``^ctor (^ascope, []:g_scope_list, ^scope_list)``) of
+       SOME res => res
+     | NONE => fail "constructor failed"
+    val (scope_list', _) = dest_pair res'
+    val k' =
+     case total (dest_v_ext_ref o dest_some) (eval_rhs ``lookup_lval ^scope_list' (lval_varname (varn_name "this"))``) of
+       SOME k' => k'
+     | NONE => fail "constructor did not assign an extern object reference to \"this\""
+    val _ = if term_eq k k' then () else fail ("constructed at index "^(term_to_string k'))
+   in
+    ascope'
+   end
+  val ascope' = foldl construct ascope insts
+  val counter = fst $ dest_pair ascope'
+  val _ = if term_eq counter n then () else raise Fail ("allocation counter after constructing the extern objects is "^((term_to_string counter)^(", expected "^(term_to_string n))))
+ in
+  ascope'
+ end
+;
+
+fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm oracle_index top_inits =
  let
   val extra_terms =
    if output_extra_maps
@@ -674,6 +730,8 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
                             ("miss", v_bool T);
                             ("action_run", v_bit (REPLICATE 32 F, 32))], NONE:lval option))]”
 
+  fun init_g_scope_list g_scope_ties = mk_list ([eval_rhs ``(^gscope_init_vars):scope ++ ^g_scope_ties``], scope_ty)
+
   (* TODO: Note this is a free variable *)
   val random_oracle_tm = “random_oracle”
 
@@ -682,11 +740,12 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
    if (is_arch_vss $ dest_some arch_opt_tm) then
     let
      val fmap' = eval_rhs ``AUPDATE_LIST ^vss_func_map ^fmap``
+     val (n_tm, g_scope_ties, pblock_map', insts) = tie_ext_insts vss_init_counter top_inits pblock_map
      (* TODO: Make appropriate additions to ab_list_tm here *)
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
-       list_mk_pair [vss_add_ffblocks_to_ab_list ab_list_tm, pblock_map, vss_ffblock_map,
-		     vss_input_f, vss_output_f,
+       list_mk_pair [vss_add_ffblocks_to_ab_list ab_list_tm, pblock_map', vss_ffblock_map,
+		     mk_comb (vss_input_f, n_tm), vss_output_f,
 		     vss_copyin_pbl, vss_copyout_pbl, vss_apply_table_f,
 		     vss_ext_map, fmap',
                      “vss_get_oracle_index”, “vss_set_oracle_index”,
@@ -703,7 +762,8 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        val init_ctrl = dest_some init_ctrl_opt
        (* Here, the initial v_map is completed with the type-parameterized variables *)
        val vss_init_v_map' = vss_add_param_vars_to_v_map vss_init_v_map (dest_vss_pkg_VSS $ dest_some $ dest_arch_vss $ dest_some arch_opt_tm)
-       val ascope = list_mk_pair [term_of_int 3,
+       val ascope = construct_ext_objs vss_ext_map vss_construct_stop_consts n_tm insts $
+                    list_mk_pair [vss_init_counter,
 				  vss_init_ext_obj_map,
 				  vss_init_v_map',
 				  init_ctrl,
@@ -715,7 +775,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
 				mk_list ([], ``:in_out``), ascope]
        (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  init_g_scope_list g_scope_ties,
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in
@@ -726,10 +786,11 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
    else if (is_arch_ebpf $ dest_some arch_opt_tm) then
     let
      val fmap' = eval_rhs ``AUPDATE_LIST ^ebpf_func_map ^fmap``
+     val (n_tm, g_scope_ties, pblock_map', insts) = tie_ext_insts ebpf_init_counter top_inits pblock_map
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
-       list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map, ebpf_ffblock_map,
-		     ebpf_input_f, ebpf_output_f,
+       list_mk_pair [ebpf_add_ffblocks_to_ab_list ab_list_tm, pblock_map', ebpf_ffblock_map,
+		     mk_comb (ebpf_input_f, n_tm), ebpf_output_f,
 		     ebpf_copyin_pbl, ebpf_copyout_pbl, ebpf_apply_table_f,
 		     ebpf_ext_map, fmap',
                      “ebpf_get_oracle_index”, “ebpf_set_oracle_index”,
@@ -746,7 +807,8 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
        val init_ctrl = dest_some init_ctrl_opt
        (* Here, the initial v_map is completed with the type-parameterized variables *)
        val ebpf_init_v_map' = ebpf_add_param_vars_to_v_map ebpf_init_v_map (dest_ebpf_pkg_ebpfFilter $ dest_some $ dest_arch_ebpf $ dest_some arch_opt_tm)
-       val ascope = list_mk_pair [ebpf_init_counter,
+       val ascope = construct_ext_objs ebpf_ext_map ebpf_construct_stop_consts n_tm insts $
+                    list_mk_pair [ebpf_init_counter,
 				  ebpf_init_ext_obj_map,
 				  ebpf_init_v_map',
 				  init_ctrl,
@@ -758,7 +820,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
 				mk_list ([], ``:in_out``), ascope]
        (* aenv, global scope (can be empty since we substitute these in place?), arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  init_g_scope_list g_scope_ties,
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in
@@ -770,10 +832,11 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
     let
      val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
      val tparams = eval_rhs “(\ (tau1, tau2). (zero_val_from_tau tau1, zero_val_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
-     val v1model_input_f = “v1model_input_f ^tparams”
+     val (n_tm, g_scope_ties, pblock_map', insts) = tie_ext_insts v1model_init_counter top_inits pblock_map
+     val v1model_input_f = “v1model_input_f ^n_tm ^tparams”
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
-       list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map, v1model_ffblock_map,
+       list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map', v1model_ffblock_map,
 		     v1model_input_f, v1model_output_f,
 		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
 		     v1model_ext_map, fmap',
@@ -789,9 +852,9 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
      then
       let
        val init_ctrl = dest_some init_ctrl_opt
-       (* ctrl is initialised from the onset, whereas extern objects are initialised at the
-        * start of the pipeline with v1model_input_f *)
-       val ascope = list_mk_pair [v1model_init_counter,
+       (* ctrl and persistent extern objects are initialised from the onset *)
+       val ascope = construct_ext_objs v1model_ext_map v1model_construct_stop_consts n_tm insts $
+                    list_mk_pair [v1model_init_counter,
 				  v1model_init_ext_obj_map,
 				  v1model_init_v_map,
 				  init_ctrl,
@@ -803,7 +866,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
 				mk_list ([], ``:in_out``), ascope]
        (* aenv, global scope, arch_frame_list, status *)
        val astate = list_mk_pair [aenv,
-				  mk_list ([``^(gscope_init_vars):scope``], scope_ty),
+				  init_g_scope_list g_scope_ties,
 				  arch_frame_list_empty_tm,
 				  status_running_tm]
       in
@@ -975,7 +1038,7 @@ val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
 val oracle_index_tm = (el 16 res_list)
 *)
-         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num”;
+         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num” (el 16 res_list);
          val _ = output_hol4p4_explicit outstream;
          val _ = TextIO.closeOut outstream;
         in

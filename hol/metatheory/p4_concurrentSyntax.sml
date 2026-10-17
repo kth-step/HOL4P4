@@ -9,30 +9,32 @@ local open p4_concurrentTheory in end;
 val (trace_path_tm,  mk_trace_path, dest_trace_path, is_trace_path) =
   syntax_fns4 "p4_concurrent" "trace_path";
 
+(* conc_state = ((io, io', ascope), (thread1, thread2)) *)
+fun dest_conc_state conc_state =
+ let
+  val (shared, thread_states) = pairSyntax.dest_pair conc_state
+  val (io, shared') = pairSyntax.dest_pair shared
+  val (io', ascope) = pairSyntax.dest_pair shared'
+  val (thread1, thread2) = pairSyntax.dest_pair thread_states
+ in
+  (io, io', ascope, thread1, thread2)
+ end
+;
+
 fun arch_state_from_conc_state conc_state tid =
  let
-  val [io, io', n_externs, ext_obj_map, v_map, ctrl, index1, gscope1, arch_frame_list1, status1, index2, gscope2, arch_frame_list2, status2] = strip_pair conc_state
-  val aenv = list_mk_pair [n_externs, ext_obj_map, v_map, ctrl]
+  val (io, io', ascope, thread1, thread2) = dest_conc_state conc_state
+  val (index, rest) = pairSyntax.dest_pair (if tid = 1 then thread1 else thread2)
  in
-  if tid = 1
-  then list_mk_pair [
-        list_mk_pair [index1, io, io', aenv],
-        gscope1, arch_frame_list1, status1
-       ]
-  else list_mk_pair [
-        list_mk_pair [index2, io, io', aenv],
-        gscope2, arch_frame_list2, status2
-       ]
+  pairSyntax.mk_pair (pairSyntax.list_mk_pair [index, io, io', ascope], rest)
  end
 ;
 
 fun thread_state_from_conc_state conc_state tid =
  let
-  val [io, io', n_externs, ext_obj_map, v_map, ctrl, index1, gscope1, arch_frame_list1, status1, index2, gscope2, arch_frame_list2, status2] = strip_pair conc_state
+  val (_, _, _, thread1, thread2) = dest_conc_state conc_state
  in
-  if tid = 1
-  then list_mk_pair [index1, gscope1, arch_frame_list1, status1]
-  else list_mk_pair [index2, gscope2, arch_frame_list2, status2]
+  if tid = 1 then thread1 else thread2
  end
 ;
 

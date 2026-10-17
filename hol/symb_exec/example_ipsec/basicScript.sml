@@ -241,24 +241,8 @@ val basic_actx = ``([arch_block_inp;
              (stmt_seq
                 (stmt_seq
                    (stmt_seq
-                      (stmt_ass lval_null
-                         (e_call (funn_inst "ipsec_crypt")
-                            [e_var (varn_name "ipsecCrypt")]))
-                      (stmt_ass lval_null
-                         (e_call (funn_inst "register")
-                            [e_var (varn_name "counters");
-                             e_v
-                               (v_bit
-                                  ([F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                                    F; F; F; F; F; F; F; T; F; F; F; F; F; F;
-                                    F; F; F; F],32));
-                             e_v
-                               (v_bit
-                                  ([F; F; F; F; F; F; F; F;
-                                    F; F; F; F; F; F; F; F;
-                                    F; F; F; F; F; F; F; F;
-                                    F; F; F; F; F; F; F; F],
-                                   32))])))
+                      (stmt_ass (lval_varname (varn_name "ipsecCrypt")) (e_v (v_ext_ref 0)))
+                      (stmt_ass (lval_varname (varn_name "counters")) (e_v (v_ext_ref 1))))
                    (stmt_ass (lval_varname (varn_name "notify_soft"))
                       (e_v (v_bool F))))
                 (stmt_ass (lval_varname (varn_name "notify_hard"))
@@ -1112,7 +1096,7 @@ val basic_actx = ``([arch_block_inp;
                       [e_var (varn_name "packet");
                        e_acc (e_var (varn_name "hdr")) "esp"]))))),[])],[],
    [],[])],[("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f
+ v1model_input_f 2
    (v_struct
       [("cpu_header",
         v_header F
@@ -1279,8 +1263,8 @@ val basic_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
-val basic_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)], 0),
+val basic_astate = ``((0,[],[],2,[(0,INR v1model_v_ext_ipsec_crypt); (1,INR (v1model_v_ext_register (v1model_register_construct_inner 1024 32 0 random_oracle)))],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
+  [("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)],32768),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);
@@ -1296,7 +1280,7 @@ val ipv4_input = mk_symb_packet_prefix "ip" 160;
 val esp_input = mk_symb_packet_prefix "esp" 64;
 val input = rhs $ concl $ EVAL “^eth_input ++ (^ipv4_input ++ ^esp_input)”;
 
-val basic_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^input,0)] ^basic_astate”;
+val basic_astate_symb = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] “p4_append_input_list [(^input,0)] ^basic_astate”;
 
 val ctx = basic_actx;
 val ctx_name = "basic_ctx"
@@ -1333,8 +1317,8 @@ val const_actions_tables = [];
 val arch_ty = p4_v1modelLib.v1model_arch_ty
 val path_cond_defs = [symb_exec_ty_ctx_def, symb_exec_pblock_map_def]
 val init_astate = basic_astate_symb
-val stop_consts_rewr = [“v1model_is_drop_port”, “v1model_register_construct_inner”, “v1model_register_read_inner”, “v1model_register_write_inner”, “v1model_update_checksum_inner”]
-val stop_consts_never = []
+val stop_consts_rewr = [“v1model_is_drop_port”, “v1model_register_read_inner”, “v1model_register_write_inner”, “v1model_update_checksum_inner”]
+val stop_consts_never = [“v1model_register_construct_inner”]
 val thms_to_add = []
 val path_cond = ASSUME “^basic_wf_sad_encrypt_tbl_tm /\
                         ^basic_wf_sad_decrypt_tbl_tm /\

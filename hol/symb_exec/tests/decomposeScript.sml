@@ -69,7 +69,7 @@ val symb_exec1_actx = ``([arch_block_inp;
              (lval_field (lval_varname (varn_name "standard_meta"))
                 "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))))),
      [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f
+ v1model_input_f 0
    (v_struct
       [("h",
         v_header F
