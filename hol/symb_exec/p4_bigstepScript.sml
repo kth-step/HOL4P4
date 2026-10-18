@@ -293,7 +293,6 @@ strip_tac >- (
 gs[e3_size_list]
 End
 
-(* TODO: No reduction of out-directed parameters to L-values, for now *)
 (* This function returns NONE for arguments that cannot be completely reduced *)
 Definition bigstep_f_arg_exec'_def:
  (bigstep_f_arg_exec' scope_lists (d,e) n =
@@ -305,9 +304,12 @@ Definition bigstep_f_arg_exec'_def:
      then SOME (e', n')
      else NONE
     | _ => NONE)
-  else if is_e_lval e
+  else if is_e_saved e
   then SOME (e, n)
-  else NONE)
+  else
+   (case save_arg scope_lists [] e of
+    | SOME e' => SOME (e', n + 1)
+    | NONE => NONE))
 End
 
 Definition bigstep_f_arg_exec_l_def:
@@ -778,6 +780,9 @@ Induct_on ‘t’ >- (
   ),
 
   (* header *)
+  gs[bigstep_e_exec_def],
+
+  (* saved *)
   gs[bigstep_e_exec_def]
  ]
 (* INR *)
@@ -938,6 +943,9 @@ Induct_on ‘t’ >- (
   gvs[GSYM ZIP_MAP_FST_SND],
 
   (* header *)
+  gs[bigstep_e_exec_def],
+
+  (* saved *)
   gs[bigstep_e_exec_def]
  ]
 (* INR *)
@@ -1083,6 +1091,9 @@ Induct_on ‘t’ >- (
   gvs[ZIP_MAP_FST_SND],
 
   (* header *)
+  gs[bigstep_e_exec_def],
+
+  (* saved *)
   gs[bigstep_e_exec_def]
  ]
 ) >>
@@ -1532,6 +1543,9 @@ Induct_on ‘t’ >- (
   fs[e_exec_def],
 
   (* header *)
+  gvs[bigstep_e_exec_def],
+
+  (* saved *)
   gvs[bigstep_e_exec_def]
  ]
 ) >>
@@ -6881,8 +6895,9 @@ imp_res_tac bigstep_e_exec'_split_alt >>
 gs[]
 QED
 
-Theorem bigstep_f_arg_exec'_split_alt:
+Theorem bigstep_f_arg_exec'_split_alt_in:
 !n' n emctx top_scope scope_list g_scope1 g_scope2 i d e e'.
+~is_d_out d ==>
 bigstep_f_arg_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (d, e) n = SOME (e',n + SUC n') ==>
 ?e''.
 (* Since non-zero steps were taken, there must have been one standard reduction *)
@@ -6893,14 +6908,14 @@ Proof
 Induct >- (
  rpt strip_tac >>
  gvs[bigstep_f_arg_exec_l_def, AllCaseEqs()] >>
- gs[bigstep_f_arg_exec'_def, AllCaseEqs()] >>
+ gs[is_d_out_eq, bigstep_f_arg_exec'_def, AllCaseEqs()] >>
  FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
  imp_res_tac bigstep_e_exec_split_alt >>
  gs[]
 ) >>
 rpt strip_tac >>
 qpat_x_assum ‘bigstep_f_arg_exec' _ _ _ = _’ (fn thm => assume_tac $ SIMP_RULE std_ss [bigstep_f_arg_exec'_def] thm) >>
-gs[AllCaseEqs()] >>
+gs[is_d_out_eq, AllCaseEqs()] >>
 Q.SUBGOAL_THEN ‘(top_scope::(scope_list ⧺ [g_scope1; g_scope2])) = (top_scope::scope_list) ⧺ [g_scope1; g_scope2]’ (fn thm => FULL_SIMP_TAC pure_ss [thm]) >- (
  gs[]
 ) >>
@@ -6915,6 +6930,29 @@ gvs[AllCaseEqs()] >- (
  gs[]
 ) >>
 imp_res_tac e_exec_oracle_index_call >>
+gs[]
+QED
+
+Theorem bigstep_f_arg_exec'_split_alt:
+!n' n emctx top_scope scope_list g_scope1 g_scope2 i d e e'.
+bigstep_f_arg_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (d, e) n = SOME (e',n + SUC n') ==>
+?e''.
+(* The first step saves an out-directed argument or is a standard reduction of an in-directed one *)
+(if is_d_out d
+ then save_arg [g_scope1; g_scope2] (top_scope::scope_list) e = SOME e''
+ else e_exec (add_oracle_index emctx i) [g_scope1; g_scope2] (top_scope::scope_list) e = SOME (e'', [], NONE)) /\
+bigstep_f_arg_exec' (top_scope::(scope_list ++ [g_scope1; g_scope2])) (d, e'') n = SOME (e',n + n')
+Proof
+rpt strip_tac >>
+Cases_on ‘is_d_out d’ >- (
+ gvs[is_d_out_eq, bigstep_f_arg_exec'_def, AllCaseEqs()] >> (
+  imp_res_tac save_arg_SOME >>
+  gvs[is_e_saved_def] >>
+  qpat_x_assum ‘save_arg _ _ _ = _’ mp_tac >>
+  simp[save_arg_def]
+ )
+) >>
+imp_res_tac bigstep_f_arg_exec'_split_alt_in >>
 gs[]
 QED
 
@@ -6946,8 +6984,9 @@ Proof
 gs[bigstep_f_arg_exec'_def] >>
 rpt strip_tac >>
 gvs[AllCaseEqs()] >>
+imp_res_tac save_arg_SOME >>
 Cases_on ‘e'’ >> (
- gs[bigstep_e_exec_def, is_const_def]
+ gs[bigstep_e_exec_def, is_const_def, is_e_saved_def]
 )
 QED
 
@@ -6974,7 +7013,7 @@ gvs[bigstep_f_arg_exec_l_def, AllCaseEqs()] >>
  imp_res_tac bigstep_f_arg_exec_l_imp >>
  FULL_SIMP_TAC std_ss [bigstep_f_arg_exec'_def, AllCaseEqs()] >>
  imp_res_tac bigstep_e_exec_incr >>
- gs[] >>
+ gvs[] >>
  imp_res_tac arithmeticTheory.LESS_EQUAL_ADD >>
  gs[]
 ) >>
@@ -7050,7 +7089,7 @@ bigstep_f_arg_exec' sl (d,e) n = SOME (e,n)
 Proof
 rpt strip_tac >>
 Cases_on ‘d’ >> Cases_on ‘e’ >> (
- gvs[is_arg_red_def, is_d_out_def, bigstep_f_arg_exec'_def, is_const_def, bigstep_e_exec_def]
+ gvs[is_arg_red_def, is_d_out_def, bigstep_f_arg_exec'_def, is_const_def, is_e_saved_def, bigstep_e_exec_def]
 )
 QED
 
@@ -7214,7 +7253,9 @@ conj_tac >- (
   gs[]
  ) >>
  FULL_SIMP_TAC pure_ss [arithmeticTheory.ONE] >>
- simp[e_multi_exec'_def, add_oracle_index_def, e_exec_def, unred_arg_index_def]
+ Cases_on ‘is_d_out (EL j (MAP SND x_d_l))’ >> (
+  gs[e_multi_exec'_def, add_oracle_index_def, e_exec_def, unred_arg_index_def]
+ )
 ) >>
 (* The remaining steps by the inductive hypothesis *)
 qpat_x_assum ‘!n top_scope. _’ irule >>
