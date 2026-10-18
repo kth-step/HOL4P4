@@ -382,7 +382,8 @@ Definition header_entries2v_def:
   case v of
   | (v_bit (bl, n)) => SOME bl
   | (v_struct x_v_l) => header_entries2v x_v_l
-  | (v_header validity x_v_l) => header_entries2v x_v_l
+  (* Invalid headers contribute no bits, as in bmv2 *)
+  | (v_header validity x_v_l) => if validity then header_entries2v x_v_l else SOME []
   | _ => NONE
  )
 End

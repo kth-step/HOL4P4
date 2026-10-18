@@ -160,83 +160,6 @@ Definition pad_bits_def:
 End
 
 
-(*******************)
-(* verify_checksum *)
-
-Definition v1model_verify_checksum_def:
- (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
-   | SOME $ v_bool b =>
-    if b
-    then
-     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
-      | SOME $ v_bit (bl, n) =>
-       if v2n bl = 6
-       then
-        (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
-         | SOME checksum_incr =>
-          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
-           | SOME $ v_bit (bl', 16) =>
-            (if (v_bit (bl', 16)) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
-             then SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
-             else
-              (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
-               | SOME [v_map_scope] =>
-                (case scope_to_vmap v_map_scope of
-                 | SOME v_map' =>
-                  SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index), scope_list, status_returnv v_bot)
-                 | NONE => NONE)
-               | _ => NONE))
-           | _ => NONE)
-         | NONE => NONE)
-       (* TODO: Others not implemented yet *)
-       else NONE
-      | _ => NONE)
-    else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
-   | _ => NONE)
- )
-End
-
-(*******************)
-(* update_checksum *)
-
-Definition v1model_update_checksum_inner_def:
- v1model_update_checksum_inner bitlist =
-  v_bit $ w16 $ compute_checksum16 $ v2w16s' bitlist
-End
-
-Definition v1model_update_checksum_def:
- (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
-  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
-   | SOME $ v_bool b =>
-    if b
-    then
-     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
-      | SOME $ v_bit (bl, n) =>
-       if v2n bl = 6
-       then
-        (case get_checksum_incr' scope_list (lval_varname (varn_name "data")) of
-         | SOME checksum_incr =>
-          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
-           | SOME $ v_bit (bl', n') =>
-            if n' = 16
-            then
-             (* TODO: This can be made total, since we just looked up the checksum *)
-             (case assign scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
-              | SOME scope_list' =>
-               SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
-              | NONE => NONE)
-            else NONE
-           | _ => NONE)
-         | NONE => NONE)
-       (* TODO: Others not implemented yet *)
-       else NONE
-      | _ => NONE)
-    else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
-   | _ => NONE)
- )
-End
-
 (********)
 (* hash *)
 
@@ -245,24 +168,34 @@ Definition v1model_hash_bits_def:
   case v of
   | v_bit (bl, n) => SOME bl
   | v_struct x_v_l => header_entries2v x_v_l
-  | v_header validity x_v_l => header_entries2v x_v_l
+  | v_header validity x_v_l => if validity then header_entries2v x_v_l else SOME []
   | _ => NONE
 End
 
-(* HashAlgorithm members in declaration order; the custom CRCs are not modelled *)
-Definition v1model_hash_inner_def:
- v1model_hash_inner (algo:num) width oracle_index random_oracle bl =
-  if algo = 0 then SOME (w2n (crc32 (v2w8s' (pad_bits 8 bl))), oracle_index)
-  else if algo = 2 then SOME (w2n (crc16 (v2w8s' (pad_bits 8 bl))), oracle_index)
-  else if algo = 4 then SOME (v2n (get_oracle_calls width oracle_index random_oracle), oracle_index + width)
-  else if algo = 5 then SOME (v2n (TAKE 64 (pad_bits 8 bl)), oracle_index)
-  else if algo = 6 then SOME (w2n (compute_checksum16 (v2w16s' (pad_bits 16 bl))), oracle_index)
-  else if algo = 7 then SOME (w2n (FOLDL word_xor (0w:word16) (v2w16s' (pad_bits 16 bl))), oracle_index)
+(* HashAlgorithm members in declaration order; the custom CRCs are the unconfigured crc32/crc16 of bmv2 *)
+Definition v1model_hash_det_def:
+ v1model_hash_det (algo:num) bl =
+  if algo = 0 \/ algo = 1 then SOME (w2n (crc32 (v2w8s' (pad_bits 8 bl))))
+  else if algo = 2 \/ algo = 3 then SOME (w2n (crc16 (v2w8s' (pad_bits 8 bl))))
+  else if algo = 5 then SOME (v2n (TAKE 64 (pad_bits 8 bl)))
+  else if algo = 6 then SOME (w2n (compute_checksum16 (v2w16s' (pad_bits 16 bl))))
+  else if algo = 7 then SOME (w2n (FOLDL word_xor (0w:word16) (v2w16s' (pad_bits 16 bl))))
   else NONE
 End
 
+(* random draws width oracle bits *)
+Definition v1model_hash_inner_def:
+ v1model_hash_inner (algo:num) width oracle_index random_oracle bl =
+  if algo = 4 then SOME (v2n (get_oracle_calls width oracle_index random_oracle), oracle_index + width)
+  else OPTION_MAP (\h. (h, oracle_index)) (v1model_hash_det algo bl)
+End
+
+(* As bmv2: 64-bit operands and arithmetic, the caller truncates to the result width *)
 Definition v1model_hash_range_def:
- v1model_hash_range base max h = if max = 0 then base else base + (h MOD max)
+ v1model_hash_range base max h =
+  let base' = base MOD 2 ** 64 in
+  let max' = max MOD 2 ** 64 in
+   if max' = 0 then base' else (base' + h MOD max') MOD 2 ** 64
 End
 
 (* The width of the result is that of the out parameter, as in register_read *)
@@ -293,6 +226,92 @@ Definition v1model_hash_def:
       | _ => NONE)
     | _ => NONE)
   | _ => NONE
+End
+
+(*******************)
+(* verify_checksum *)
+
+(* Any algorithm, data length and checksum width; the comparison is numeric, as in bmv2 *)
+Definition v1model_verify_checksum_def:
+ (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+   | SOME $ v_bool b =>
+    if b
+    then
+     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+      | SOME $ v_bit (bl, n) =>
+       (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+        | SOME data =>
+         (case v1model_hash_bits data of
+          | SOME bl_data =>
+           (case v1model_hash_det (v2n bl) bl_data of
+            | SOME h =>
+             (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+              | SOME $ v_bit (bl', n') =>
+               (if v2n bl' = h
+                then SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+                else
+                 (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+                  | SOME [v_map_scope] =>
+                   (case scope_to_vmap v_map_scope of
+                    | SOME v_map' =>
+                     SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index), scope_list, status_returnv v_bot)
+                    | NONE => NONE)
+                  | _ => NONE))
+              | _ => NONE)
+            | NONE => NONE)
+          | NONE => NONE)
+        | NONE => NONE)
+      | _ => NONE)
+    else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+   | _ => NONE)
+ )
+End
+
+(*******************)
+(* update_checksum *)
+
+Definition v1model_update_checksum_inner_def:
+ v1model_update_checksum_inner bitlist =
+  v_bit $ w16 $ compute_checksum16 $ v2w16s' bitlist
+End
+
+(* csum16 into a 16-bit field stays the folded v1model_update_checksum_inner for symbolic execution *)
+Definition v1model_update_checksum_def:
+ (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
+   | SOME $ v_bool b =>
+    if b
+    then
+     (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+      | SOME $ v_bit (bl, n) =>
+       (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+        | SOME data =>
+         (case v1model_hash_bits data of
+          | SOME bl_data =>
+           (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+            | SOME $ v_bit (bl', n') =>
+             if v2n bl = 6 /\ n' = 16
+             then
+              (case assign scope_list (v1model_update_checksum_inner (pad_bits 16 bl_data)) (lval_varname (varn_name "checksum")) of
+               | SOME scope_list' =>
+                SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+               | NONE => NONE)
+             else
+              (case v1model_hash_det (v2n bl) bl_data of
+               | SOME h =>
+                (case assign scope_list (v_bit (fixwidth n' (n2v h), n')) (lval_varname (varn_name "checksum")) of
+                 | SOME scope_list' =>
+                  SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+                 | NONE => NONE)
+               | NONE => NONE)
+            | _ => NONE)
+          | NONE => NONE)
+        | NONE => NONE)
+      | _ => NONE)
+    else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+   | _ => NONE)
+ )
 End
 
 (**************)
