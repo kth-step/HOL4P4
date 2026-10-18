@@ -168,10 +168,10 @@ val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 (* Version 1: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
-(* 180 steps for TTL=1 packet to get forwarded to CPU *)
+(* 184 steps for TTL=1 packet to get forwarded to CPU *)
 
 (* Theorem on line below proves data non-interference using proof approach 1 *)
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 180;
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 184;
 
 
 (************************************************************************************************************)
@@ -205,15 +205,15 @@ Definition p4_vss_actx'_def:
 End
 val ctx' = ``p4_vss_actx' r``;
 
-(* EVAL-uate until packet is output (happens to be step 180) *)
+(* EVAL-uate until packet is output (happens to be step 184) *)
 (* Theorem on line below proves data non-interference using proof approach 2 *)
-GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 181``;
+GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 185``;
 
 
 (**************************************************)
 (* Version 3: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
-(* Takes 65 steps, then another 103, then 13 *)
+(* Takes 68 steps, then another 104, then 13 *)
 (* Theorem on line below proves data non-interference using proof approach 3 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [65, 103, 13];
+GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [68, 104, 13];

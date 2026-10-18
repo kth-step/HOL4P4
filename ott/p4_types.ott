@@ -731,6 +731,12 @@ exists_tau_bool t_scopes_tup T_e |-  e  : ( tau , b )
 ------------------------------------ :: cast_to_bool
 t_scopes_tup T_e |-  ( bool ) e : ( bool , false )
 
+
+t_scopes_tup T_e |-  e  : ( t , true )
+v : ( t , false )
+------------------------------------ :: saved
+t_scopes_tup T_e |-  saved ( e , v ) : ( t , true )
+
  
 defns
 lval_typ :: '' ::=

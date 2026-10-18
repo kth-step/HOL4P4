@@ -231,6 +231,9 @@ val (e_struct_tm,  mk_e_struct, dest_e_struct, is_e_struct) =
 val (e_header_tm,  mk_e_header, dest_e_header, is_e_header) =
   syntax_fns2 "p4" "e_header";
 
+val (e_saved_tm,  mk_e_saved, dest_e_saved, is_e_saved) =
+  syntax_fns2 "p4" "e_saved";
+
 val (s_sing_tm,  mk_s_sing, dest_s_sing, is_s_sing) =
   syntax_fns1 "p4" "s_sing";
 
@@ -441,6 +444,9 @@ val (stmt_red_tm,  mk_stmt_red, dest_stmt_red, is_stmt_red) =
 
 val (is_e_lval_tm, mk_is_e_lval, dest_is_e_lval, is_is_e_lval) =
   syntax_fns1 "p4" "is_e_lval";
+
+val (save_arg_tm, mk_save_arg, dest_save_arg, is_save_arg) =
+  syntax_fns3 "p4" "save_arg";
 
 val (lookup_vexp_tm, mk_lookup_vexp, dest_lookup_vexp, is_lookup_vexp) =
   syntax_fns2 "p4" "lookup_v";

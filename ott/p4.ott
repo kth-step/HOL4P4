@@ -369,7 +369,9 @@ e :: e_ ::=
 | eStruct { x1 = e1 ; ... ; xn = en } :: :: struct
   {{ com struct }}
 | eHeader boolv { x1 = e1 ; ... ; xn = en } :: :: header
-  {{ com header }}  
+  {{ com header }}
+| saved ( e , v ) :: :: saved
+  {{ com out- or inout-directed argument with its value saved }}
 | ( e ) :: S :: paren
   {{ hol ([[e]]) }}
 
