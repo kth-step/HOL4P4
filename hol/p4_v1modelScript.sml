@@ -26,7 +26,7 @@ val CONTROL_PLANE_API = 0;
 Datatype:
  v1model_v_ext =
    v1model_v_ext_ipv4_checksum (word16 list)
- | v1model_v_ext_counter
+ | v1model_v_ext_counter (num # num # (num, num # num) alist)
  | v1model_v_ext_direct_counter
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
@@ -417,6 +417,59 @@ Definition register_write_def:
  )
 End
 
+(**************)
+(* Counter    *)
+(**************)
+
+(* Counter state: CounterType, size and the (packets, bytes) of the touched indices *)
+Definition counter_construct_def:
+ (counter_construct ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "size")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "type")) of
+    | SOME (v_bit (bl', n')) =>
+     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_counter (v2n bl', v2n bl, []))) in
+     (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+      | SOME scope_list' =>
+       SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+      | NONE => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(* Indices at or above the size are ignored, as specified by v1model.p4 *)
+Definition v1model_counter_count_inner_def:
+ v1model_counter_count_inner ((ty:num), (size:num), counts) (index:num) (len:num) =
+  if index < size
+  then
+   let (packets, bytes) = (case ALOOKUP counts index of SOME pb => pb | NONE => (0, 0)) in
+    (ty, size, AUPDATE counts (index, (packets + 1, bytes + len)))
+  else (ty, size, counts)
+End
+
+Definition counter_count_def:
+ (counter_count ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+    | SOME (v_ext_ref i) =>
+     (case ALOOKUP ext_obj_map i of
+      | SOME (INR (v1model_v_ext_counter counter_state)) =>
+       (case ALOOKUP v_map "standard_metadata" of
+        | SOME (v_struct fields) =>
+         (case ALOOKUP fields "packet_length" of
+          | SOME (v_bit (bl', n')) =>
+           let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_counter (v1model_counter_count_inner counter_state (v2n bl) (v2n bl')))) in
+            SOME ((counter, ext_obj_map', v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+          | _ => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
 (*******************)
 (* IPSec methods   *)
 (*******************)
@@ -619,7 +672,7 @@ Definition v1model_input_f_def:
    (* TODO: Currently, no garbage collection in v_map is done *)
    let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
                                     ("b_temp", v_ext_ref (counter+1));
-                                    ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (w9 (n2w p)))));
+                                    ("standard_metadata", v_struct (AUPDATE_LIST (^v1model_standard_metadata_zeroed) [("ingress_port", v_bit (w9 (n2w p))); ("packet_length", v_bit (fixwidth 32 (n2v (LENGTH bl DIV 8)), 32))]));
                                     ("parsedHdr", tau1_uninit_v);
                                     ("hdr", tau1_uninit_v);
                                     ("meta", tau2_uninit_v)] in
