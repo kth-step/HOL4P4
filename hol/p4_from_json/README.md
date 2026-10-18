@@ -57,6 +57,8 @@ Note that if the same block is instantiated twice, it uses different tables, whi
 
 Also, this method does not permit nested blocks from using a return statement to finish. Accordingly, the import tool halts with an error if inlining of programmable blocks with bodies containing return statements is attempted.
 
+Control-typed constructor parameters (`control C2(inout bit<16> x)(my_control_type c)`, instantiated as `C2(c1) c2`) are supported one level deep: `c.apply(...)` in the body of `C2` becomes a placeholder, replaced when `c2` is applied by the inlined apply of `c1` under the prefix `c1`, so blocks given the same instance share its tables and extern objects. The arguments of such an apply must be variables, not literals. Constructor parameters of other types are ignored.
+
 The new programmable block-variables resulting from the above procedure will be added to a "taboo list" - if these are encountered among the programmable block-variables of the parent block or in any variable declaration before the inlined block, the import tool will halt with an error.
 
 ### Select expressions

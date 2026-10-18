@@ -85,11 +85,6 @@ val exclude_descs =
   ("inferring the width of integer literals passed to type-parametric extern method parameters in import tool",
    ["issue1097-2-bmv2"]),
 (*
-    Control-typed constructor parameters, and the counter extern of V1Model (manually spotted)
-*)
-  ("supporting control-typed constructor parameters in the import tool and the counter extern in the V1Model model",
-   ["issue1566-bmv2"]),
-(*
     If-expressions
 *)
   ("adding if-expressions to HOL4P4",
