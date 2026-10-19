@@ -604,6 +604,32 @@ Cases_on `unred_arg_index (MAP SND x1) l` >> (
  metis_tac[ISPEC ``ZIP (l,r):(e # string # d) list`` ((valOf o find_clause_e_red) "e_call_newframe"), unred_arg_index_NONE,
             clause_name_def],
 
+ Cases_on ‘is_d_out (EL x (MAP SND x1))’ >> (
+  fs[]
+ ) >- (
+  (* e_call_save *)
+  Cases_on ‘save_arg g_scope_list scopes_stack (EL x l)’ >> (
+   fs []
+  ) >>
+  gvs[] >>
+  Q.SUBGOAL_THEN `((MAP (\(a_,b_,c_,d_). a_) (ZIP (l,ZIP (LUPDATE x' x l,x1))) = l) /\
+                  (MAP (\(a_,b_,c_,d_). b_) (ZIP (l,ZIP (LUPDATE x' x l,x1))) = LUPDATE x' x l) /\
+                  (MAP (\(a_,b_,c_,d_). c_) (ZIP (l,ZIP (LUPDATE x' x l,x1))) = MAP FST x1) /\
+                  (MAP (\(a_,b_,c_,d_). d_) (ZIP (l,ZIP (LUPDATE x' x l,x1))) = MAP SND x1) /\
+                  (MAP (\(a_,b_,c_,d_). (c_,d_)) (ZIP (l,ZIP (LUPDATE x' x l,x1))) = x1))` (
+   fn thm => (irule (SIMP_RULE (srw_ss()) [thm] (ISPEC ``ZIP (l:e list, ZIP ((LUPDATE x' x l), x1:(string # d) list))``
+                                                   ((valOf o find_clause_e_red) "e_call_save")) ))
+  ) >- (
+   subgoal `LENGTH l = LENGTH (ZIP (LUPDATE x' x l,x1))` >- (
+    fs[LENGTH_ZIP]
+   ) >>
+   subgoal `LENGTH (LUPDATE x' x l) = LENGTH x1` >- (
+    fs[]
+   ) >>
+   fs[map_quad_zip112]
+  ) >>
+  gvs[clause_name_def, lookup_funn_sig_def]
+ ) >>
  (* e_call_args *)
  Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,oracle_index,random_oracle) g_scope_list scopes_stack (EL x l)` >> (
   fs []
@@ -763,6 +789,12 @@ rpt strip_tac >| [
 
  (* Unary operation *)
  fs [e_unop_exec_sound_red],
+
+ (* Saved argument *)
+ fs[e_exec_sound, e_exec_def] >>
+ rpt strip_tac >>
+ gvs[] >>
+ metis_tac[(valOf o find_clause_e_red) "e_saved_v", clause_name_def],
 
  (* TODO: List expression - not in exec sem yet *)
  fs [e_exec_sound, e_exec_def],

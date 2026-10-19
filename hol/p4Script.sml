@@ -2497,6 +2497,11 @@ Inductive e_sem:
 ( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
  ==> 
 ( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)))  ([], (NONE:num option))  )))
+
+[e_saved_v:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (v:v) .
+(clause_name "e_saved_v")
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_saved e v) (e_v v)  ([], (NONE:num option))  )))
 End
 (** definitions *)
 

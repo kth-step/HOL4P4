@@ -434,6 +434,10 @@ Definition e_exec_def:
       | NONE => NONE))
    else NONE)
   /\
+ (******************)
+ (* Saved argument *)
+ (e_exec ectx g_scope_list scope_list (e_saved e v) = SOME (e_v v, ([], NONE)))
+  /\
  (e_exec _ _ _ _ = NONE)
 Termination
 WF_REL_TAC ‘measure e_state_size’ >>

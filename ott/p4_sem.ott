@@ -3009,6 +3009,10 @@ e' = save_arg ( g_scope_list , scope_list , e )
 ----------------------------------- :: call_save
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , empty )
 
+%A saved argument outside an out- or inout-directed position reads as its value
+----------------------------------- :: saved_v
+ectx g_scope_list scope_list ( saved ( e , v ) ) ~> ( v , empty )
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics ( single frame )%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
