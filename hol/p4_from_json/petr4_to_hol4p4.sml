@@ -159,8 +159,8 @@ fun hex_to_bin s =
 ;
 
 datatype stf_restype =
- (* packet/expect, port and packet itself *)
-   io of stf_iotype * int * term list
+ (* packet/expect, port, packet itself and whether it ends with $ *)
+   io of stf_iotype * int * term list * bool
  | setdefault of string * string * string * int list
  (* Block name, table name, keys, priority, action name, action arguments *)
  | add of string * string * int list * string * string * int list
@@ -168,7 +168,7 @@ datatype stf_restype =
 
 fun parse_stf_io_line s stf_iotype =
  let
-  (* TODO: It seems $ is not needed for the tests we run. Significance unclear *)
+  val exact = Char.contains s #"$"
   val s' = String.translate (fn c => if c = #"$" then "" else str c) s;
   val tokens = String.tokens (fn c => c = #" ") s'
   val port_str = List.nth (tokens, 1)
@@ -177,7 +177,7 @@ fun parse_stf_io_line s stf_iotype =
  in
   case Int.fromString port_str of
    SOME port =>
-    io (stf_iotype, port, bool_list_packet)
+    io (stf_iotype, port, bool_list_packet, exact)
   | NONE => none
  end
 ;
@@ -453,12 +453,18 @@ fun terms_to_string [] = ""
 
 (* Row breaks for legibility *)
 (* TODO: Naming convention of bits could be i/o + n + _ + b + _ m, where i/o is input or output, n is its number in the order, an m is the bit position *)
-fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term list) list, output_list) =
+fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term list) list, output_list:(int * term list * bool) list) =
  let
   val (in_vars, in_data', i) = process_arbs_list (map snd input_list) 0
-  val (out_vars, out_data', i') = process_arbs_list (map snd output_list) i
+  val (out_vars, out_data', i') = process_arbs_list (map #2 output_list) i
+  (* An expected packet is a prefix of the output unless it ends with $ *)
+  val tails = List.tabulate (length output_list, fn k =>
+               if #3 (List.nth (output_list, k)) then NONE
+               else SOME (mk_var ("tail_"^(int_to_string k), mk_list_type bool)))
+  val out_data'' = map (fn (d, tail_opt) => case tail_opt of SOME t => mk_append (d, t) | NONE => d) (zip out_data' tails)
+  val out_vars' = out_vars@(List.mapPartial I tails)
   val in_packets = mk_list ((map mk_pair (zip in_data' (map (term_of_int o fst) input_list))), “:(bool list # num)”);
-  val out_packets = mk_list ((map mk_pair (zip out_data' (map (term_of_int o fst) output_list))), “:(bool list # num)”);
+  val out_packets = mk_list ((map mk_pair (zip out_data'' (map (term_of_int o #1) output_list))), “:(bool list # num)”);
 
   (* Output astate with updated input separately *)
   val astate_input_update =
@@ -484,7 +490,7 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
 
   val theorem =
    String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
-                  terms_to_string out_vars, ".\n",
+                  terms_to_string out_vars', ".\n",
                   "arch_multi_exec ^", actx, " ^",
                   valname, "_astate",
                   (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
@@ -564,12 +570,12 @@ local
 	   end
          | NONE => raise Fail ("Could not parse action arguments in add stf command"))
        | NONE => raise Fail ("Could not parse keys in add stf command"))
-     | io (stf_iotype, port, data) =>
+     | io (stf_iotype, port, data, exact) =>
       if stf_iotype = packet
       then
        parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
       else
-       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data)]) instream
+       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data, exact)]) instream
      | none => parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream)
    | NONE =>
     let

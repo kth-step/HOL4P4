@@ -235,7 +235,7 @@ Definition packet_in_extract_gen_def:
             | NONE => NONE)
           | NONE =>
            (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-           SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
+           SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -370,46 +370,45 @@ QED
 (* packet_out methods *)
 (**********************)
 
-Definition flatten_v_l_def:
- (flatten_v_l [] = SOME []) /\
- (flatten_v_l (h::t) =
-  case h of
-  | v_struct [] =>
-   (case flatten_v_l t of
-    | SOME l => SOME l
+Definition header_fields_bits_def:
+ (header_fields_bits [] = SOME []) /\
+ (header_fields_bits (h::t) =
+  case header_field_bits h of
+  | SOME bl =>
+   (case header_fields_bits t of
+    | SOME bl' => SOME (bl++bl')
     | NONE => NONE)
-  | v_struct (h'::t') =>
-   (case flatten_v_l [SND h'] of
-    | SOME l =>
-     (case flatten_v_l ((v_struct t')::t) of
-      | SOME l' => SOME (l++l')
-      | NONE => NONE)
+  | NONE => NONE
+ ) /\
+ (header_field_bits (x:x, v) =
+  case v of
+  | v_bit (bl, n) => SOME bl
+  | v_bool b => SOME [b]
+  | v_struct x_v_l => header_fields_bits x_v_l
+  | _ => NONE
+ )
+End
+
+(* Emitting a struct emits its valid headers; other member types are not allowed *)
+Definition struct_members_bits_def:
+ (struct_members_bits [] = SOME []) /\
+ (struct_members_bits (h::t) =
+  case struct_member_bits h of
+  | SOME bl =>
+   (case struct_members_bits t of
+    | SOME bl' => SOME (bl++bl')
     | NONE => NONE)
-  | v_header validity [] =>
-   (case flatten_v_l t of
-    | SOME l => SOME l
-    | NONE => NONE)
-  | v_header validity (h'::t') =>
-   (case flatten_v_l [SND h'] of
-    | SOME l =>
-     (case flatten_v_l ((v_struct t')::t) of
-      | SOME l' => SOME (l++l')
-      | NONE => NONE)
-    | NONE => NONE)
-  | v_bit (bl, n) =>
-   (case flatten_v_l t of
-    | SOME l => SOME (bl++l)
-    | NONE => NONE)
-  | v_bool b =>
-   (case flatten_v_l t of
-    | SOME l => SOME (b::l)
-    | NONE => NONE)
+  | NONE => NONE
+ ) /\
+ (struct_member_bits (x:x, v) =
+  case v of
+  | v_header validity x_v_l => if validity then header_fields_bits x_v_l else SOME []
+  | v_struct x_v_l => struct_members_bits x_v_l
   | _ => NONE
  )
 End
 
 (* TODO: Should also support emission from: header stack and header union *)
-(* Note: Nested headers are not allowed, so this is only checked at top level *)
 Definition packet_out_emit_gen_def:
  (packet_out_emit_gen (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -419,12 +418,12 @@ Definition packet_out_emit_gen_def:
      (case lookup_lval scope_list (lval_varname (varn_name "data")) of
       | SOME (v_header F x_v_l) => SOME (ascope, scope_list, status_returnv v_bot)
       | SOME (v_header T x_v_l) =>
-       (case flatten_v_l (MAP SND x_v_l) of
+       (case header_fields_bits x_v_l of
         | SOME bl =>
          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
-       (case flatten_v_l (MAP SND x_v_l) of
+       (case struct_members_bits x_v_l of
         | SOME bl =>
          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)
