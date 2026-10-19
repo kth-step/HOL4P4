@@ -45,47 +45,17 @@ End
 Definition size_in_bits_def:
  (size_in_bits (v_bool b) = SOME 1) /\
  (size_in_bits (v_bit (bl, n)) = SOME n) /\
- (size_in_bits (v_header valid_bit []) = SOME 0) /\
- (size_in_bits (v_struct []) = SOME 0) /\
- (size_in_bits (v_header valid_bit (h::t)) =
-  case SND h of
-  | (v_bit (bl, num)) =>
-   (case size_in_bits (v_header valid_bit t) of
+ (size_in_bits (v_struct x_v_l) = fields_size_in_bits x_v_l) /\
+ (size_in_bits (v_header valid_bit x_v_l) = fields_size_in_bits x_v_l) /\
+ (size_in_bits _ = NONE) /\
+ (fields_size_in_bits [] = SOME 0) /\
+ (fields_size_in_bits ((x:x, v)::t) =
+  case size_in_bits v of
+  | SOME num =>
+   (case fields_size_in_bits t of
     | SOME num' => SOME (num + num')
-    | NONE => NONE
-   )
-  | (v_bool _) =>
-   (case size_in_bits (v_header valid_bit t) of
-    | SOME num' => SOME (1 + num')
-    | NONE => NONE
-   )
-  | (v_struct fields) =>
-   (case size_in_bits (v_header valid_bit t) of
-    | SOME num' =>
-     (case size_in_bits (v_struct fields) of
-      | SOME num'' =>
-       SOME (num'' + num')
-      | NONE => NONE
-     )
-    | NONE => NONE
-   )
-  | _ => NONE
- ) /\
- (size_in_bits (v_struct (h::t)) =
-  case SND h of
-  | (v_bit (bl, num)) => 
-   (case size_in_bits (v_struct t) of
-    | SOME num' => SOME (num + num')
-    | NONE => NONE
-   )
-  | (v_bool _) =>
-   (case size_in_bits (v_struct t) of
-    | SOME num' => SOME (1 + num')
-    | NONE => NONE
-   )
-  | _ => NONE
- ) /\
- (size_in_bits _ = NONE)
+    | NONE => NONE)
+  | NONE => NONE)
 End
 
 (* TODO: Perform this on list only? *)
@@ -178,6 +148,14 @@ Definition set_fields_def:
      (case set_fields x_v_l [] (TAKE n packet_in) of
       | SOME acc' =>
        set_fields t (acc++[(x, v_struct acc')]) (DROP n packet_in)
+      | NONE => NONE)
+    | NONE => NONE)
+  | (x, (v_header validity x_v_l)) =>
+   (case size_in_bits (v_header validity x_v_l) of
+    | SOME n =>
+     (case set_fields x_v_l [] (TAKE n packet_in) of
+      | SOME acc' =>
+       set_fields t (acc++[(x, v_header T acc')]) (DROP n packet_in)
       | NONE => NONE)
     | NONE => NONE)
   | _ => NONE)
@@ -309,34 +287,25 @@ Proof
 simp[packet_in_take_def]
 QED
 
-Theorem set_fields_struct_TAKE:
+Theorem set_fields_TAKE:
 !x_v_l size acc bl m.
- size_in_bits (v_struct x_v_l) = SOME size /\ size <= m ==>
+ fields_size_in_bits x_v_l = SOME size /\ size <= m ==>
  set_fields x_v_l acc (TAKE m bl) = set_fields x_v_l acc bl
 Proof
-Induct_on ‘x_v_l’ >> rpt strip_tac >> (
- simp[set_fields_def]
-) >>
-PairCases_on ‘h’ >>
-Cases_on ‘h1’ >> (
- gvs[size_in_bits_def, set_fields_def, set_bit_def, set_bool_def, AllCaseEqs()] >>
- asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [listTheory.HD_TAKE, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
-)
-QED
-
-Theorem set_fields_header_TAKE:
-!b x_v_l size acc bl m.
- size_in_bits (v_header b x_v_l) = SOME size /\ size <= m ==>
- set_fields x_v_l acc (TAKE m bl) = set_fields x_v_l acc bl
-Proof
-gen_tac >>
 Induct_on ‘x_v_l’ >> rpt strip_tac >- (
  simp[set_fields_def]
 ) >>
 PairCases_on ‘h’ >>
-Cases_on ‘h1’ >> (
+Cases_on ‘h1’ >- (
  gvs[size_in_bits_def, AllCaseEqs()] >>
- asm_simp_tac (srw_ss() ++ numSimps.ARITH_ss) [set_fields_def, set_bit_def, set_bool_def, listTheory.HD_TAKE, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, set_bool_def, listTheory.HD_TAKE, listTheory.DROP_TAKE]
+) >- (
+ PairCases_on ‘p’ >>
+ gvs[size_in_bits_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, set_bit_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+) >> (
+ gvs[size_in_bits_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, size_in_bits_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
 )
 QED
 
@@ -346,8 +315,8 @@ Theorem set_header_TAKE:
  set_header x_v_l (TAKE size bl) = set_header x_v_l bl
 Proof
 rpt strip_tac >>
-simp[set_header_def] >>
-drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_header_TAKE >>
+gvs[size_in_bits_def, set_header_def] >>
+drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_TAKE >>
 simp[]
 QED
 
@@ -360,8 +329,7 @@ Cases_on ‘v’ >> (
  rpt strip_tac >>
  TRY (rename1 ‘v_bit bvn’ >> Cases_on ‘bvn’) >>
  gvs[size_in_bits_def, set_v_def, set_bit_def, set_bool_def, set_struct_def, set_header_def, listTheory.HD_TAKE, rich_listTheory.TAKE_TAKE_T] >>
- TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_struct_TAKE >> simp[]) >>
- TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_header_TAKE >> simp[])
+ TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_TAKE >> simp[])
 )
 QED
 
