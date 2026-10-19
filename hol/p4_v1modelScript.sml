@@ -698,33 +698,13 @@ Definition v1model_input_f_def:
     SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index):v1model_ascope))
 End
 
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
-Definition v1model_reduce_nonout_def:
- (v1model_reduce_nonout ([], elist, v_map) =
-  SOME []
- ) /\
- (v1model_reduce_nonout (d::dlist, e::elist, v_map) =
-  if is_d_out d
-  then oCONS (e, v1model_reduce_nonout (dlist, elist, v_map))
-  else
-   (case e of
-    | (e_var (varn_name x)) =>
-     (case ALOOKUP v_map x of
-      | SOME v =>
-       (* NOTE: Only externs can be passed as directionless arguments here *)
-       oCONS (e_v v, v1model_reduce_nonout (dlist, elist, v_map))
-      | _ => NONE)
-    | _ => NONE)) /\
- (v1model_reduce_nonout (_, _, v_map) = NONE)
-End
-
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition v1model_copyin_pbl_def:
  v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, random_oracle) =
-  case v1model_reduce_nonout (dlist, elist, v_map) of
+  case reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
    copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
   | NONE => NONE

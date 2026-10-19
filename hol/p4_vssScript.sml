@@ -177,34 +177,13 @@ Definition vss_input_f_def:
    | _ => NONE)
 End
 
-(* The point of this function is to look up in-directed variables in v_map before passing the result
- * to copyin *)
-Definition vss_reduce_nonout_def:
- (vss_reduce_nonout ([], elist, v_map) =
-  SOME []
- ) /\
- (vss_reduce_nonout (d::dlist, e::elist, v_map) =
-  if is_d_out d
-  then oCONS (e, vss_reduce_nonout (dlist, elist, v_map))
-  else
-   (case e of
-    | (e_var (varn_name x)) =>
-     (case ALOOKUP v_map x of
-      | SOME v =>
-       (* NOTE: Only externs can be passed as directionless arguments here *)
-       oCONS (e_v v, vss_reduce_nonout (dlist, elist, v_map))
-      | _ => NONE)
-    | _ => NONE)) /\
- (vss_reduce_nonout (_, _, v_map) = NONE)
-End
-
 (* TODO: Since the same thing should be initialised
  *       for all known architectures, maybe it should be made a
  *       architecture-generic (core) function? *)
 (* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
  vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, random_oracle) =
-  case vss_reduce_nonout (dlist, elist, v_map) of
+  case reduce_nonout (dlist, elist, v_map) of
   | SOME elist' =>
    copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
   | NONE => NONE
