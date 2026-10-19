@@ -103,4 +103,7 @@ val vss_init_v_map = ``^core_init_v_map ++
 			("b_out", v_ext_ref 1);
 			("data_crc", v_ext_ref 2)]:(string, v) alist``;
 
+(* Kept folded when the import tool runs the constructors *)
+val vss_construct_stop_consts = ([]:term list);
+
 end

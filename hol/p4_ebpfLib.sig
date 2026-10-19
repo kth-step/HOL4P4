@@ -25,4 +25,6 @@ val ebpf_init_counter : term
 val ebpf_init_ext_obj_map : term
 val ebpf_init_v_map : term
 
+val ebpf_construct_stop_consts : term list
+
 end

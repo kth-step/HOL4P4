@@ -27,7 +27,8 @@ val v1model_objectless_map =
  ``[("mark_to_drop", ([("standard_metadata", d_inout)], v1model_mark_to_drop));
     ("verify", ([("condition", d_in); ("err", d_in)], v1model_verify));
     ("verify_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_in); ("algo", d_none)], v1model_verify_checksum));
-    ("update_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_inout); ("algo", d_none)], v1model_update_checksum))]``;
+    ("update_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_inout); ("algo", d_none)], v1model_update_checksum));
+    ("hash", ([("result", d_out); ("algo", d_none); ("base", d_in); ("data", d_in); ("max", d_in)], v1model_hash random_oracle))]``;
 
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
@@ -63,6 +64,9 @@ val v1model_register_map =
  ``[("read", ([("this", d_in); ("result", d_out); ("index", d_in)], register_read random_oracle));
     ("write", ([("this", d_in); ("index", d_in); ("value", d_in)], register_write))]``;
 
+val v1model_counter_map =
+ ``[("count", ([("this", d_in); ("index", d_in)], counter_count))]``;
+
 val v1model_ipsec_crypt_map =
  ``[("decrypt_aes_ctr", ([("this", d_in); ("ipv4", d_inout); ("esp", d_inout); ("standard_metadata", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_decrypt_aes_ctr random_oracle));
     ("encrypt_aes_ctr", ([("this", d_in); ("ipv4", d_inout); ("esp", d_inout); ("key", d_in); ("key_hmac", d_in)], ipsec_crypt_encrypt_aes_ctr random_oracle));
@@ -76,6 +80,7 @@ val v1model_ext_map =
         ("packet_in", (NONE, (^v1model_packet_in_map)));
         ("packet_out", (NONE, (^v1model_packet_out_map)));
         ("register", SOME ([("this", d_out); ("size", d_none); ("targ1", d_in)], register_construct random_oracle), (^v1model_register_map));
+        ("counter", SOME ([("this", d_out); ("size", d_none); ("type", d_none)], counter_construct), (^v1model_counter_map));
         ("ipsec_crypt", SOME ([("this", d_out)], ipsec_crypt_construct), (^v1model_ipsec_crypt_map))])``;
 
 (* Function map *)
@@ -106,5 +111,8 @@ val (v1model_register_write_inner_tm,  mk_v1model_register_write_inner, dest_v1m
 
 val (v1model_update_checksum_inner_tm,  mk_v1model_update_checksum_inner, dest_v1model_update_checksum_inner, is_v1model_update_checksum_inner) =
   syntax_fns1 "p4_v1model" "v1model_update_checksum_inner";
+
+(* Kept folded when the import tool runs the constructors *)
+val v1model_construct_stop_consts = [v1model_register_construct_inner_tm];
 
 end

@@ -64,7 +64,11 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
   val entry_width = snd $ dest_pair $ dest_v_bit $ lookup_var "result" scope_list
 
   val (_, ext_obj_map, _, _, oracle_index) = dest_v1model_ascope ascope
-  val array = snd $ dest_comb $ fst $ sumSyntax.dest_inr $ dest_some $ rhs $ concl $ HOL4P4_CONV (mk_alookup (ext_obj_map, ext_ref))
+  (* Looked up structurally: evaluation would unfold the register contents *)
+  val array =
+   case List.find (fn kv => term_eq (fst $ dest_pair kv) ext_ref) (fst $ dest_list ext_obj_map) of
+     SOME kv => snd $ dest_comb $ fst $ sumSyntax.dest_inr $ snd $ dest_pair kv
+   | NONE => raise (ERR "approx_v1model_register_read" ("no extern object at index "^(term_to_string ext_ref)))
 
   (* 2. Prove approximation theorem *)
   val tm1 = mk_v1model_register_read_inner (entry_width, array_index, array, oracle_index, random_oracle_tm)
@@ -118,12 +122,14 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
     imp_res_tac list_exists_thm >>
     RW_TAC std_ss []
    );
-  (* The antecedent may be computable. Either check this before or compute it here *)
-  val wf_ante_eval = EVAL $ mk_wellformed_register_array (entry_width, array)
+  (* The antecedent holds for contents from the constructor, also after writes, or may be computable *)
+  val wf_ante_tm = mk_wellformed_register_array (entry_width, array)
+  val wf_ante_thm = QCONV (SIMP_CONV (srw_ss()) [wellformed_register_array_construct_inner, wellformed_register_array_write_inner, bitstringTheory.length_fixwidth]) wf_ante_tm
+  val wf_ante_thm' = if Teq $ rhs $ concl wf_ante_thm then wf_ante_thm else computeLib.RESTR_EVAL_CONV [v1model_register_construct_inner_tm] wf_ante_tm
 
   val approx_thm' =
-   if Teq $ snd $ dest_eq $ concl wf_ante_eval
-   then MATCH_MP approx_thm (EQT_ELIM wf_ante_eval)
+   if Teq $ rhs $ concl wf_ante_thm'
+   then MATCH_MP approx_thm (EQT_ELIM wf_ante_thm')
    else approx_thm
  in
   SOME (approx_thm', [fv_index+(int_of_term entry_width)])
@@ -134,7 +140,7 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
 fun approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list =
  let
   (* Must be evaluated like the regular steps (not with EVAL), so that the equation added to the path condition matches the term in the state *)
-  val data_bitlist = dest_some $ rhs $ concl $ RESTR_HOL4P4_CONV_stop_consts “get_checksum_incr' ^scope_list (lval_varname (varn_name "data"))”
+  val data_bitlist = dest_some $ rhs $ concl $ RESTR_HOL4P4_CONV_stop_consts “case lookup_lval ^scope_list (lval_varname (varn_name "data")) of SOME v => OPTION_MAP (pad_bits 16) (v1model_hash_bits v) | NONE => NONE”
 
   val tm1 = mk_v1model_update_checksum_inner data_bitlist
 

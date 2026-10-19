@@ -385,6 +385,35 @@ fs[listTheory.oEL_EQ_EL] >>
 qpat_x_assum ‘(bl,n) = EL i array’ (fn thm => fs [GSYM thm])
 QED
 
+Theorem LENGTH_get_oracle_calls:
+!n i f. LENGTH (get_oracle_calls n i f) = n
+Proof
+Induct >>
+rw[get_oracle_calls_def]
+QED
+
+Theorem wellformed_register_array_get_oracle_calls_array:
+!size w i r. wellformed_register_array w (get_oracle_calls_array w i r size)
+Proof
+Induct >>
+rw[get_oracle_calls_array_def, wellformed_register_array_def, LENGTH_get_oracle_calls]
+QED
+
+Theorem wellformed_register_array_construct_inner:
+!size w i r. wellformed_register_array w (v1model_register_construct_inner size w i r)
+Proof
+rw[v1model_register_construct_inner_def, wellformed_register_array_get_oracle_calls_array]
+QED
+
+Theorem wellformed_register_array_write_inner:
+!w bl n idx arr.
+wellformed_register_array w arr /\ n = w /\ LENGTH bl = w ==>
+wellformed_register_array w (v1model_register_write_inner (bl, n) idx arr)
+Proof
+rw[wellformed_register_array_EVERY, v1model_register_write_inner_def, EVERY_EL, EL_LUPDATE] >>
+rw[]
+QED
+
 (*
 Theorem wellformed_register_array_replicate_arb:
 !m n.

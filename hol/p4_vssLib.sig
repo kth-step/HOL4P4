@@ -38,4 +38,6 @@ val vss_init_counter : term
 val vss_init_ext_obj_map : term
 val vss_init_v_map : term
 
+val vss_construct_stop_consts : term list
+
 end

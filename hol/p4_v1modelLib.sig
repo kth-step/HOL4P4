@@ -47,4 +47,6 @@ val is_v1model_update_checksum_inner : term -> bool
 val mk_v1model_update_checksum_inner : term -> term
 val v1model_update_checksum_inner_tm : term
 
+val v1model_construct_stop_consts : term list
+
 end

@@ -130,7 +130,7 @@ val symb_exec6_actx = ``([arch_block_inp;
     ("t1",[mk_exact],
      "set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
  [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f
+ v1model_input_f 0
    (v_struct
       [("h",
         v_header F

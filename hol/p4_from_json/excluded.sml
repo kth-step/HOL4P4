@@ -52,11 +52,6 @@ val exclude_descs =
     "subparser-with-header-stack-bmv2",
     "ternary2-bmv2"]),
 (*
-    V1Model hash extern (manually spotted)
-*)
-  ("modeling V1Model hash extern in HOL4P4",
-   ["constant-in-calculation-bmv2"]),
-(*
     Signed integers
     FAIL: Could not parse .*\/(.*?)\. .*?: \["int".*
 *)
@@ -85,15 +80,10 @@ val exclude_descs =
   ("supporting to-struct cast in HOL4P4",
    ["recursive-casts"]),
 (*
-    Top-level extern instantiations (manually spotted)
+    Integer literal passed to a type-parametric extern method parameter (manually spotted)
 *)
-  ("supporting top-level extern instantiations in import tool",
+  ("inferring the width of integer literals passed to type-parametric extern method parameters in import tool",
    ["issue1097-2-bmv2"]),
-(*
-    Counter extern of V1Model (manually spotted)
-*)
-  ("adding counter extern to V1Model model",
-   ["issue1566-bmv2"]),
 (*
     If-expressions
 *)

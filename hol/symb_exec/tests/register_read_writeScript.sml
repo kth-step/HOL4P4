@@ -5,8 +5,8 @@ Libs
   liteLib p4_symb_execLib
 
 (* Test 8:
- * There is a large register array. This is read from, then written to, at an index
- * using symbolic bits.
+ * There is a large register array with symbolic contents. This is read from, then written
+ * to, at an index using symbolic bits.
  * The test checks that the symbolic execution does not crash when reading from and
  * writing to registers.*)
 
@@ -129,18 +129,7 @@ val symb_exec8_actx = ``([arch_block_inp;
    [("h",d_inout); ("m",d_inout); ("standard_meta",d_inout)],
    [("ingress",
      stmt_seq
-       (stmt_ass lval_null
-          (e_call (funn_inst "register")
-             [e_var (varn_name "counters");
-              e_v
-                (v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; T; F; F; F; F; F; F; F; F; F; F],32));
-              e_v
-                (v_bit
-                   ([F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F; F;
-                     F; F; F; F; F; F; F; F; F; F],32))]))
+       (stmt_ass (lval_varname (varn_name "counters")) (e_v (v_ext_ref 0)))
        (stmt_block [(varn_name "tmp",tau_bit 32,NONE)]
           (stmt_seq
              (stmt_ass lval_null
@@ -172,7 +161,7 @@ val symb_exec8_actx = ``([arch_block_inp;
                    (e_cast (cast_unsigned 16) (e_var (varn_name "tmp"))))))),
      [])],[(varn_name "counters",tau_ext,NONE)],[],[])],
  [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f
+ v1model_input_f 1
    (v_struct
       [("h",
         v_header F
@@ -244,11 +233,11 @@ val symb_exec8_actx = ``([arch_block_inp;
 
 
 val symb_exec8_astate_symb =
- rhs $ concl $ EVAL ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8;
+ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8;
  t0; t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13; t14; t15;
  F; F; F; F; F; F; F; F;
  F; F; F; F; F; F; F; F;
- T; F; T; T; F; F; F; F],0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
+ T; F; T; T; F; F; F; F],0)] ((0,[],[],1,[(0,INR (v1model_v_ext_register (v1model_register_construct_inner 1024 32 0 random_oracle)))],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
   [("t2",t2_ctrl);
    ("t1",
     [(((λk.
@@ -274,7 +263,7 @@ val symb_exec8_astate_symb =
                   [s_sing (v_bit ([F; F; F; F; F; F; T; T],8))]))),0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
-       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])],0),
+       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])],32768),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);
@@ -303,8 +292,8 @@ val (fty_map, b_fty_map, pblock_action_names_map) = (symb_exec8_ftymap, symb_exe
 val const_actions_tables = []
 val path_cond_defs = [symb_exec_ctx_def, symb_exec_pblock_map_def]
 val init_astate = symb_exec8_astate_symb
-val stop_consts_rewr = [“v1model_register_construct_inner”, “v1model_register_read_inner”, “v1model_register_write_inner”]
-val stop_consts_never = []
+val stop_consts_rewr = [“v1model_register_read_inner”, “v1model_register_write_inner”]
+val stop_consts_never = [“v1model_register_construct_inner”]
 val thms_to_add = []
 val path_cond = ASSUME “T”
 val p4_is_finished_alt_opt = NONE

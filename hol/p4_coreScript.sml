@@ -382,7 +382,8 @@ Definition header_entries2v_def:
   case v of
   | (v_bit (bl, n)) => SOME bl
   | (v_struct x_v_l) => header_entries2v x_v_l
-  | (v_header validity x_v_l) => header_entries2v x_v_l
+  (* Invalid headers contribute no bits, as in bmv2 *)
+  | (v_header validity x_v_l) => if validity then header_entries2v x_v_l else SOME []
   | _ => NONE
  )
 End
@@ -483,6 +484,21 @@ End
 (*****************)
 (* Architectural *)
 (*****************)
+
+(* Keeps the n persistent extern objects, discards the rest *)
+Definition reset_ext_obj_map_gen_def:
+ reset_ext_obj_map_gen (n:num) ((counter, ext_obj_map, v_map, ctrl, oracle_index):(num # ((num, (core_v_ext, 'a) sum) alist) # ((string, v) alist) # 'b # num)) =
+  (n, FILTER (\ (k, v_ext). k < n) ext_obj_map, v_map, ctrl, oracle_index)
+End
+
+Theorem reset_ext_obj_map_gen_ALOOKUP:
+!n counter ext_obj_map v_map ctrl oracle_index k.
+ ALOOKUP (FST $ SND (reset_ext_obj_map_gen n ((counter, ext_obj_map, v_map, ctrl, oracle_index):(num # ((num, (core_v_ext, 'a) sum) alist) # ((string, v) alist) # 'b # num)))) k =
+  if k < n then ALOOKUP ext_obj_map k else NONE
+Proof
+rpt strip_tac >>
+simp[reset_ext_obj_map_gen_def, alistTheory.ALOOKUP_FILTER]
+QED
 
 (* TODO: Remove these and keep "v_map" as just a regular scope? *)
 Definition v_map_to_scope_def:

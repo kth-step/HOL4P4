@@ -29,6 +29,10 @@ All shell-level steps of the import are subcommands of `p4_from_json.sh`, which 
 
 In order to accommodate P4 programs in the syntax of HOL4P4, a bit of desugaring must be done.
 
+### Extern object instantiations
+
+Extern objects are instantiated once, at import time, and persist across packets. Every instantiation in the program, block-local or top-level, is numbered and replaced by an assignment of the extern object reference to its variable: at the start of the block body for a block-local one, in the initial global scope for a top-level one. The import tool runs the constructor of each object once, in order, while building the initial architectural state, with the random oracle left free: contents the architecture model leaves undefined are oracle draws, as for uninitialised variables, and advance the oracle index. The first argument of the architecture's input function is the number of extern objects that persist across packets, the architecture's own fixed objects, if any, followed by these; the input function discards every extern object allocated above them, so anything a constructor allocates during a packet lives for that packet only.
+
 ### Nested control blocks
 
 The most significant program transformation concerns inlining of nested blocks. Currently, only nested control blocks are supported and not nested parser blocks. This works in the following manner:
@@ -52,6 +56,8 @@ After processing the entire program is complete, blocks which only occur as nest
 Note that if the same block is instantiated twice, it uses different tables, while if it is instantiated once but applied twice, the same table is used.
 
 Also, this method does not permit nested blocks from using a return statement to finish. Accordingly, the import tool halts with an error if inlining of programmable blocks with bodies containing return statements is attempted.
+
+Control-typed constructor parameters (`control C2(inout bit<16> x)(my_control_type c)`, instantiated as `C2(c1) c2`) are supported one level deep: `c.apply(...)` in the body of `C2` becomes a placeholder, replaced when `c2` is applied by the inlined apply of `c1` under the prefix `c1`, so blocks given the same instance share its tables and extern objects. The arguments of such an apply must be variables, not literals. Constructor parameters of other types are ignored.
 
 The new programmable block-variables resulting from the above procedure will be added to a "taboo list" - if these are encountered among the programmable block-variables of the parent block or in any variable declaration before the inlined block, the import tool will halt with an error.
 

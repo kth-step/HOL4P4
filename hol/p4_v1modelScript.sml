@@ -26,7 +26,7 @@ val CONTROL_PLANE_API = 0;
 Datatype:
  v1model_v_ext =
    v1model_v_ext_ipv4_checksum (word16 list)
- | v1model_v_ext_counter
+ | v1model_v_ext_counter (num # num # (num, num # num) alist)
  | v1model_v_ext_direct_counter
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
@@ -130,75 +130,108 @@ End
 (* Checksum methods   *)
 (**********************)
 
-Definition reflect16'_def:
- (reflect16' data reflection 0 = reflection) /\
- (reflect16' data reflection (SUC bit) =
-  if ~((word_and data (1w:word16)) = (0w:word16))
-  then reflect16' (word_lsl data 1) (word_or reflection (word_lsl (1w:word16) bit)) bit
-  else reflect16' (word_lsl data 1) reflection bit)
-End
-Definition reflect16_def:
- (reflect16 data nBits = reflect16' data (0w:word16) nBits)
+(* Reflected CRCs as in bmv2 (behavioral-model/src/bm_sim/calculations.cpp) *)
+Definition crc_byte_def:
+ crc_byte (poly:'a word) (crc:'a word) (b:word8) =
+  FUNPOW (\c. if word_lsb c then (c >>> 1) ?? poly else c >>> 1) 8 (crc ?? w2w b)
 End
 
-(* CRC16:
-
-https://github.com/p4lang/behavioral-model/blob/5f1c590c7bdb32ababb6d6fe18977cf13ae3b043/src/bm_sim/calculations.cpp
-
-*)
-(* https://barrgroup.com/blog/crc-series-part-3-crc-implementation-code-cc *)
-
-val table_crc16 = 
- “[0w; 32773w; 32783w; 10w; 32795w; 30w; 20w; 32785w; 32819w; 54w; 60w;
-   32825w; 40w; 32813w; 32807w; 34w; 32867w; 102w; 108w; 32873w; 120w;
-   32893w; 32887w; 114w; 80w; 32853w; 32863w; 90w; 32843w; 78w; 68w;
-   32833w; 32963w; 198w; 204w; 32969w; 216w; 32989w; 32983w; 210w; 240w;
-   33013w; 33023w; 250w; 33003w; 238w; 228w; 32993w; 160w; 32933w; 32943w;
-   170w; 32955w; 190w; 180w; 32945w; 32915w; 150w; 156w; 32921w; 136w;
-   32909w; 32903w; 130w; 33155w; 390w; 396w; 33161w; 408w; 33181w; 33175w;
-   402w; 432w; 33205w; 33215w; 442w; 33195w; 430w; 420w; 33185w; 480w;
-   33253w; 33263w; 490w; 33275w; 510w; 500w; 33265w; 33235w; 470w; 476w;
-   33241w; 456w; 33229w; 33223w; 450w; 320w; 33093w; 33103w; 330w; 33115w;
-   350w; 340w; 33105w; 33139w; 374w; 380w; 33145w; 360w; 33133w; 33127w;
-   354w; 33059w; 294w; 300w; 33065w; 312w; 33085w; 33079w; 306w; 272w;
-   33045w; 33055w; 282w; 33035w; 270w; 260w; 33025w; 33539w; 774w; 780w;
-   33545w; 792w; 33565w; 33559w; 786w; 816w; 33589w; 33599w; 826w; 33579w;
-   814w; 804w; 33569w; 864w; 33637w; 33647w; 874w; 33659w; 894w; 884w;
-   33649w; 33619w; 854w; 860w; 33625w; 840w; 33613w; 33607w; 834w; 960w;
-   33733w; 33743w; 970w; 33755w; 990w; 980w; 33745w; 33779w; 1014w; 1020w;
-   33785w; 1000w; 33773w; 33767w; 994w; 33699w; 934w; 940w; 33705w; 952w;
-   33725w; 33719w; 946w; 912w; 33685w; 33695w; 922w; 33675w; 910w; 900w;
-   33665w; 640w; 33413w; 33423w; 650w; 33435w; 670w; 660w; 33425w; 33459w;
-   694w; 700w; 33465w; 680w; 33453w; 33447w; 674w; 33507w; 742w; 748w;
-   33513w; 760w; 33533w; 33527w; 754w; 720w; 33493w; 33503w; 730w; 33483w;
-   718w; 708w; 33473w; 33347w; 582w; 588w; 33353w; 600w; 33373w; 33367w;
-   594w; 624w; 33397w; 33407w; 634w; 33387w; 622w; 612w; 33377w; 544w;
-   33317w; 33327w; 554w; 33339w; 574w; 564w; 33329w; 33299w; 534w; 540w;
-   33305w; 520w; 33293w; 33287w; 514w]:word16 list”;
-
-Definition compute_crc16'_def:
- (compute_crc16' buf 0 (remainder:word16) = remainder) /\
- (compute_crc16' buf (SUC byte) remainder =
-  let data = w2n $ word_and (reflect16 (EL byte buf) 8) (word_lsr remainder 8) in
-  let remainder' = word_and (EL data ^table_crc16) (word_lsl remainder 8) in
-  compute_crc16' buf byte remainder')
+Definition crc16_def:
+ crc16 (bytes:word8 list) = FOLDL (crc_byte (0xA001w:word16)) 0w bytes
 End
 
-(* This uses a word8 list to imitate v1model, even though it immediately gets
- * cast to a word16 *)
-Definition compute_crc16_def:
- compute_crc16 (buf:word8 list) =
-  (* These constants chosen for CRC-16, replace for other algorithms *)
-  let remainder = (0w:word16) in
-  let final_xor_value = (0w:word16) in
-  let remainder' = compute_crc16' (MAP w2w buf) (LENGTH buf) remainder in
-  word_and (reflect16 remainder' 16) final_xor_value
+Definition crc32_def:
+ crc32 (bytes:word8 list) = word_1comp (FOLDL (crc_byte (0xEDB88320w:word32)) 0xFFFFFFFFw bytes)
 End
 
+Definition v2w8s'_def:
+ (v2w8s' [] = []) /\
+ (v2w8s' v =
+  ((v2w (TAKE 8 v)):word8)::(v2w8s' (DROP 8 v))
+ )
+Termination
+WF_REL_TAC `measure LENGTH` >>
+fs []
+End
+
+(* Zero-pads at the end to a multiple of n bits *)
+Definition pad_bits_def:
+ pad_bits n bl = bl ++ REPLICATE ((n - LENGTH bl MOD n) MOD n) F
+End
+
+
+(********)
+(* hash *)
+
+Definition v1model_hash_bits_def:
+ v1model_hash_bits v =
+  case v of
+  | v_bit (bl, n) => SOME bl
+  | v_struct x_v_l => header_entries2v x_v_l
+  | v_header validity x_v_l => if validity then header_entries2v x_v_l else SOME []
+  | _ => NONE
+End
+
+(* HashAlgorithm members in declaration order; the custom CRCs are the unconfigured crc32/crc16 of bmv2 *)
+Definition v1model_hash_det_def:
+ v1model_hash_det (algo:num) bl =
+  if algo = 0 \/ algo = 1 then SOME (w2n (crc32 (v2w8s' (pad_bits 8 bl))))
+  else if algo = 2 \/ algo = 3 then SOME (w2n (crc16 (v2w8s' (pad_bits 8 bl))))
+  else if algo = 5 then SOME (v2n (TAKE 64 (pad_bits 8 bl)))
+  else if algo = 6 then SOME (w2n (compute_checksum16 (v2w16s' (pad_bits 16 bl))))
+  else if algo = 7 then SOME (w2n (FOLDL word_xor (0w:word16) (v2w16s' (pad_bits 16 bl))))
+  else NONE
+End
+
+(* random draws width oracle bits *)
+Definition v1model_hash_inner_def:
+ v1model_hash_inner (algo:num) width oracle_index random_oracle bl =
+  if algo = 4 then SOME (v2n (get_oracle_calls width oracle_index random_oracle), oracle_index + width)
+  else OPTION_MAP (\h. (h, oracle_index)) (v1model_hash_det algo bl)
+End
+
+(* As bmv2: 64-bit operands and arithmetic, the caller truncates to the result width *)
+Definition v1model_hash_range_def:
+ v1model_hash_range base max h =
+  let base' = base MOD 2 ** 64 in
+  let max' = max MOD 2 ** 64 in
+   if max' = 0 then base' else (base' + h MOD max') MOD 2 ** 64
+End
+
+(* The width of the result is that of the out parameter, as in register_read *)
+Definition v1model_hash_def:
+ v1model_hash random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "result")) of
+  | SOME (v_bit (bl_res, width)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
+    | SOME (v_bit (bl_algo, n_algo)) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "base")) of
+      | SOME (v_bit (bl_base, n_base)) =>
+       (case lookup_lval scope_list (lval_varname (varn_name "max")) of
+        | SOME (v_bit (bl_max, n_max)) =>
+         (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+          | SOME data =>
+           (case v1model_hash_bits data of
+            | SOME bl =>
+             (case v1model_hash_inner (v2n bl_algo) width oracle_index random_oracle bl of
+              | SOME (h, oracle_index') =>
+               (case assign scope_list (v_bit (fixwidth width (n2v (v1model_hash_range (v2n bl_base) (v2n bl_max) h)), width)) (lval_varname (varn_name "result")) of
+                | SOME scope_list' =>
+                 SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index'), scope_list', status_returnv v_bot)
+                | NONE => NONE)
+              | NONE => NONE)
+            | NONE => NONE)
+          | NONE => NONE)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
 
 (*******************)
 (* verify_checksum *)
 
+(* Any algorithm, data length and checksum width; the comparison is numeric, as in bmv2 *)
 Definition v1model_verify_checksum_def:
  (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
@@ -207,26 +240,28 @@ Definition v1model_verify_checksum_def:
     then
      (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
       | SOME $ v_bit (bl, n) =>
-       if v2n bl = 6
-       then
-        (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
-         | SOME checksum_incr =>
-          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
-           | SOME $ v_bit (bl', 16) =>
-            (if (v_bit (bl', 16)) = (v_bit $ w16 $ compute_checksum16 checksum_incr)
-             then SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
-             else
-              (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
-               | SOME [v_map_scope] =>
-                (case scope_to_vmap v_map_scope of
-                 | SOME v_map' =>
-                  SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index), scope_list, status_returnv v_bot)
-                 | NONE => NONE)
-               | _ => NONE))
-           | _ => NONE)
-         | NONE => NONE)
-       (* TODO: Others not implemented yet *)
-       else NONE
+       (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+        | SOME data =>
+         (case v1model_hash_bits data of
+          | SOME bl_data =>
+           (case v1model_hash_det (v2n bl) bl_data of
+            | SOME h =>
+             (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+              | SOME $ v_bit (bl', n') =>
+               (if v2n bl' = h
+                then SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+                else
+                 (case assign [v_map_to_scope v_map] (v_bit ([T], 1)) (lval_field (lval_varname (varn_name "standard_metadata")) "checksum_error") of
+                  | SOME [v_map_scope] =>
+                   (case scope_to_vmap v_map_scope of
+                    | SOME v_map' =>
+                     SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index), scope_list, status_returnv v_bot)
+                    | NONE => NONE)
+                  | _ => NONE))
+              | _ => NONE)
+            | NONE => NONE)
+          | NONE => NONE)
+        | NONE => NONE)
       | _ => NONE)
     else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
    | _ => NONE)
@@ -241,6 +276,7 @@ Definition v1model_update_checksum_inner_def:
   v_bit $ w16 $ compute_checksum16 $ v2w16s' bitlist
 End
 
+(* csum16 into a 16-bit field stays the folded v1model_update_checksum_inner for symbolic execution *)
 Definition v1model_update_checksum_def:
  (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
@@ -249,24 +285,29 @@ Definition v1model_update_checksum_def:
     then
      (case lookup_lval scope_list (lval_varname (varn_name "algo")) of
       | SOME $ v_bit (bl, n) =>
-       if v2n bl = 6
-       then
-        (case get_checksum_incr' scope_list (lval_varname (varn_name "data")) of
-         | SOME checksum_incr =>
-          (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
-           | SOME $ v_bit (bl', n') =>
-            if n' = 16
-            then
-             (* TODO: This can be made total, since we just looked up the checksum *)
-             (case assign scope_list (v1model_update_checksum_inner checksum_incr) (lval_varname (varn_name "checksum")) of
-              | SOME scope_list' =>
-               SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
-              | NONE => NONE)
-            else NONE
-           | _ => NONE)
-         | NONE => NONE)
-       (* TODO: Others not implemented yet *)
-       else NONE
+       (case lookup_lval scope_list (lval_varname (varn_name "data")) of
+        | SOME data =>
+         (case v1model_hash_bits data of
+          | SOME bl_data =>
+           (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
+            | SOME $ v_bit (bl', n') =>
+             if v2n bl = 6 /\ n' = 16
+             then
+              (case assign scope_list (v1model_update_checksum_inner (pad_bits 16 bl_data)) (lval_varname (varn_name "checksum")) of
+               | SOME scope_list' =>
+                SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+               | NONE => NONE)
+             else
+              (case v1model_hash_det (v2n bl) bl_data of
+               | SOME h =>
+                (case assign scope_list (v_bit (fixwidth n' (n2v h), n')) (lval_varname (varn_name "checksum")) of
+                 | SOME scope_list' =>
+                  SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+                 | NONE => NONE)
+               | NONE => NONE)
+            | _ => NONE)
+          | NONE => NONE)
+        | NONE => NONE)
       | _ => NONE)
     else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
    | _ => NONE)
@@ -287,7 +328,7 @@ End
 Definition get_oracle_calls_array_def:
  (get_oracle_calls_array width oracle_index random_oracle 0 = []) /\
  (get_oracle_calls_array width oracle_index random_oracle (SUC amount) =
-  (get_oracle_calls width oracle_index random_oracle, width)::(get_oracle_calls_array width oracle_index random_oracle amount))
+  (get_oracle_calls width oracle_index random_oracle, width)::(get_oracle_calls_array width (oracle_index + width) random_oracle amount))
 End
 
 Definition v1model_register_construct_inner_def:
@@ -388,6 +429,59 @@ Definition register_write_def:
          let array' = v1model_register_write_inner (bl', n') bl array in
          let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_register array')) in
           SOME ((counter, ext_obj_map', v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+        | _ => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(**************)
+(* Counter    *)
+(**************)
+
+(* Counter state: CounterType, size and the (packets, bytes) of the touched indices *)
+Definition counter_construct_def:
+ (counter_construct ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "size")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "type")) of
+    | SOME (v_bit (bl', n')) =>
+     let ext_obj_map' = AUPDATE ext_obj_map (counter, INR (v1model_v_ext_counter (v2n bl', v2n bl, []))) in
+     (case assign scope_list (v_ext_ref counter) (lval_varname (varn_name "this")) of
+      | SOME scope_list' =>
+       SOME ((counter + 1, ext_obj_map', v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+      | NONE => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+(* Indices at or above the size are ignored, as specified by v1model.p4 *)
+Definition v1model_counter_count_inner_def:
+ v1model_counter_count_inner ((ty:num), (size:num), counts) (index:num) (len:num) =
+  if index < size
+  then
+   let (packets, bytes) = (case ALOOKUP counts index of SOME pb => pb | NONE => (0, 0)) in
+    (ty, size, AUPDATE counts (index, (packets + 1, bytes + len)))
+  else (ty, size, counts)
+End
+
+Definition counter_count_def:
+ (counter_count ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "index")) of
+  | SOME (v_bit (bl, n)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "this")) of
+    | SOME (v_ext_ref i) =>
+     (case ALOOKUP ext_obj_map i of
+      | SOME (INR (v1model_v_ext_counter counter_state)) =>
+       (case ALOOKUP v_map "standard_metadata" of
+        | SOME (v_struct fields) =>
+         (case ALOOKUP fields "packet_length" of
+          | SOME (v_bit (bl', n')) =>
+           let ext_obj_map' = AUPDATE ext_obj_map (i, INR (v1model_v_ext_counter (v1model_counter_count_inner counter_state (v2n bl) (v2n bl')))) in
+            SOME ((counter, ext_obj_map', v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+          | _ => NONE)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -586,23 +680,22 @@ val v1model_header_uninit =
 
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
 Definition v1model_input_f_def:
- (v1model_input_f (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, (counter, ext_obj_map, v_map, ctrl):v1model_ascope) =
+ (v1model_input_f n (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, ascope:v1model_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
-   (* TODO: Currently, no garbage collection in ext_obj_map is done *)
-   (* let counter' = ^v1model_init_counter in *)
+   let (counter, ext_obj_map, v_map, ctrl, oracle_index) = reset_ext_obj_map_gen n ascope in
    let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext_packet bl));
                                                 (counter+1, INL (core_v_ext_packet []))] in
    let counter' = counter + 2 in
    (* TODO: Currently, no garbage collection in v_map is done *)
    let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
                                     ("b_temp", v_ext_ref (counter+1));
-                                    ("standard_metadata", v_struct (AUPDATE (^v1model_standard_metadata_zeroed) ("ingress_port", v_bit (w9 (n2w p)))));
+                                    ("standard_metadata", v_struct (AUPDATE_LIST (^v1model_standard_metadata_zeroed) [("ingress_port", v_bit (w9 (n2w p))); ("packet_length", v_bit (fixwidth 32 (n2v (LENGTH bl DIV 8)), 32))]));
                                     ("parsedHdr", tau1_uninit_v);
                                     ("hdr", tau1_uninit_v);
                                     ("meta", tau2_uninit_v)] in
-    SOME (t, (counter', ext_obj_map', v_map', ctrl):v1model_ascope))
+    SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index):v1model_ascope))
 End
 
 (* TODO: Generalise and move to core? Duplicated in all three architectures... *)

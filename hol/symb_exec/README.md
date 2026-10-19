@@ -91,6 +91,8 @@ val debug_flag = true;
 
 and send everything to the REPL to observe debug output of what's going on.
 
+The import tool places the V1Model registers of a program in the initial state with contents `v1model_register_construct_inner size width oracle_index random_oracle`; keep that constant among the constants the executor never unfolds (the `stop_consts_never` argument of `p4_symb_exec_prove_contract`, see `tests/register_readScript.sml`) so that the contents stay folded.
+
 A mid-size example can be found in `example_ipsec` subdirectory. The Python
 script `count_reds.py` can be used on the debug output to generate statistics about the symbolic execution.
 

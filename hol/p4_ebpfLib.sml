@@ -77,4 +77,7 @@ val ebpf_init_v_map = ``^core_init_v_map ++
                           * This can be concretized initially without ambiguity. *)
 			 ("accept", v_bool F)]:(string, v) alist``;
 
+(* Kept folded when the import tool runs the constructors *)
+val ebpf_construct_stop_consts = ([]:term list);
+
 end
