@@ -57,19 +57,15 @@ Type v1model_ascope = “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v)
 (* TODO: Remove unused arguments from these? *)
 
 Definition v1model_ascope_lookup_def:
- v1model_ascope_lookup (ascope:v1model_ascope) ext_ref = 
-  let ext_obj_map = FST $ SND ascope in
-   ALOOKUP ext_obj_map ext_ref
+ v1model_ascope_lookup = ascope_lookup_gen:v1model_ascope -> num -> v1model_sum_v_ext option
 End
 
 Definition v1model_ascope_update_def:
- v1model_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+ v1model_ascope_update = ascope_update_gen:v1model_ascope -> num -> v1model_sum_v_ext -> v1model_ascope
 End
 
 Definition v1model_ascope_update_v_map_def:
- v1model_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+ v1model_ascope_update_v_map = ascope_update_v_map_gen:v1model_ascope -> string -> v -> v1model_ascope
 End
 
 Definition v1model_packet_in_extract_def:
@@ -765,32 +761,11 @@ End
  * with other keys being exact if one LPM key is present.
  * Note that table priority is runtime-dependent, with only partial P4 language
  * support. *)
-val v1model_apply_table_f_def =
- if CONTROL_PLANE_API = 0
- then xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-    (* TODO: Note that this function could do other stuff here depending on table name.
-     *       Ideally, one could make a general, not hard-coded, solution for this *)
-    case ALOOKUP ctrl x of
-     | SOME table =>
-      if (MEM mk_lpm mk_list)
-      then
-       (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
-        * for tables that contain at most one LPM key, with others exact) *)
-       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-      else
-       (* Smallest priority wins (like for TDI) *)
-       SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
-     | NONE => NONE’
- else xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-    (* TODO: Note that this function could do other stuff here depending on table name.
-     *       Ideally, one could make a general, not hard-coded, solution for this *)
-    case ALOOKUP ctrl x of
-     | SOME table =>
-      (* Largest priority wins *)
-      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-     | NONE => NONE’;
+(* API 0: largest priority wins with an LPM key (P4Runtime), smallest otherwise (TDI); API 1: largest *)
+val v1model_largest_wins = if CONTROL_PLANE_API = 0 then “\mk_list:mk_list. MEM mk_lpm mk_list” else “\mk_list:mk_list. T”;
+Definition v1model_apply_table_f_def:
+ v1model_apply_table_f = apply_table_f_gen ^v1model_largest_wins:v1model_ascope apply_table_f
+End
 
 Definition v1model_get_oracle_index_def:
  v1model_get_oracle_index = get_oracle_index_gen:v1model_ascope get_oracle_index

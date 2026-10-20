@@ -18,19 +18,15 @@ Type vss_ascope = “:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) 
 (**********************************************************)
 
 Definition vss_ascope_lookup_def:
- vss_ascope_lookup (ascope:vss_ascope) ext_ref = 
-  let ext_obj_map = FST $ SND ascope in
-   ALOOKUP ext_obj_map ext_ref
+ vss_ascope_lookup = ascope_lookup_gen:vss_ascope -> num -> vss_sum_v_ext option
 End
 
 Definition vss_ascope_update_def:
- vss_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+ vss_ascope_update = ascope_update_gen:vss_ascope -> num -> vss_sum_v_ext -> vss_ascope
 End
 
 Definition vss_ascope_update_v_map_def:
- vss_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+ vss_ascope_update_v_map = ascope_update_v_map_gen:vss_ascope -> string -> v -> vss_ascope
 End
 
 Definition vss_packet_in_extract:
@@ -246,18 +242,15 @@ Definition ctrl_check_ttl:
 End
 
 Definition vss_apply_table_f_def:
- vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+ vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), ascope:vss_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   if x = "check_ttl"
   then
    ctrl_check_ttl e_l
   else
-   (case ALOOKUP ctrl x of
-    | SOME table =>
-     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-    | NONE => NONE)
+   (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+   apply_table_f_gen (\mk_list. T) (x, e_l, mk_list, (x', e_l'), ascope)
 End
 
 Definition vss_get_oracle_index_def:

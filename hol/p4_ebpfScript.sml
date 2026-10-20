@@ -24,19 +24,15 @@ Type ebpf_ascope = “:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist
 (**********************************************************)
 
 Definition ebpf_ascope_lookup_def:
- ebpf_ascope_lookup (ascope:ebpf_ascope) ext_ref = 
-  let ext_obj_map = FST $ SND ascope in
-   ALOOKUP ext_obj_map ext_ref
+ ebpf_ascope_lookup = ascope_lookup_gen:ebpf_ascope -> num -> ebpf_sum_v_ext option
 End
 
 Definition ebpf_ascope_update_def:
- ebpf_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+ ebpf_ascope_update = ascope_update_gen:ebpf_ascope -> num -> ebpf_sum_v_ext -> ebpf_ascope
 End
 
 Definition ebpf_ascope_update_v_map_def:
- ebpf_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+ ebpf_ascope_update_v_map = ascope_update_v_map_gen:ebpf_ascope -> string -> v -> ebpf_ascope
 End
 
 Definition ebpf_packet_in_extract:
@@ -211,15 +207,9 @@ Definition ebpf_output_f_def:
   | _ => NONE
 End
 
+(* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
 Definition ebpf_apply_table_f_def:
- ebpf_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
-  (* TODO: Note that this function could do other stuff here depending on table name.
-   *       Ideally, one could make a general, not hard-coded, solution for this *)
-  case ALOOKUP ctrl x of
-   | SOME table =>
-    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-   | NONE => NONE
+ ebpf_apply_table_f = apply_table_f_gen (\mk_list. T):ebpf_ascope apply_table_f
 End
 
 Definition ebpf_get_oracle_index_def:

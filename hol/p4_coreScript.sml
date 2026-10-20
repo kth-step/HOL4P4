@@ -519,6 +519,22 @@ End
 (* Architectural *)
 (*****************)
 
+Definition ascope_lookup_gen_def:
+ ascope_lookup_gen ascope ext_ref =
+  let ext_obj_map = FST $ SND ascope in
+   ALOOKUP ext_obj_map ext_ref
+End
+
+Definition ascope_update_gen_def:
+ ascope_update_gen (counter, ext_obj_map, v_map, ctrl, oracle_index:num) ext_ref v_ext =
+  (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+End
+
+Definition ascope_update_v_map_gen_def:
+ ascope_update_v_map_gen (counter, ext_obj_map, v_map, ctrl, oracle_index:num) str (v:v) =
+  (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+End
+
 (* Keeps the n persistent extern objects, discards the rest *)
 Definition reset_ext_obj_map_gen_def:
  reset_ext_obj_map_gen (n:num) ((counter, ext_obj_map, v_map, ctrl, oracle_index):(num # ((num, (core_v_ext, 'a) sum) alist) # ((string, v) alist) # 'b # num)) =
@@ -652,4 +668,15 @@ Definition FOLDL_MATCH_alt_def:
     else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t
    | NONE => FOLDL_MATCH_alt e_l (v, SOME prio) (acc+1) t
   else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
+End
+
+(* largest_wins mk_list picks FOLDL_MATCH (largest priority wins) over FOLDL_MATCH_alt *)
+Definition apply_table_f_gen_def:
+ apply_table_f_gen largest_wins (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index:num)) =
+  case ALOOKUP ctrl x of
+  | SOME table =>
+   if largest_wins mk_list
+   then SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+   else SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
+  | NONE => NONE
 End
