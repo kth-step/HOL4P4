@@ -834,7 +834,7 @@ basic:
         (* TODO: CURRENTLY ONLY WORKS FOR V1MODEL, FIX! *)
         val mk_list = fst $ dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
         (* TODO: The below doesn't work with HOL4P4_CONV *)
-        val mem_lpm = Teq $ rhs $ concl $ REWRITE_CONV [MEM] (mk_mem (“mk_lpm”, mk_list))
+        val mem_lpm = Teq $ rhs $ concl $ EVAL (mk_conj (mk_mem (“mk_lpm”, mk_list), “EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) ^mk_list”))
 	val case_lhs =
          if mem_lpm
          then “FST $ FOLDL_MATCH ^e (^default_action, NONE) ^tbl”

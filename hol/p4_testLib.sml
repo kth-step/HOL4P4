@@ -401,6 +401,43 @@ fun p4_eval_test_tac aenv_ty actx astate =
  end
 end;
 
+(* Proves an STF test theorem whose arch_multi_exec conjuncts are consecutive phases *)
+fun p4_eval_test_phases_tac ascope_ty (asl, goal) =
+ let
+  val (vars, body) = strip_exists goal
+  fun is_exec c =
+   is_eq c andalso
+   (case strip_comb (lhs c) of
+      (f, [_, _, _]) => is_const f andalso fst (dest_const f) = "arch_multi_exec"
+    | _ => false)
+  fun phase (c, (theta, thms)) =
+   let
+    val c' = subst theta c
+    val (_, [actx, astate, n]) = strip_comb (lhs c')
+    val (astate', upd_thms) =
+     if is_the astate
+     then
+      let
+       val upd_thm = EVAL astate
+      in
+       (rhs $ concl upd_thm, [upd_thm])
+      end
+     else (astate, [])
+    val step_thm = eval_step ascope_ty actx astate'
+    val steps = rand $ lhs $ concl step_thm
+    val (theta', _) = match_term (dest_some $ rhs c') (the_final_state step_thm)
+   in
+    (theta @ [n |-> steps] @ theta', thms @ upd_thms @ [step_thm])
+   end
+  val (theta, thms) = foldl phase ([], []) (List.filter is_exec $ strip_conj body)
+  val witnesses = List.mapPartial (fn v => subst_assoc (term_eq v) theta) vars
+ in
+  ((foldr (fn (a, b) => a >> b) ALL_TAC (map exists_tac witnesses))
+   >> PURE_REWRITE_TAC thms
+   >> fs []) (asl, goal)
+ end
+;
+
 (* TODO: Still presupposes VSS? *)
 fun debug_arch_from_step arch actx astate nsteps =
  let

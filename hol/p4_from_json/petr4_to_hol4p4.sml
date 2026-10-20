@@ -8,6 +8,8 @@ open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib;
 (* For EVAL *)
 (* ASCIInumbersLib is loaded for its side effect of adding the ASCII/number conversions to the EVAL compset *)
 local open ASCIInumbersLib in end;
+(* intReduce adds integer arithmetic, used to fold compile-time constants *)
+local open intReduce in end;
 
 datatype arch = vss | ebpf | v1model;
 
@@ -161,9 +163,10 @@ fun hex_to_bin s =
 datatype stf_restype =
  (* packet/expect, port, packet itself and whether it ends with $ *)
    io of stf_iotype * int * term list * bool
- | setdefault of string * string * string * int list
- (* Block name, table name, keys, priority, action name, action arguments *)
- | add of string * string * int list * string * string * int list
+ (* Block name, table name, action name, action arguments *)
+ | setdefault of string * string * string * term
+ (* Table name, key condition on e_l, priority, action name, action arguments *)
+ | add of string * term * int * string * term
  | none;
 
 fun parse_stf_io_line s stf_iotype =
@@ -178,7 +181,7 @@ fun parse_stf_io_line s stf_iotype =
   case Int.fromString port_str of
    SOME port =>
     io (stf_iotype, port, bool_list_packet, exact)
-  | NONE => none
+  | NONE => raise Fail ("Invalid port in STF command: "^s)
  end
 ;
 
@@ -213,147 +216,6 @@ fun split_string_rev s c =
   else (a,b)
  end
 
-(* TODO: Factor out parsing hex and dec numbers into separate functions *)
-fun int_from_string str =
- if String.size str > 2
- then
-  if String.extract (str, 0, SOME 2) = "0x"
-  then
-   (* Definitely hexadecimal *)
-   SOME ((Arbint.toInt $ Arbint.fromNat (Arbnum.fromHexString str)))
-  else
-   (* Something else: probably decimal *)
-   Int.fromString str
- else
-  (* Too small for prefix: probably decimal *)
-  Int.fromString str
-;
-
-fun ints_from_string []     = SOME []
-  | ints_from_string (h::t) =
-   (case int_from_string h of
-      SOME i =>
-     (case ints_from_string t of
-	SOME res => SOME (i::res)
-      | NONE => NONE)
-    | NONE => NONE)
-;
-
-fun parse_stf_setdefault_line (pblock_map, ttymap) tokens =
- let
-  val table_token = el 1 tokens
-  (* TODO: This checks first prefix is a top-level block or not: the import tool should reject
-   * programs with instance names equal to top-level block names for this to work *)
-  val (block_name, table) =
-   if is_none $ eval_rhs “ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring $ fst $ split_string table_token #".")”
-   then
-    let
-     val pbl_name_opt = eval_rhs “p4_pblock_of_tbl ^(stringSyntax.fromMLstring table_token) ^pblock_map”
-    in
-     if is_some pbl_name_opt
-     then (fromHOLstring $ dest_some pbl_name_opt, table_token)
-     else raise Fail ("Could not find table "^(table_token^" in pblock_map"))
-    end
-   else split_string table_token #"."
-  (* Note that arguments are no longer separated by whitespaces in "action" *)
-  (* TODO: It seems to be a quirk of the STF files that they have a format with
-   * the pblock as optional prefix - this is a naughty hack that may fail *)
-  val (prefix, action) = split_string (String.concat (tl tokens)) #"."
-  val action' =
-   if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
-   then action
-   else if prefix <> "" then (prefix^("."^action)) else action
-  val (action_name, args) = split_string_incl action' #"("
-  val args_list = String.tokens (fn ch => ch = #",") (String.substring(args, 1, size args - 2))
-  val args_list' = map (fn tok => snd (split_string tok #":")) args_list
- in
-  case ints_from_string args_list' of
-    SOME ints =>
-     setdefault (block_name, table, action_name, ints)
-  | NONE => none
- end
-;
-
-(* Parses a list of numerical strings into ints *)
-fun parse_keys [] = SOME []
- |  parse_keys (h::t) =
-  let
-   (* TODO: Fields are assumed to be in order *)
-   val (field_name, num_str) = split_string h #":"
-  in
-   case int_from_string num_str of
-     SOME i =>
-    (case parse_keys t of
-       SOME res => SOME (i::res)
-     | NONE => NONE)
-   | NONE => NONE
-  end
-;
-
-fun parse_stf_add_line (pblock_map, ttymap) tokens =
- let
-  (* Split up tokens into table, keys, and action *)
-  (* Rewritten to avoid exhaustiveness warning *)
-  val (priority_token, tokens') =
-   if List.all (Char.isDigit) $ explode (el 2 tokens)
-   then (el 2 tokens, List.drop (tokens, 2))
-   else ("0", List.drop (tokens, 1))
-  val (action_token, tokens'') = (el 1 (List.rev tokens'), List.rev $ List.drop(List.rev tokens', 1))
-  val key_tokens = tokens''
-
-  (* Get block and table name *)
-  (* TODO: See 14.4 and 18.3.1.5 of the P4 spec - table names need not be unique in program.
-   * The current treatment here does not support distinguishing between tables with the same local
-   * names *)
-  (* TODO: Warn against collisions (table names featuring instance names identical to block names) *)
-  val table_token = el 1 tokens
-  val (block_name, table) =
-   if is_none $ eval_rhs “ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring $ fst $ split_string table_token #".")”
-   then
-    let
-     val pbl_name_opt = eval_rhs “p4_pblock_of_tbl ^(stringSyntax.fromMLstring table_token) ^pblock_map”
-    in
-     if is_some pbl_name_opt
-     then (fromHOLstring $ dest_some pbl_name_opt, table_token)
-     else raise Fail ("Could not find table "^(table_token^" in pblock_map"))
-    end
-   else split_string table_token #"."
-
-  val priority = priority_token
-
-  (* Note that arguments are no longer separated by whitespaces in "action" *)
-  (* TODO: It seems to be a quirk of the STF files that they have a format with
-   * the pblock as optional prefix - this is a naughty hack that may fail *)
-  val (prefix, action) = split_string action_token #"."
-  val action' =
-   if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
-   then action
-   else if prefix <> "" then (prefix^("."^action)) else action
-  val (action_name, args) = split_string_incl action' #"("
-  val args_list = String.tokens (fn ch => ch = #",") (String.substring(args, 1, size args - 2))
-  (* TODO: Different number formats? *)
-  val args_list' = map (fn tok => snd (split_string tok #":")) args_list
- in
-  case parse_keys key_tokens of
-    SOME keys =>
-   (case ints_from_string args_list' of
-      SOME ints =>
-       add (block_name, table, keys, priority, action_name, ints)
-    | NONE => none)
-  | NONE => none
- end
-;
-
-(* TODO: pay forward rest instead of s? *)
-fun parse_stf_line (pblock_map, ttymap) s =
- case String.tokens (fn c => c = #" ") s of
-   "packet" :: rest => parse_stf_io_line s packet
- | "expect" :: rest => parse_stf_io_line s expect
- | "add" :: rest => parse_stf_add_line (pblock_map, ttymap) rest 
- | "setdefault" :: rest => parse_stf_setdefault_line (pblock_map, ttymap) rest
- | _ => none
-;
-
 fun stf_iotype_to_str iot = 
  if iot = packet
  then "packet"
@@ -370,8 +232,6 @@ fun output_in_out outstream valname n (iot, port, data) =
  end
 ;
 
-fun drop_last l = String.implode $ List.take (explode l, size l - 1);
-
 fun switch iot =
  if iot = packet
  then expect
@@ -379,11 +239,11 @@ fun switch iot =
 ;
 
 (* TODO: Should dest_SOME be used directly or via some wrapper, to give a sensible error message? *)
-fun output_actx_setdefault outstream valname block_name table_name action_name args =
+fun output_actx_setdefault outstream (actx_name, prev_actx_name) block_name table_name action_name args =
  let
   val outstring =
-   String.concat ["val ", valname, "_actx = optionSyntax.dest_some $ rhs $ concl $ EVAL ``p4_replace_tbl_default ^",
-                  valname, "_actx", " \"",
+   String.concat ["val ", actx_name, " = optionSyntax.dest_some $ rhs $ concl $ EVAL ``p4_replace_tbl_default ^",
+                  prev_actx_name, " \"",
                   block_name, "\" \"",
                   table_name, "\" \"",
                   action_name, "\" ",
@@ -401,7 +261,7 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
                   (astr_of_arch arch_opt)^"_add_ctrl ^",
                   valname, "_astate", " \"",
                   table_name, "\" ",
-                  "((\\e_l. e_l = ", term_to_string keys, "), ", priority, ":num) \"",
+                  "((\\e_l. ", term_to_string keys, "), ", Int.toString priority, ":num) \"",
                   action_name, "\" ",
                   args, "``;\n\n"]
   val _ = TextIO.output (outstream, outstring);
@@ -495,7 +355,8 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
                   valname, "_astate",
                   (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
                   " n =\n", " SOME ((ab_index', [], ", (term_to_string out_packets),
-                  ", ascope'), g_scope_list', arch_frame_list', status')\n",
+                  ", ascope'), g_scope_list', arch_frame_list', status') /\\\n",
+                  " ab_index' = 0 /\\ arch_frame_list' = arch_frame_list_empty\n",
                   "Proof\n", "p4_eval_test_tac ", (ascope_of_arch arch_opt),
                   " ", valname, "_actx ", valname, "_astate\n",
                   "QED\n\n"];
@@ -505,27 +366,10 @@ fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term 
  end
 ;
 
-fun infer_keys ttymap table_name keys =
- let
-  (* TODO: This relies on tables in different block declarations not having identical names... *)
-  (* Note that ttymap doesn't need prefixes, since types don't change due to nesting.*)
-  val inferred_keys = eval_rhs ``p4_infer_keys (^ttymap) ^(stringSyntax.fromMLstring $ snd $ split_string_rev table_name #".") ^(listSyntax.mk_list(map term_of_int keys, num))``
-(*
-  val _ = print (("Inferring keys of table "^table_name)^"\n")
-  val _ = print (("ttymap: "^(term_to_string ttymap))^"\n")
-  val _ = print (("keys: "^(term_to_string (listSyntax.mk_list(map term_of_int keys, num)))^"\n"))
-*)
- in
-  if (is_some inferred_keys)
-  then SOME (dest_some inferred_keys)
-  else NONE
- end
-;
-
 fun infer_args (ftymap, blftymap) is_default block_name action_name args =
  let
   val inferred_args =
-   eval_rhs ``case p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map term_of_int args, num)) of | SOME args => SOME ([e_v (v_bool T); e_v (v_bool ^(if is_default then F else T))]++args) | NONE => NONE``
+   eval_rhs ``case p4_infer_args (^ftymap, ^blftymap) ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name) ^(listSyntax.mk_list(map (fn i => mk_numeral (Arbnum.fromString (IntInf.toString i))) args, num)) of | SOME args => SOME ([e_v (v_bool T); e_v (v_bool ^(if is_default then F else T))]++args) | NONE => NONE``
  in
   if (is_some inferred_args)
   then SOME (dest_some inferred_args)
@@ -542,61 +386,451 @@ fun to_hol_list_string l =
  end
 ;
 
+(* Parses an STF number (decimal, 0x or 0b, * for don't-care digits) into value and don't-care bits *)
+fun parse_stf_num str =
+ let
+  fun digit_val c =
+   if Char.isDigit c then ord c - ord #"0"
+   else if Char.isHexDigit c then ord (Char.toLower c) - ord #"a" + 10
+   else ~1
+  fun parse_digits radix ds =
+   if ds = ""
+   then raise Fail ("Invalid number in STF file: "^str)
+   else
+    foldl (fn (c, (v, dc)) =>
+            if c = #"*"
+            then (v * radix, dc * radix + radix - 1)
+            else if 0 <= digit_val c andalso IntInf.fromInt (digit_val c) < radix
+            then (v * radix + IntInf.fromInt (digit_val c), dc * radix)
+            else raise Fail ("Invalid number in STF file: "^str))
+          (0:IntInf.int, 0:IntInf.int) (explode ds)
+ in
+  if String.isPrefix "0x" str orelse String.isPrefix "0X" str
+  then parse_digits 16 (String.extract (str, 2, NONE))
+  else if String.isPrefix "0b" str orelse String.isPrefix "0B" str
+  then parse_digits 2 (String.extract (str, 2, NONE))
+  else if List.all Char.isDigit (explode str)
+  then parse_digits 10 str
+  else raise Fail ("Invalid number in STF file: "^str)
+ end
+;
+
+fun parse_stf_exact_num str =
+ case parse_stf_num str of
+   (v, 0) => v
+ | _ => raise Fail ("Don't-care digits are not allowed here in STF file: "^str)
+;
+
+fun int_to_bits n (v:IntInf.int) =
+ List.tabulate (n, fn i => if IntInf.andb (IntInf.~>> (v, Word.fromInt (n - 1 - i)), 1) = 1 then T else F)
+;
+
+fun count_leading_ones [] = 0
+  | count_leading_ones (h::t) = if Teq h then 1 + count_leading_ones t else 0
+;
+
+(* Splits s at the first occurrence of sep *)
+fun split_string_at sep s =
+ let
+  val (a, b) = Substring.position sep (Substring.full s)
+ in
+  if Substring.isEmpty b
+  then NONE
+  else SOME (Substring.string a, String.extract (Substring.string b, size sep, NONE))
+ end
+;
+
+(* Parses the value of an STF key into a set and its priority (the prefix length for LPM keys) *)
+fun parse_stf_key_value tau mk value_str =
+ if is_tau_bool tau
+ then
+  let
+   val v = parse_stf_exact_num value_str
+  in
+   if v = 0 then (``s_sing (v_bool F)``, 0)
+   else if v = 1 then (``s_sing (v_bool T)``, 0)
+   else raise Fail ("Invalid boolean key value in STF file: "^value_str)
+  end
+ else if is_tau_bit tau
+ then
+  let
+   val n = dest_tau_bit tau
+   val full = IntInf.<< (1, Word.fromInt n) - 1
+   val (v, mask) =
+    case split_string_at "&&&" value_str of
+      SOME (v_str, mask_str) => (parse_stf_exact_num v_str, parse_stf_exact_num mask_str)
+    | NONE =>
+     (case split_string_at "/" value_str of
+        SOME (v_str, len_str) =>
+         let
+          val len = IntInf.toInt (parse_stf_exact_num len_str)
+         in
+          if len > n
+          then raise Fail ("Prefix length exceeds key width in STF file: "^value_str)
+          else (parse_stf_exact_num v_str, full - (IntInf.<< (1, Word.fromInt (n - len)) - 1))
+         end
+      | NONE =>
+       let
+        val (v', dont_care) = parse_stf_num value_str
+       in
+        (v', IntInf.andb (full, IntInf.notb dont_care))
+       end)
+   val _ =
+    if v > full orelse mask > full
+    then raise Fail ("Key value wider than the key in STF file: "^value_str)
+    else ()
+   val n_tm = term_of_int n
+   val v_bits = mk_list (int_to_bits n v, bool)
+   val mask_bits = int_to_bits n mask
+   val prio = if term_eq mk ``mk_lpm`` then count_leading_ones mask_bits else 0
+  in
+   if mask = full
+   then (``s_sing (v_bit (^v_bits, ^n_tm))``, prio)
+   else (``s_mask (^v_bits, ^n_tm) (^(mk_list (mask_bits, bool)), ^n_tm)``, prio)
+  end
+ else raise Fail ("Unsupported key type in STF file: "^(term_to_string tau))
+;
+
+(* Matches STF keys by name as p4c's STF drivers do (common prefix, key.fieldN on eBPF) *)
+fun parse_stf_keys arch_opt_tm ttymap table_name key_tokens =
+ let
+  val local_name = snd $ split_string_rev table_name #"."
+  val qual_infos_opt = eval_rhs ``ALOOKUP ^ttymap ^(stringSyntax.fromMLstring table_name)``
+  val key_infos_opt = if is_some qual_infos_opt then qual_infos_opt else eval_rhs ``ALOOKUP ^ttymap ^(stringSyntax.fromMLstring local_name)``
+  val key_infos =
+   if is_some key_infos_opt
+   then map strip_pair $ fst $ dest_list $ dest_some key_infos_opt
+   else raise Fail ("Could not find the keys of table "^table_name)
+  val key_names = map (fromHOLstring o hd) key_infos
+  val indices = List.tabulate (length key_names, I)
+  fun field_index name =
+   let
+    val field = snd $ split_string_rev name #"."
+   in
+    if is_arch_ebpf (dest_some arch_opt_tm) andalso String.isPrefix "field" field
+    then Int.fromString (String.extract (field, 5, NONE))
+    else NONE
+   end
+  fun key_index name =
+   case List.filter (fn i => List.nth (key_names, i) = name) indices of
+     [i] => i
+   | _ =>
+    (case List.filter (fn i => let val k = List.nth (key_names, i) in
+                                k <> "" andalso (String.isSuffix ("."^k) name orelse String.isSuffix ("."^name) k) end) indices of
+       [i] => i
+     | [] =>
+      (case field_index name of
+         SOME i => if i < length key_names then i else raise Fail ("Unknown key "^name^" of table "^table_name^" in STF file")
+       | NONE => raise Fail ("Unknown key "^name^" of table "^table_name^" in STF file"))
+     | _ => raise Fail ("Ambiguous key "^name^" of table "^table_name^" in STF file"))
+  val named_values =
+   map (fn tok =>
+         case split_string_at ":" tok of
+           SOME (name, value) => (key_index name, value)
+         | NONE => raise Fail ("Invalid key "^tok^" of table "^table_name^" in STF file")) key_tokens
+  val matches =
+   map (fn i =>
+         case (List.nth (key_infos, i), List.filter (fn (j, _) => j = i) named_values) of
+           ([_, mk, tau], [(_, value)]) => parse_stf_key_value tau mk value
+         | ([_, mk, tau], []) =>
+          if term_eq mk ``mk_exact``
+          then raise Fail ("Missing exact key "^(List.nth (key_names, i))^" of table "^table_name^" in STF file")
+          else (``s_univ``, 0)
+         | _ => raise Fail ("Duplicate key "^(List.nth (key_names, i))^" of table "^table_name^" in STF file")) indices
+  val s_tms = map fst matches
+  val keys_tm =
+   if List.all (fn s_tm => is_comb s_tm andalso term_eq (rator s_tm) ``s_sing``) s_tms
+   then ``e_l = ^(mk_list (map (fn s_tm => mk_comb (``e_v``, rand s_tm)) s_tms, ``:e``))``
+   else ``match_all_e e_l ^(mk_list (s_tms, ``:s``))``
+ in
+  (keys_tm, foldl Int.max 0 (map snd matches), List.all (fn l => term_eq (el 2 l) ``mk_exact`` orelse term_eq (el 2 l) ``mk_lpm``) key_infos)
+ end
+;
+
+(* Orders the named arguments of an STF action as its parameters (inlined action prefix removed) *)
+fun parse_stf_action_args (pblock_map, fmap) block_name action_name args_str =
+ let
+  val params_opt = eval_rhs ``p4_action_param_names ^pblock_map ^fmap ^(stringSyntax.fromMLstring block_name) ^(stringSyntax.fromMLstring action_name)``
+  val params =
+   if is_some params_opt
+   then List.filter (fn x => x <> "from_table$" andalso x <> "hit$")
+         (map (fn x => snd $ split_string_rev (fromHOLstring x) #".") $ fst $ dest_list $ dest_some params_opt)
+   else raise Fail ("Could not find action "^action_name^" in STF file")
+  val args =
+   map (fn tok =>
+         case split_string_at ":" (String.translate (fn c => if Char.isSpace c then "" else str c) tok) of
+           SOME arg => arg
+         | NONE => raise Fail ("Invalid argument "^tok^" of action "^action_name^" in STF file"))
+       (String.tokens (fn c => c = #",") args_str)
+  val _ =
+   if length args = length params
+   then ()
+   else raise Fail ("Wrong number of arguments of action "^action_name^" in STF file")
+ in
+  map (fn x =>
+        case List.filter (fn (y, _) => y = x) args of
+          [(_, v)] => parse_stf_exact_num v
+        | _ => raise Fail ("Missing or duplicate argument "^x^" of action "^action_name^" in STF file")) params
+ end
+;
+
+(* Splits a table name in an STF file into its block and the qualified table name *)
+(* TODO: This checks first prefix is a top-level block or not: the import tool should reject
+ * programs with instance names equal to top-level block names for this to work *)
+fun stf_table_block pblock_map table_token =
+ let
+  val (block_name, table) =
+   if is_none $ eval_rhs “ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring $ fst $ split_string table_token #".")”
+   then
+    let
+     val pbl_name_opt = eval_rhs “p4_pblock_of_tbl ^(stringSyntax.fromMLstring table_token) ^pblock_map”
+    in
+     if is_some pbl_name_opt
+     then (fromHOLstring $ dest_some pbl_name_opt, table_token)
+     else raise Fail ("Could not find table "^(table_token^" in pblock_map"))
+    end
+   else split_string table_token #"."
+ in
+  (block_name, block_name^("."^table))
+ end
+;
+
+(* Removes the optional block prefix of an action name in an STF file *)
+fun stf_action_name pblock_map action_token =
+ let
+  val (prefix, action) = split_string action_token #"."
+ in
+  if Teq $ eval_rhs ``IS_SOME $ ALOOKUP ^pblock_map ^(stringSyntax.fromMLstring prefix)``
+  then action
+  else if prefix <> "" then (prefix^("."^action)) else action
+ end
+;
+
+(* Splits an STF table command into the part before the action arguments and the arguments *)
+fun split_stf_action cmd =
+ case split_string_at "(" cmd of
+   SOME (pre, rest) =>
+    (case split_string_at ")" rest of
+       SOME (args, _) => (pre, args)
+     | NONE => raise Fail ("Invalid STF command: "^cmd))
+ | NONE => raise Fail ("Invalid STF command: "^cmd)
+;
+
+fun parse_stf_setdefault_line (pblock_map, fmap, ftymap, blftymap) cmd =
+ let
+  val (pre, args_str) = split_stf_action cmd
+  val (table_token, action_token) =
+   case String.tokens Char.isSpace pre of
+     [table_token, action_token] => (table_token, action_token)
+   | _ => raise Fail ("Invalid STF setdefault command: "^cmd)
+  val (block_name, table) = stf_table_block pblock_map table_token
+  val action_name = stf_action_name pblock_map action_token
+  val args = parse_stf_action_args (pblock_map, fmap) block_name action_name args_str
+ in
+  case infer_args (ftymap, blftymap) true block_name action_name args of
+    SOME args_tm => setdefault (block_name, table, action_name, args_tm)
+  | NONE => raise Fail ("Could not parse action arguments in setdefault stf command")
+ end
+;
+
+fun parse_stf_add_line arch_opt_tm (pblock_map, fmap, ftymap, blftymap, ttymap) cmd =
+ let
+  val (pre, args_str) = split_stf_action cmd
+  val (table_token, tokens) =
+   case String.tokens Char.isSpace pre of
+     (table_token::tokens) => (table_token, tokens)
+   | [] => raise Fail ("Invalid STF add command: "^cmd)
+  val (prio_opt, tokens') =
+   case tokens of
+     (h::t) => if List.all Char.isDigit (explode h) then (Int.fromString h, t) else (NONE, tokens)
+   | [] => (NONE, tokens)
+  val (key_tokens, action_token) =
+   case rev tokens' of
+     (action_token::rev_key_tokens) => (rev rev_key_tokens, action_token)
+   | [] => raise Fail ("Invalid STF add command: "^cmd)
+  val (block_name, table) = stf_table_block pblock_map table_token
+  val (keys_tm, key_prio, lpm_only) = parse_stf_keys arch_opt_tm ttymap table key_tokens
+  (* The longest prefix wins in tables with only lpm and exact keys, otherwise the largest STF priority *)
+  val prio = if lpm_only then key_prio else (case prio_opt of SOME p => Int.max (1, 10000 - p) | NONE => 0)
+  val action_name = stf_action_name pblock_map action_token
+  val args = parse_stf_action_args (pblock_map, fmap) block_name action_name args_str
+ in
+  case infer_args (ftymap, blftymap) false block_name action_name args of
+    SOME args_tm => add (table, keys_tm, prio, action_name, args_tm)
+  | NONE => raise Fail ("Could not parse action arguments in add stf command")
+ end
+;
+
+fun drop_stf_word s =
+ Substring.string $ Substring.dropl Char.isSpace $ Substring.dropl (not o Char.isSpace) $ Substring.dropl Char.isSpace $ Substring.full s
+;
+
+fun parse_stf_line arch_opt_tm (pblock_map, fmap, ftymap, blftymap, ttymap) s =
+ case String.tokens Char.isSpace s of
+   [] => none
+ | "packet" :: rest => parse_stf_io_line s packet
+ | "expect" :: rest => parse_stf_io_line s expect
+ | "add" :: rest => parse_stf_add_line arch_opt_tm (pblock_map, fmap, ftymap, blftymap, ttymap) (drop_stf_word s)
+ | "setdefault" :: rest => parse_stf_setdefault_line (pblock_map, fmap, ftymap, blftymap) (drop_stf_word s)
+ | ["wait"] => none
+ | _ => raise Fail ("Unsupported STF command: "^s)
+;
+
+fun stf_add_to_string (table_name, keys, priority, action_name, args) =
+ String.concat ["(\"", table_name, "\", ((\\e_l. ", term_to_string keys, "), ",
+                Int.toString priority, ":num), \"", action_name, "\", ", term_to_string args, ")"]
+;
+
+(* The test theorem with one run per phase, each from the final state of the previous one *)
+fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (string * term * int * string * term) list * (int * term list) list * (int * term list * bool) list) list) =
+ let
+  val inputs = List.concat (map #3 phases)
+  val outputs = List.concat (map #4 phases)
+  val (in_vars, in_data', i) = process_arbs_list (map snd inputs) 0
+  val (out_vars, out_data', i') = process_arbs_list (map #2 outputs) i
+  val tails = List.tabulate (length outputs, fn k =>
+               if #3 (List.nth (outputs, k)) then NONE
+               else SOME (mk_var ("tail_"^(int_to_string k), mk_list_type bool)))
+  val out_data'' = map (fn (d, tail_opt) => case tail_opt of SOME t => mk_append (d, t) | NONE => d) (zip out_data' tails)
+  val out_vars' = out_vars@(List.mapPartial I tails)
+  val in_packets = map mk_pair (zip in_data' (map (term_of_int o fst) inputs))
+  val out_packets = mk_list ((map mk_pair (zip out_data'' (map (term_of_int o #1) outputs))), “:(bool list # num)”);
+  fun phase_inputs [] _ = []
+    | phase_inputs ((_, _, ins, _)::t) l =
+     (mk_list (List.take (l, length ins), “:(bool list # num)”))::(phase_inputs t (List.drop (l, length ins)))
+  val phases' = zip phases (phase_inputs phases in_packets)
+  val _ = TextIO.output (outstream,
+           String.concat ["val ", valname, "_astate = rhs $ concl $ EVAL “(p4_append_input_list ",
+                          term_to_string (snd $ hd phases'), " ^", valname, "_astate)”;\n\n"])
+  fun state_vars j = String.concat [" outl", j, " ascope", j, " g", j, " status", j]
+  fun final_state j = String.concat ["((0, [], outl", j, ", ascope", j, "), g", j, ", arch_frame_list_empty, status", j, ")"]
+  fun start_state j (upds, ins_tm) =
+   if j = 1
+   then "^"^valname^"_astate"
+   else
+    let
+     val j' = Int.toString (j - 1)
+    in
+     String.concat ["(THE (add_ctrl_list_gen ((0, ", term_to_string ins_tm, ", outl", j', ", ascope", j', "), g", j', ", arch_frame_list_empty, status", j', ")\n  [",
+                    String.concatWith ";\n   " (map stf_add_to_string upds), "]))"]
+    end
+  val conjs =
+   map (fn (j, ((actx_name, upds, _, _), ins_tm)) =>
+         String.concat ["arch_multi_exec ^", actx_name, " ", start_state j (upds, ins_tm), " n", Int.toString j, " =\n",
+                        " SOME ", final_state (Int.toString j)]) (zip (List.tabulate (length phases, fn j => j + 1)) phases')
+  val vars = String.concatWith " " (List.tabulate (length phases, fn j => "n"^(Int.toString (j + 1))^(state_vars (Int.toString (j + 1)))))
+  val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^(":\n"))));
+  val _ =
+   if null in_vars
+   then ()
+   else TextIO.output (outstream, "! "^(terms_to_string in_vars)^".\n")
+  val theorem =
+   String.concat ["?", vars, " ", terms_to_string out_vars', ".\n",
+                  String.concatWith " /\\\n" conjs, " /\\\n",
+                  "outl", Int.toString (length phases), " = ", term_to_string out_packets, "\n",
+                  "Proof\n", "p4_eval_test_phases_tac ", (ascope_of_arch arch_opt), "\n",
+                  "QED\n\n"];
+  val _ = TextIO.output (outstream, theorem);
+ in
+  ()
+ end
+;
+
+fun is_stf_update cmd =
+ case cmd of
+   io _ => false
+ | _ => true
+;
+
+fun is_stf_packet cmd =
+ case cmd of
+   io (packet, _, _, _) => true
+ | _ => false
+;
+
+(* Groups STF commands into phases: a table update after a packet starts a new phase *)
+local
+ fun stf_phases' [] (upds, ios) = [(upds, ios)]
+   | stf_phases' (cmd::cmds) (upds, ios) =
+    if is_stf_update cmd andalso List.exists is_stf_packet ios
+    then (upds, ios)::(stf_phases' cmds ([cmd], []))
+    else if is_stf_update cmd
+    then stf_phases' cmds (upds@[cmd], ios)
+    else stf_phases' cmds (upds, ios@[cmd])
+in
+ fun stf_phases cmds =
+  case rev (stf_phases' cmds ([], [])) of
+    ((upds, ios)::(upds', ios')::phases) =>
+     if List.exists is_stf_packet ios
+     then rev ((upds, ios)::(upds', ios')::phases)
+     else rev ((upds', ios'@ios)::phases)
+  | phases => rev phases
+end
+;
+
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 local
- fun parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream =
+ fun read_stf_cmds arch_opt_tm maps instream =
   case TextIO.inputLine instream of
-    SOME s =>
-     (case parse_stf_line (pblock_map, ttymap) (drop_last s) of
-       (* Using result from parse_stf_setdefault_line: *)
-       setdefault (block_name, table_name, action_name, args) =>
-        (case infer_args (ftymap, blftymap) true block_name action_name args of
-           SOME args_term =>
-	   let
-	    val _ = output_actx_setdefault outstream valname block_name table_name action_name (term_to_string args_term)
-	   in
-	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
-	   end
-         | NONE => raise Fail ("Could not parse action arguments in setdefault stf command"))
-     | add (block_name, table_name, keys, priority, action_name, args) =>
-      (case infer_keys ttymap table_name keys of
-        SOME keys_tm =>
-        (case infer_args (ftymap, blftymap) false block_name action_name args of
-           SOME args_term =>
-	   let
-	    val _ = output_astate_add outstream valname arch_opt_tm table_name keys_tm priority action_name (term_to_string args_term)
-	   in
-	    parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream
-	   end
-         | NONE => raise Fail ("Could not parse action arguments in add stf command"))
-       | NONE => raise Fail ("Could not parse keys in add stf command"))
-     | io (stf_iotype, port, data, exact) =>
-      if stf_iotype = packet
-      then
-       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list@[(port, data)], output_list) instream
-      else
-       parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list@[(port, data, exact)]) instream
-     | none => parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm (input_list, output_list) instream)
-   | NONE =>
-    let
-     val _ = output_test_list_theorem outstream valname arch_opt_tm (input_list, output_list)
-    in
-     ()
-    end
+    SOME line =>
+     let
+      val s = String.translate (fn c => if c = #"\n" orelse c = #"\r" then "" else str c) line
+      val s' = case split_string_at "#" s of SOME (s', _) => s' | NONE => s
+     in
+      case parse_stf_line arch_opt_tm maps s' of
+        none => read_stf_cmds arch_opt_tm maps instream
+      | cmd => cmd::(read_stf_cmds arch_opt_tm maps instream)
+     end
+  | NONE => []
+
+ fun ios_of ios =
+  (List.mapPartial (fn cmd => case cmd of io (packet, port, data, exact) => SOME (port, data) | _ => NONE) ios,
+   List.mapPartial (fn cmd => case cmd of io (expect, port, data, exact) => SOME (port, data, exact) | _ => NONE) ios)
+
+ (* Outputs a phase's table updates: setdefault into the actx, add into the astate or the theorem *)
+ fun output_phase_upds outstream valname arch_opt_tm (j, (upds, ios)) (actx_name, acc) =
+  let
+   val actx_name' = if j = 1 orelse List.all (fn cmd => case cmd of setdefault _ => false | _ => true) upds
+                    then actx_name else valname^"_actx"^(Int.toString j)
+   val (_, adds) =
+    foldl (fn (cmd, (prev_actx_name, adds)) =>
+            case cmd of
+              setdefault (block_name, table_name, action_name, args_tm) =>
+               let
+                val _ = output_actx_setdefault outstream (actx_name', prev_actx_name) block_name table_name action_name (term_to_string args_tm)
+               in
+                (actx_name', adds)
+               end
+            | add (table_name, keys_tm, priority, action_name, args_tm) =>
+              if j = 1
+              then
+               let
+                val _ = output_astate_add outstream valname arch_opt_tm table_name keys_tm priority action_name (term_to_string args_tm)
+               in
+                (prev_actx_name, adds)
+               end
+              else (prev_actx_name, adds@[(table_name, keys_tm, priority, action_name, args_tm)])
+            | _ => (prev_actx_name, adds)) (actx_name, []) upds
+   val (inputs, outputs) = ios_of ios
+  in
+   (actx_name', acc@[(actx_name', adds, inputs, outputs)])
+  end
 in
- fun parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap) arch_opt_tm =
+ fun parse_stf outstream stfname_opt valname maps arch_opt_tm =
   case stfname_opt of
    SOME stfname =>
     let
      val instream = TextIO.openIn stfname;
-     (* TODO: Write _packetn and _rejectm terms almost as before, but now indexed separately. 
-              Write only a single new astate and following theorem at the end, which
-              has all input packets in the input queue in order and all outputs in the
-              output queue in order. *)
-     val _ = parse_stf' (pblock_map, ftymap, blftymap, ttymap) outstream valname arch_opt_tm ([],[]) instream;
+     val cmds = read_stf_cmds arch_opt_tm maps instream;
      val _ = TextIO.closeIn instream;
+     val phases = stf_phases cmds
+     val (_, phases') =
+      foldl (fn (phase, res) => output_phase_upds outstream valname arch_opt_tm phase res)
+            (valname^"_actx", []) (zip (List.tabulate (length phases, fn j => j + 1)) phases)
     in
-     ()
+     case phases' of
+       [(_, _, inputs, outputs)] => output_test_list_theorem outstream valname arch_opt_tm (inputs, outputs)
+     | _ => output_test_phases_theorem outstream valname arch_opt_tm phases'
     end
    | NONE => ()
 end
@@ -726,7 +960,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
    if output_extra_maps
    then [("blftymap", blftymap, SOME "(string, ((funn, (p_tau list # p_tau)) alist)) alist"),
          ("ftymap", ftymap, SOME "((funn, (p_tau list # p_tau)) alist)"),
-         ("pblock_action_names_map", pblock_action_names_map_tm, SOME "((string, ((string, string) alist)) alist)")]
+         ("pblock_action_names_map", pblock_action_names_map_tm, SOME "((string, ((string, string list) alist)) alist)")]
    else []
 
   (* NOTE: gen_apply_result is a hard-coded "ghost variable" that can't be used in an
@@ -889,7 +1123,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
             map (output_hol4_val outstream) (map (fn (a, b, c) => (valname^("_"^a), b, c))
                               (extra_terms@[("actx", actx, actx_of_arch arch_opt_tm), ("astate", astate, astate_of_arch arch_opt_tm)]))
           | NONE => [()];
-  val _ = parse_stf outstream stfname_opt valname (pblock_map, ftymap, blftymap, ttymap_tm) arch_opt_tm
+  val _ = parse_stf outstream stfname_opt valname (pblock_map, fmap, ftymap, blftymap, ttymap_tm) arch_opt_tm
  in
   ()
  end
@@ -950,6 +1184,43 @@ fun strip_info str =
   loop (Substring.full str) []
  end;
 
+fun ext_map_of_arch arch =
+ case arch of
+   vss => vss_ext_map
+ | ebpf => ebpf_ext_map
+ | v1model => v1model_ext_map;
+
+(* Lists the extern calls and constructors in tm that ext_map lacks, by name and arity *)
+fun unimplemented_ext_calls ext_map tm =
+ let
+  fun strip_app l =
+   if is_append l
+   then let val (l1, l2) = dest_append l in (strip_app l1)@(strip_app l2) end
+   else fst $ dest_list l;
+  fun arity m = (fromHOLstring $ fst $ dest_pair m, length $ fst $ dest_list $ fst $ dest_pair $ snd $ dest_pair m);
+  val arities = map (fn obj => (fromHOLstring $ fst $ dest_pair obj, map arity $ strip_app $ snd $ dest_pair $ snd $ dest_pair obj)) (strip_app ext_map);
+  fun is_ext_call t = is_e_call t andalso is_funn_ext (fst $ dest_e_call t);
+  fun call_sig t =
+   let
+    val (funn, args) = dest_e_call t;
+    val (obj, meth) = dest_funn_ext funn;
+   in
+    (fromHOLstring obj, fromHOLstring meth, length $ fst $ dest_list args)
+   end;
+  fun implemented (obj, meth, n) =
+   case List.find (fn (obj', _) => obj' = obj) arities of
+     SOME (_, meths) => List.exists (fn (meth', n') => meth' = meth andalso n' = n) meths
+   | NONE => false;
+  fun sig_to_string (obj, meth, n) =
+   (if obj = "" then meth else obj^("."^meth))^(" with "^((Int.toString n)^(if n = 1 then " argument" else " arguments")));
+  val ctors = map (fn obj => (fromHOLstring $ fst $ dest_pair obj, is_some $ fst $ dest_pair $ snd $ dest_pair obj)) (strip_app ext_map);
+  fun is_inst_call t = is_e_call t andalso is_funn_inst (fst $ dest_e_call t);
+  fun constructible obj = List.exists (fn (obj', has_ctor) => obj' = obj andalso has_ctor) ctors;
+ in
+  (map sig_to_string $ Lib.mk_set $ List.filter (not o implemented) $ map call_sig $ find_terms is_ext_call tm)@
+  (map (fn obj => obj^" (constructor)") $ Lib.mk_set $ List.filter (not o constructible) $ map (fromHOLstring o dest_funn_inst o fst o dest_e_call) $ find_terms is_inst_call tm)
+ end;
+
 val usage = "Usage: petr4_to_hol4p4 FILE.json LOGFILE [mode=auto|concrete|concrete_stf|symbolic] [arch=vss|ebpf|v1model] [keep-info]\n";
 
 fun main() =
@@ -959,11 +1230,15 @@ fun main() =
     val outstream = TextIO.openAppend logname;
     fun fail msg =
      let
-      val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: "^(msg^"\n")));
+      val log_line =
+       case excluded_error_desc msg of
+         SOME desc => "EXCLUDED: "^(filename^(" requires "^(desc^"\n")))
+       | NONE => "FAIL: "^(msg^"\n");
+      val _ = TextIO.outputSubstr (outstream, Substring.full log_line);
       val _ = TextIO.closeOut outstream;
       val _ = print (msg^"\n");
      in
-      OS.Process.exit OS.Process.failure
+      OS.Process.exit (if isSome (excluded_error_desc msg) then OS.Process.success else OS.Process.failure)
      end;
 
     (* NOTE: This will just remove the suffix .json *)
@@ -1009,8 +1284,8 @@ fun main() =
         | NONE => fail ("Could not detect the architecture of "^(filename^": no V1Switch, ebpfFilter or VSS package found. Use arch=... to override.")));
     val arch_opt_tm = arch_to_term arch_opt;
    in
-    if not $ exists (fn el => el = valname_raw) (List.concat $ snd $ unzip exclude_descs)
-    then
+    case excluded_test_desc valname_raw of
+      NONE =>
      let
       val input_tm = stringLib.fromMLstring json_str;
       (* Lexing + parsing to HOL4 JSON *)
@@ -1023,16 +1298,19 @@ fun main() =
       if is_SOME_msg final_res_tup
       then
        let
-	val _ = TextIO.outputSubstr (outstream, Substring.full ("OK: Parsed "^(filename^"\n")));
-	val _ = TextIO.closeOut outstream;
+	val _ =
+	 case unimplemented_ext_calls (ext_map_of_arch $ valOf arch_opt) final_res_tup of
+	   [] => ()
+	 | calls => fail ("Could not parse "^(filename^(". calls of externs that the architecture model does not implement (the extern object counts as an argument): "^(String.concatWith ", " calls))));
 	(* TODO: Map this result to everything we need...
 	 *       Does not use explicit list to map variable names due to warning *)
 	val res_list = pairLib.spine_pair $ dest_SOME_msg final_res_tup;
-       in
-        let
-         (* TODO: Take this as an argument instead *)
-         val outstream = TextIO.openOut (prefix^(valname^"Script.sml"));
-         val _ = output_hol4p4_incipit valname outstream;
+	(* TODO: Take this as an argument instead *)
+	val scriptname = prefix^(valname^"Script.sml");
+	val _ =
+	 let
+	  val outstream = TextIO.openOut scriptname;
+	  val _ = output_hol4p4_incipit valname outstream;
 (* Debug:
 val (ftymap, blftymap) = (el 4 res_list, el 5 res_list)
 val fmap = (el 6 res_list)
@@ -1044,26 +1322,38 @@ val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
 val oracle_index_tm = (el 16 res_list)
 *)
-         val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num” (el 16 res_list);
-         val _ = output_hol4p4_explicit outstream;
-         val _ = TextIO.closeOut outstream;
-        in
-         ()
-        end
+	  val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num” (el 16 res_list);
+	  val _ = output_hol4p4_explicit outstream;
+	 in
+	  TextIO.closeOut outstream
+	 end
+	 handle e =>
+	  ((OS.FileSys.remove scriptname handle _ => ());
+	   fail ("Could not write the script for "^(filename^(": "^(General.exnMessage e)))));
+	val _ = TextIO.outputSubstr (outstream, Substring.full ("OK: Parsed "^(filename^"\n")));
+	val _ =
+	 if String.isSubstring "\"string\":\"atomic\"},\"body\":" json_str
+	 then
+	  let
+	   val warning = "WARNING: "^(filename^" has @atomic annotations, which the import ignores: the concurrent semantics (conc_red) can interleave the other thread inside them\n");
+	  in
+	   (TextIO.outputSubstr (outstream, Substring.full warning); print warning)
+	  end
+	 else ();
+	val _ = TextIO.closeOut outstream;
+       in
+	()
        end
       else
        let
 	val parse_error = stringLib.fromHOLstring $ dest_NONE_msg final_res_tup
          handle HOL_ERR _ => "Parsing of JSON was not completed, yielding a incompletely reduced RHS without error message (you might want to check the result of EVAL-ing p4_from_json)";
-	val _ = TextIO.outputSubstr (outstream, Substring.full ("FAIL: Could not parse "^filename^(". "^(parse_error^"\n"))));
-	val _ = TextIO.closeOut outstream;
        in
-	(print (parse_error^"\n"); OS.Process.exit OS.Process.failure)
+	fail ("Could not parse "^(filename^(". "^parse_error)))
        end
      end
-    else
+    | SOME desc =>
      let
-      val desc = case get_error_desc valname_raw exclude_descs of SOME desc' => desc' | NONE => "unknown fix";
       val _ = TextIO.outputSubstr (outstream, Substring.full ("EXCLUDED: "^(filename^" requires "^((desc)^"\n"))));
       val _ = TextIO.closeOut outstream;
      in

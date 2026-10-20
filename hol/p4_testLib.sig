@@ -41,6 +41,7 @@ val the_final_state : thm -> term
 val the_final_state_hyp_imp : thm -> term * term
 val the_final_state_hyp_imp_n : thm -> term * term * term
 val p4_eval_test_tac : hol_type -> term -> term -> tactic
+val p4_eval_test_phases_tac : hol_type -> tactic
 
 val eval_step_fuel : hol_type -> term -> term -> int -> thm
 val eval_step : hol_type -> term -> term -> thm

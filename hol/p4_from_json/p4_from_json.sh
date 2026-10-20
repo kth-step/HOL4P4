@@ -15,6 +15,7 @@ HEAP="$SCRIPT_DIR/p4_from_json-heap"
 DEFAULT_LOG="$SCRIPT_DIR/p4_from_json.log"
 PETR4_REPO="https://github.com/verified-network-toolchain/petr4.git"
 PETR4_TESTS_TAG="0.1.2"   # the version of the petr4 examples the validation tests come from
+VALIDATE_EXPECTED="53 OK, 0 FAIL, 42 EXCLUDED"   # the import results of validate
 
 usage() {
  cat <<USAGE
@@ -38,7 +39,8 @@ Usage: p4_from_json.sh COMMAND ...
       Convert every JSON file in DIR, N at a time (default 1). Starts the log
       afresh and prints a summary.
   validate [-j N]
-      export + convert-dir on validation_tests/, then Holmake there.
+      export + convert-dir on validation_tests/, then Holmake there. Fails
+      unless the import gives $VALIDATE_EXPECTED.
 USAGE
 }
 
@@ -60,6 +62,12 @@ cmd_fetch_tests() {
           "$good/arith-inline-skeleton.p4" "$good/arith-skeleton.p4" "$good/ebpf_headers.p4"; do
   git -C "$clone" show "$PETR4_TESTS_TAG:$f" > "$SCRIPT_DIR/p4include/$(basename "$f")"
  done
+ # Adds the static_assert declarations of the P4-16 specification's core.p4 before the final #endif
+ f="$SCRIPT_DIR/p4include/core.p4"
+ { head -n -1 "$f"
+   printf '%s\n' "/// Static assertions (from the core.p4 of the P4-16 specification)" \
+     "extern bool static_assert(bool check, string message);" "extern bool static_assert(bool check);" ""
+   tail -n 1 "$f"; } > "$f.tmp" && mv "$f.tmp" "$f"
  # Only those .p4 test files which have an accompanying .stf file
  for stf in $(git -C "$clone" ls-tree --name-only "$PETR4_TESTS_TAG" "$good/" | grep '\.stf$'); do
   base="${stf%.stf}"
@@ -117,6 +125,8 @@ convert_one() {
  local json; json="$(readlink -f "$1")"
  [ -f "$json" ] || die "$1 does not exist"
  [ -f "$HEAP" ] || die "$HEAP is missing: run Holmake in $SCRIPT_DIR first"
+ local base; base="$(basename "$json" .json)"
+ rm -f "$(dirname "$json")/${base//-/_}Script.sml"
  local -a opts=()
  [ -n "$MODE" ] && opts+=("mode=$MODE")
  [ -n "$ARCH" ] && opts+=("arch=$ARCH")
@@ -133,13 +143,14 @@ cmd_convert() {
 cmd_convert_dir() {
  parse_convert_opts "$@"
  [ ${#POSITIONAL[@]} -eq 1 ] || die "convert-dir takes exactly one directory"
- local dir="${POSITIONAL[0]}" f
+ local dir="${POSITIONAL[0]}" f n=0 ok fail excl
  [ -d "$dir" ] || die "$dir is not a directory"
  rm -f "$LOG"; touch "$LOG"
  for f in "$dir"/*.json; do
   [ -e "$f" ] || die "no .json files in $dir"
   if [ -s "$f" ]; then
    echo "Converting $f..."
+   n=$((n+1))
    convert_one "$f" &
    while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n || true; done
   else
@@ -147,16 +158,19 @@ cmd_convert_dir() {
   fi
  done
  wait || true
- echo "Done: $(grep -c '^OK' "$LOG" || true) OK, $(grep -c '^FAIL' "$LOG" || true) FAIL, $(grep -c '^EXCLUDED' "$LOG" || true) EXCLUDED (see $LOG)."
+ ok=$(grep -c '^OK' "$LOG" || true); fail=$(grep -c '^FAIL' "$LOG" || true); excl=$(grep -c '^EXCLUDED' "$LOG" || true)
+ echo "Done: $ok OK, $fail FAIL, $excl EXCLUDED, $((n-ok-fail-excl)) crashed without a log entry (see $LOG)."
 }
 
 # ---------------------------------------------------------------------------
 cmd_validate() {
- local tests="$SCRIPT_DIR/validation_tests"
+ local tests="$SCRIPT_DIR/validation_tests" counts
  ls "$tests"/*.p4 >/dev/null 2>&1 || die "no tests in $tests: run 'p4_from_json.sh fetch-tests' first"
  cmd_export "$tests"
  cmd_convert_dir "$tests" "$@"
+ counts="$(grep -c '^OK' "$LOG" || true) OK, $(grep -c '^FAIL' "$LOG" || true) FAIL, $(grep -c '^EXCLUDED' "$LOG" || true) EXCLUDED"
  (cd "$tests" && Holmake)
+ [ "$counts" = "$VALIDATE_EXPECTED" ] || die "expected $VALIDATE_EXPECTED, but got $counts (see $LOG)"
 }
 
 # ---------------------------------------------------------------------------

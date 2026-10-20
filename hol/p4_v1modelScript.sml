@@ -757,12 +757,10 @@ Definition v1model_output_f_def:
    | _ => NONE)
 End
 
-(* This assumes that tables contains at most one LPM key,
- * with other keys being exact if one LPM key is present.
- * Note that table priority is runtime-dependent, with only partial P4 language
+(* Note that table priority is runtime-dependent, with only partial P4 language
  * support. *)
-(* API 0: largest priority wins with an LPM key (P4Runtime), smallest otherwise (TDI); API 1: largest *)
-val v1model_largest_wins = if CONTROL_PLANE_API = 0 then “\mk_list:mk_list. MEM mk_lpm mk_list” else “\mk_list:mk_list. T”;
+(* API 0: longest prefix wins in tables with only lpm and exact keys, smallest priority otherwise (TDI); API 1: largest *)
+val v1model_largest_wins = if CONTROL_PLANE_API = 0 then “\mk_list:mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list” else “\mk_list:mk_list. T”;
 Definition v1model_apply_table_f_def:
  v1model_apply_table_f = apply_table_f_gen ^v1model_largest_wins:v1model_ascope apply_table_f
 End

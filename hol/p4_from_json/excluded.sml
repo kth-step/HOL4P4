@@ -1,113 +1,37 @@
 structure excluded = struct
 
-open mlibUseful;
-
+(* Missing features: description, substrings of their import errors, tests excluded by name *)
 val exclude_descs =
- [(*
-    Header unions
-    FAIL: Could not parse .*\/(.*?)\. Unknown declaration element type: HeaderUnion
-  *)
-  ("adding header unions to HOL4P4",
-   ["header-bool-bmv2",
-    "issue1879-bmv2",
-    "issue561-1-bmv2",
-    "issue561-2-bmv2",
-    "issue561-3-bmv2",
-    "issue561-5-bmv2",
-    "issue561-4-bmv2",
-    "issue561-7-bmv2",
-    "issue561-6-bmv2",
-    "union1-bmv2",
-    "union3-bmv2",
-    "union2-bmv2",
-    "union-valid-bmv2",
-    "union-bmv2"]),
-(*
-    Variable-width integers
-    FAIL: Could not parse .*\/(.*?)\. .*varbit.*
-*)
+ [("adding header unions to HOL4P4",
+   ["Unknown declaration element type: HeaderUnion"],
+   []),
   ("adding dynamically-sized bit-strings to HOL4P4",
-   ["checksum1-bmv2",
-    "equality-varbit-bmv2",
-    "equality-bmv2",
-    "issue1025-bmv2",
-    "issue447-1-bmv2",
-    "issue447-2-bmv2",
-    "issue447-3-bmv2",
-    "issue447-4-bmv2",
-    "issue447-bmv2",
-    "issue447-5-bmv2",
-    "test-parserinvalidargument-error-bmv2",
-    "checksum2-bmv2",
-    "checksum3-bmv2"]),
-  (*
-   Header stacks
-   FAIL: Could not parse .*\/(.*?)\. .*? \["header_stack".*
-  *)
+   ["[\"varbit\","],
+   []),
   ("adding header stacks to HOL4P4",
-   ["array-copy-bmv2",
-    "header-stack-ops-bmv2",
-    "stack_complex-bmv2",
-    "runtime-index-2-bmv2",
-    "subparser-with-header-stack-bmv2",
-    "ternary2-bmv2"]),
-(*
-    Signed integers
-    FAIL: Could not parse .*\/(.*?)\. .*?: \["int".*
-*)
+   ["[\"header_stack\","],
+   []),
   ("adding signed integers to HOL4P4",
-   ["arith5-bmv2",
-    "arith1-bmv2",
-    "concat-signed",
-    "runtime-index-bmv2",
-    (* Manually spotted *)
-    "saturated-bmv2"]),
-(*
-    Enumeration type declarations (manually spotted)
-*)
-  ("adding support for enumeration type declarations in the import tool",
-   ["decl-soundness",
-    "enum-bmv2"]),
-(*
-    More expressive STF specifications
-*)
-  ("more expressive STF specifications",
-   ["issue1814-1-bmv2",
-    "switch_ebpf"]),
-(*
-    To-struct cast (manually spotted)
-*)
-  ("supporting to-struct cast in HOL4P4",
-   ["recursive-casts"]),
-(*
-    Integer literal passed to a type-parametric extern method parameter (manually spotted)
-*)
-  ("inferring the width of integer literals passed to type-parametric extern method parameters in import tool",
-   ["issue1097-2-bmv2"]),
-(*
-    If-expressions
-*)
+   ["type: [\"int\",", "[\"Left\",[\"int\","],
+   []),
+  ("v1model registers that start at 0",
+   [],
+   ["issue1814-1-bmv2"]),
+  ("dropping packets on a parser reject in the eBPF model",
+   [],
+   ["switch_ebpf"]),
   ("adding if-expressions to HOL4P4",
-   ["issue-2123-2-bmv2",
-    "issue-2123-3-bmv2"]),
-(*
-    Exit statement
-    FAIL: Could not parse .*\/(.*?)\. .*?: unknown statement name: exit.*
-*)
+   ["expression: [\"ternary\","],
+   []),
   ("adding exit statement to HOL4P4",
-   ["issue2225-bmv2"]),
-(*
-    "Don't care" (underscore) argument (manually spotted)
-*)
-  ("fixing don't-care function arguments in import tool",
-   ["issue774-4-bmv2"])
-];
+   ["unknown statement name: exit"],
+   [])
+ ];
 
-fun get_error_desc testname [] = NONE
-  | get_error_desc testname (h::t) =
- if List.exists (fn el => el = testname) (snd h)
- then SOME (fst h)
- else get_error_desc testname t
-;
+fun excluded_test_desc testname =
+ Option.map #1 (List.find (fn (_, _, tests) => List.exists (fn t => t = testname) tests) exclude_descs);
+
+fun excluded_error_desc msg =
+ Option.map #1 (List.find (fn (_, msgs, _) => List.exists (fn m => String.isSubstring m msg) msgs) exclude_descs);
 
 end

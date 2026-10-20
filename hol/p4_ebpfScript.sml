@@ -207,9 +207,9 @@ Definition ebpf_output_f_def:
   | _ => NONE
 End
 
-(* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+(* Longest prefix wins in tables with only lpm and exact keys, otherwise smallest priority *)
 Definition ebpf_apply_table_f_def:
- ebpf_apply_table_f = apply_table_f_gen (\mk_list. T):ebpf_ascope apply_table_f
+ ebpf_apply_table_f = apply_table_f_gen (\mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list):ebpf_ascope apply_table_f
 End
 
 Definition ebpf_get_oracle_index_def:
