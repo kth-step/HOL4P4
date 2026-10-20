@@ -485,13 +485,7 @@ Definition add_ones_complement_def:
 End
 
 Definition sub_ones_complement_def:
- sub_ones_complement (x, y) =
-   let
-    (result,carry_out,overflow) = add_with_carry(x, word_1comp y,F)
-   in
-    if carry_out
-    then result + 1w
-    else word_1comp result
+ sub_ones_complement (x, y) = add_ones_complement (x, word_1comp y)
 End
 
 Definition compute_checksum16_def:
