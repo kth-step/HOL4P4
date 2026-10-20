@@ -311,61 +311,6 @@ fun terms_to_string [] = ""
  (str^(" "^(terms_to_string t)))
  end
 
-(* Row breaks for legibility *)
-(* TODO: Naming convention of bits could be i/o + n + _ + b + _ m, where i/o is input or output, n is its number in the order, an m is the bit position *)
-fun output_test_list_theorem outstream valname arch_opt (input_list:(int * term list) list, output_list:(int * term list * bool) list) =
- let
-  val (in_vars, in_data', i) = process_arbs_list (map snd input_list) 0
-  val (out_vars, out_data', i') = process_arbs_list (map #2 output_list) i
-  (* An expected packet is a prefix of the output unless it ends with $ *)
-  val tails = List.tabulate (length output_list, fn k =>
-               if #3 (List.nth (output_list, k)) then NONE
-               else SOME (mk_var ("tail_"^(int_to_string k), mk_list_type bool)))
-  val out_data'' = map (fn (d, tail_opt) => case tail_opt of SOME t => mk_append (d, t) | NONE => d) (zip out_data' tails)
-  val out_vars' = out_vars@(List.mapPartial I tails)
-  val in_packets = mk_list ((map mk_pair (zip in_data' (map (term_of_int o fst) input_list))), “:(bool list # num)”);
-  val out_packets = mk_list ((map mk_pair (zip out_data'' (map (term_of_int o #1) output_list))), “:(bool list # num)”);
-
-  (* Output astate with updated input separately *)
-  val astate_input_update =
-   String.concat ["val ", valname, "_astate = rhs $ concl $ EVAL “(p4_append_input_list ",
-                  (term_to_string in_packets), " ^",
-                  valname, "_astate)”;\n\n"];
-  val _ = TextIO.output (outstream, astate_input_update);
-
-  (* Output theorem *)
-  val actx = (valname^"_actx")
-  val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^(":\n"))));
-  val _ =
-   if null in_vars
-   then ()
-   else 
-    let
-     val _ = TextIO.output (outstream, "! ");
-     val _ = TextIO.output (outstream, terms_to_string in_vars);
-     val _ = TextIO.output (outstream, ".\n");
-    in
-     ()
-    end
-
-  val theorem =
-   String.concat ["?n ab_index' ascope' g_scope_list' arch_frame_list' status' ",
-                  terms_to_string out_vars', ".\n",
-                  "arch_multi_exec ^", actx, " ^",
-                  valname, "_astate",
-                  (* ("(p4_append_input_list "^(term_to_string in_packets)^(" ^"^(valname^("_astate)")))), *)
-                  " n =\n", " SOME ((ab_index', [], ", (term_to_string out_packets),
-                  ", ascope'), g_scope_list', arch_frame_list', status') /\\\n",
-                  " ab_index' = 0 /\\ arch_frame_list' = arch_frame_list_empty\n",
-                  "Proof\n", "p4_eval_test_tac ", (ascope_of_arch arch_opt),
-                  " ", valname, "_actx ", valname, "_astate\n",
-                  "QED\n\n"];
-  val _ = TextIO.output (outstream, theorem);
- in
-  ()
- end
-;
-
 fun infer_args (ftymap, blftymap) is_default block_name action_name args =
  let
   val inferred_args =
@@ -728,7 +673,7 @@ fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (str
    String.concat ["?", vars, " ", terms_to_string out_vars', ".\n",
                   String.concatWith " /\\\n" conjs, " /\\\n",
                   "outl", Int.toString (length phases), " = ", term_to_string out_packets, "\n",
-                  "Proof\n", "p4_eval_test_phases_tac ", (ascope_of_arch arch_opt), "\n",
+                  "Proof\n", "p4_eval_test_tac ", (ascope_of_arch arch_opt), "\n",
                   "QED\n\n"];
   val _ = TextIO.output (outstream, theorem);
  in
@@ -828,9 +773,7 @@ in
       foldl (fn (phase, res) => output_phase_upds outstream valname arch_opt_tm phase res)
             (valname^"_actx", []) (zip (List.tabulate (length phases, fn j => j + 1)) phases)
     in
-     case phases' of
-       [(_, _, inputs, outputs)] => output_test_list_theorem outstream valname arch_opt_tm (inputs, outputs)
-     | _ => output_test_phases_theorem outstream valname arch_opt_tm phases'
+     output_test_phases_theorem outstream valname arch_opt_tm phases'
     end
    | NONE => ()
 end

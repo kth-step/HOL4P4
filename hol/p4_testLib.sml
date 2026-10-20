@@ -373,36 +373,8 @@ fun eval_step ascope_ty actx astate =
  end
 end;
 
-(* This tactic is used in the automatic tests derived from the .stf files of the P4 examples *)
-local
-fun get_existentials eval_thm =
- let
-  val final_state = the_final_state eval_thm
-  val steps = last $ snd $ strip_comb $ lhs $ concl eval_thm
-  val (aenv', g_scope_list', arch_frame_list', status') = dest_astate final_state
-  (* TODO: Below line might not generalise well in future if the aenv type changes *)
-  val (ab_index', _, _, ascope') = dest_aenv aenv'
- in
-  [steps, ab_index', ascope', g_scope_list', arch_frame_list', status']
- end
-in
-fun p4_eval_test_tac aenv_ty actx astate =
- let
-  (* eval_steps repeatedly evaluates until NONE is reached *)
-  val step_thm = eval_step aenv_ty actx astate
-  val [n, ab_index', ascope', g_scope_list', arch_frame_list', status'] =
-   get_existentials step_thm
- in
-  (* Perform consecutive exists_tac on all existentially quantified variables in the
-   * theorem *)
-  (foldr (fn (a, b) => a >> b) ALL_TAC
-   (map exists_tac [n, ab_index', ascope', g_scope_list', arch_frame_list', status']))
-  >> fs [step_thm, p4_replace_input_def]
- end
-end;
-
-(* Proves an STF test theorem whose arch_multi_exec conjuncts are consecutive phases *)
-fun p4_eval_test_phases_tac ascope_ty (asl, goal) =
+(* Proves the test theorem of an STF file, whose arch_multi_exec conjuncts are consecutive runs *)
+fun p4_eval_test_tac ascope_ty (asl, goal) =
  let
   val (vars, body) = strip_exists goal
   fun is_exec c =
