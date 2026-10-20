@@ -24,7 +24,6 @@ jobs:
         hol4: ['trindemossen-2']
 
     env:
-      CACHE_DIR: /home/runner/cache
       POLYML_VERSION: ${{ matrix.polyml }}
       HOL4_VERSION: ${{ matrix.hol4 }}
 
@@ -37,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            /home/runner/work/HOL4P4/HOL4P4/scripts/HOL
+            ${{ github.workspace }}/scripts/HOL
           key: os-${{ runner.os }}_polyml-${{ matrix.polyml }}_hol4-${{ matrix.hol4 }}
 
       - name: Prepare cached dependencies
@@ -46,10 +45,10 @@ jobs:
           cd scripts && ./install.sh
 
       - name: Export Ott files to HOL4 and run Holmake
-        run: eval "$(opam env)" && export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make hol
+        run: eval "$(opam env)" && export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make hol
         
       - name: Compile metatheory
-        run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make metatheory
+        run: export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make metatheory
 
       - name: Compile symbolic execution tests
-        run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make symb_exec_tests
+        run: export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make symb_exec_tests
