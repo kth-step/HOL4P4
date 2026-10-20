@@ -935,6 +935,28 @@ Definition petr4_slice_bound_def:
   (fixwidth w (n2v n), w)
 End
 
+(* Integer constant expressions fold exactly, then take the expected width *)
+Definition petr4_fold_int_exp_def:
+ petr4_fold_int_exp gscope p_tau_opt exp =
+  case petr4_parse_compiletime_constantexp gscope exp of
+  | SOME (i, NONE) =>
+   SOME (case p_tau_opt of
+         | SOME (p_tau_bit w) => SOME_msg (Exp (e_v (v_bit (fixwidth w (n2v (Num (i % &(2 ** w)))), w))))
+         | _ => if 0 <= i then SOME_msg (Number (Num i)) else get_error_msg "negative integer constant without a type: " exp)
+  | _ => NONE
+End
+
+Definition petr4_int_cmp_def:
+ petr4_int_cmp optype (n:num) (k:num) =
+  if optype = "Lt" then SOME (n < k)
+  else if optype = "Gt" then SOME (n > k)
+  else if optype = "Le" then SOME (n <= k)
+  else if optype = "Ge" then SOME (n >= k)
+  else if optype = "Eq" then SOME (n = k)
+  else if optype = "NotEq" then SOME (n <> k)
+  else NONE
+End
+
 Definition petr4_int_arith_def:
  petr4_int_arith optype (n:num) (k:num) =
   if optype = "Plus" then SOME (n + k)
@@ -1127,6 +1149,9 @@ Definition petr4_parse_expression_gen_def:
              ("op", Array [String optype; op_tags]);
              ("arg", op)]] =>
    (* TODO: All unary operations preserve type? *)
+   (case petr4_fold_int_exp gscope p_tau_opt exp of
+    | SOME res => res
+    | NONE =>
    (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op, p_tau_opt) of
     | SOME_msg res_op =>
      (case petr4_unop_lookup optype of
@@ -1140,12 +1165,15 @@ Definition petr4_parse_expression_gen_def:
          (* TODO: Infer type directly from tau_opt *)
          get_error_msg "type inference or apply expression unsupported for unops: " exp)
       | NONE => NONE_msg ("unknown optype: "++optype))
-    | NONE_msg op_msg => NONE_msg op_msg)
+    | NONE_msg op_msg => NONE_msg op_msg))
   (* Binary operation *)
   | Array [String "binary_op";
      Object [("tags", tags);
              ("op", Array [String optype; op_tags]);
              ("args", Array [op1; op2])]] =>
+   (case petr4_fold_int_exp gscope p_tau_opt exp of
+    | SOME res => res
+    | NONE =>
    (case petr4_binop_lookup optype of
     | SOME mk_binop =>
      let is_shift = MEM optype ["Shl"; "Shr"] in
@@ -1187,14 +1215,17 @@ Definition petr4_parse_expression_gen_def:
            else
             (case petr4_int_arith optype op1_const op2_const of
              | SOME res => SOME_msg (Number res)
-             | NONE => get_error_msg "expression contains binop on constants: " exp)
+             | NONE =>
+              (case petr4_int_cmp optype op1_const op2_const of
+               | SOME b => SOME_msg (Exp (e_v (v_bool b)))
+               | NONE => get_error_msg "expression contains binop on constants: " exp))
           (* The table is applied before the statement, so only as the first operand evaluated *)
           | (InlineApp s_l app_exp, Exp op2_exp) =>
            SOME_msg (InlineApp s_l (mk_binop app_exp op2_exp))
           | _ => get_error_msg "expression contains apply exp or set exp: " exp)
         | NONE_msg op2_msg => NONE_msg op2_msg)
       | NONE_msg op1_msg => NONE_msg op1_msg)
-    | NONE => NONE_msg ("unknown optype: "++optype))
+    | NONE => NONE_msg ("unknown optype: "++optype)))
   (* Enumeration type value *)
   (* TODO: Is this the only thing encoded by type_member? *)
   | Array [String "type_member";
@@ -1475,12 +1506,23 @@ Definition exp_to_val_def:
      else binop_exec binop (v_bool b1) (v_bool b2)
     | (SOME v1, SOME v2) => binop_exec binop v1 v2
     | _ => NONE)
+  | (e_unop unop e) => OPTION_BIND (exp_to_val gscope e) (unop_exec unop)
   | (e_cast (cast_unsigned m) e) =>
    (case exp_to_val gscope e of
     | SOME (v_bit bitv) => SOME (v_bit (bitv_cast m bitv))
     | SOME (v_bool b) => SOME (v_bit (bool_cast m b))
     | _ => NONE)
+  | (e_struct x_e_l) =>
+   let x_v_opt_l = MAP (\ (x, e). (x, exp_to_val gscope e)) x_e_l in
+   if EVERY (\ (x, v_opt). IS_SOME v_opt) x_v_opt_l
+   then SOME (v_struct (MAP (\ (x, v_opt). (x, THE v_opt)) x_v_opt_l))
+   else NONE
   | _ => NONE
+Termination
+WF_REL_TAC `measure (e_size o SND)` >>
+rpt strip_tac >>
+IMP_RES_TAC e1_tuple_size_mem >>
+fs[e_size_def]
 End
 
 (* NOTE: Should vtymap be needed at top level?
@@ -4481,6 +4523,50 @@ Definition check_taboos_def:
   else NONE_msg ("Taboo variable found among block variables in block: "++control_name)
 End
 
+(* The control type and the rest of a name c.rest of an inlined instance or directly invoked type c *)
+Definition p4_inlined_name_def:
+ p4_inlined_name vtymap x =
+  case SPLITP (\c. c = #".") x of
+  | (inst, #"."::rest) =>
+   SOME ((case ALOOKUP vtymap (varn_name inst) of SOME (p_tau_blk ty) => ty | _ => inst), rest)
+  | _ => NONE
+End
+
+(* Key types of the inlined tables under their qualified names, taken from their control types *)
+Definition p4_inlined_ttys_def:
+ p4_inlined_ttys control_name vtymap ttymap (tbl_names:string list) =
+  FLAT (MAP (\x. case OPTION_BIND (p4_inlined_name vtymap x) (\ (ty, rest). ALOOKUP ttymap (p4_prefix_tbl ty rest)) of
+                  | SOME keys => [(p4_prefix_tbl control_name x, keys)]
+                  | NONE => []) tbl_names)
+End
+
+(* Types of the inlined actions, taken from their control types *)
+Definition p4_inlined_ftys_def:
+ p4_inlined_ftys vtymap blftymap (fnames:string list) =
+  FLAT (MAP (\x. case OPTION_BIND (p4_inlined_name vtymap x) (\ (ty, rest). OPTION_BIND (ALOOKUP blftymap ty) (\local_ftymap. ALOOKUP local_ftymap (funn_name rest))) of
+                  | SOME fty => [(funn_name x, fty)]
+                  | NONE => []) fnames)
+End
+
+Definition p4_pblock_has_state_def:
+ p4_pblock_has_state tyenv (pblock_map:(string # (pblock_extra # tau list)) list) pbl_name =
+  (petr4_tyenv_params tyenv pbl_name <> [] \/
+   (case ALOOKUP pblock_map pbl_name of
+    | SOME ((pbl_type, params, b_func_map, decl_list, pars_map, tbl_map), taus) =>
+     tbl_map <> [] \/ EXISTS (\ (x, (tau, lval_opt)). tau = tau_ext) decl_list
+    | NONE => F))
+End
+
+(* A control type with tables or extern objects invoked directly more than once *)
+Definition p4_repeated_direct_invocation_def:
+ p4_repeated_direct_invocation tyenv pblock_map vtymap (tbl_map_upds:tbl_map_extra) (decl_list_upds:t_scope) =
+  let names = (MAP FST tbl_map_upds)++(MAP (\ (varn, (tau, lval_opt)). case varn of varn_name x => x | _ => "")
+                                           (FILTER (\ (varn, (tau, lval_opt)). tau = tau_ext) decl_list_upds)) in
+  OPTION_MAP FST (FIND (\ (ty, x). ALOOKUP vtymap (varn_name ty) = NONE /\ p4_pblock_has_state tyenv pblock_map ty /\
+                                    LENGTH (FILTER (\y. y = x) names) > 1)
+                       (MAP (\x. (FST (SPLITP (\c. c = #".") x), x)) names))
+End
+
 Definition petr4_parse_control_def:
  petr4_parse_control (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, gscope, pblock_map, tbl_entries_map, action_list, extfun_list, ttymap) control =
   case json_parse_obj ["tags"; "annotations"; "name"; "type_params"; "params";
@@ -4510,6 +4596,9 @@ Definition petr4_parse_control_def:
               if p4_stmt_calls_verify res_apply
               then NONE_msg ("verify can only be called in parsers, but is called in control "++control_name)
               else
+              (case p4_repeated_direct_invocation tyenv pblock_map vtymap' tbl_map_upds decl_list_upds of
+               | SOME ty => NONE_msg ("control type "++(ty++(" with tables or extern objects is invoked directly more than once, while parsing control "++control_name)))
+               | NONE =>
               (* All elements of decl_list_upds are taboo, but not all taboo variables are in decl_list_upds *)
               check_taboos gscope decl_list ctrl_params taboo_list control_name 
 (
@@ -4523,11 +4612,11 @@ Definition petr4_parse_control_def:
                  | SOME tbl_map' =>
                   (case petr4_merge_upds (decl_list++decl_list_upds) of
                    | SOME decl_list' =>
-                   SOME_msg (AUPDATE_LIST tyenv ((control_name, p_tau_blk control_name)::(MAP (\ (c, p_tau). (control_name++(ctor_sep++c), p_tau)) ctor_params)), enummap, ftymap, AUPDATE blftymap (control_name, local_ftymap), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pbl_type_control, ctrl_params, b_func_map'', decl_list', ([]:pars_map), tbl_map')), param_taus), (tbl_entries_map++[(control_name, AUPDATE_LIST tbl_entries' tbl_entries_upds)]), action_list', AUPDATE_LIST ttymap (ttymap'++MAP (\ (tbl_name, keys). (p4_prefix_tbl control_name tbl_name, keys)) ttymap'))
+                   SOME_msg (AUPDATE_LIST tyenv ((control_name, p_tau_blk control_name)::(MAP (\ (c, p_tau). (control_name++(ctor_sep++c), p_tau)) ctor_params)), enummap, ftymap, AUPDATE blftymap (control_name, local_ftymap++p4_inlined_ftys vtymap' blftymap (MAP FST b_func_map_upds)), fmap, bltymap, gscope, AUPDATE pblock_map (control_name, ((pbl_type_control, ctrl_params, b_func_map'', decl_list', ([]:pars_map), tbl_map')), param_taus), (tbl_entries_map++[(control_name, AUPDATE_LIST tbl_entries' tbl_entries_upds)]), action_list', AUPDATE_LIST ttymap (ttymap'++MAP (\ (tbl_name, keys). (p4_prefix_tbl control_name tbl_name, keys)) ttymap'++p4_inlined_ttys control_name vtymap' ttymap (MAP FST tbl_map_upds)))
                    | NONE => NONE_msg ("Duplicate variable (parameter) name in nested control block while parsing control "++control_name))
                  | NONE => NONE_msg ("Duplicate table name in nested control block while parsing control "++control_name))
                | NONE => NONE_msg ("Local function in nested control block has same name as (and is different from) local function in parent block; encountered while parsing control "++control_name))
-)
+))
              | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
            | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
            | NONE_msg ctor_msg => NONE_msg ("Could not parse constructor parameters: "++ctor_msg++" while parsing control "++control_name)))
@@ -4665,15 +4754,6 @@ Definition petr4_bind_pblock_ctor_args_def:
       | NONE => get_error_msg "could not parse type name: " type)
     | _ => get_error_msg "unknown JSON format of package argument: " pblock_inst)
   | _ => get_error_msg "unknown JSON format of package argument: " pblock_inst
-End
-
-Definition p4_pblock_has_state_def:
- p4_pblock_has_state tyenv (pblock_map:(string # (pblock_extra # tau list)) list) pbl_name =
-  (petr4_tyenv_params tyenv pbl_name <> [] \/
-   (case ALOOKUP pblock_map pbl_name of
-    | SOME ((pbl_type, params, b_func_map, decl_list, pars_map, tbl_map), taus) =>
-     tbl_map <> [] \/ EXISTS (\ (x, (tau, lval_opt)). tau = tau_ext) decl_list
-    | NONE => F))
 End
 
 Definition petr4_bind_pblock_ctor_args_list_def:
