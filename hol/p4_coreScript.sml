@@ -406,19 +406,21 @@ End
 (* Checksum *)
 (************)
 
+(* Bits of checksum and hash data *)
 Definition header_entries2v_def:
  (header_entries2v [] = SOME []) /\
- (header_entries2v (h::t) =
-  case header_entry2v h of
+ (header_entries2v ((x:x, v)::t) =
+  case data_bits v of
   | SOME bl =>
   (case header_entries2v t of
    | SOME bl2 => SOME (bl++bl2)
    | NONE => NONE)
   | NONE => NONE
  ) /\
- (header_entry2v (x:x, v) =
+ (data_bits v =
   case v of
   | (v_bit (bl, n)) => SOME bl
+  | (v_bool b) => SOME [b]
   | (v_struct x_v_l) => header_entries2v x_v_l
   (* Invalid headers contribute no bits, as in bmv2 *)
   | (v_header validity x_v_l) => if validity then header_entries2v x_v_l else SOME []
@@ -444,17 +446,11 @@ End
 Definition get_checksum_incr_def:
  (get_checksum_incr scope_list ext_data_name =
    (case lookup_lval scope_list ext_data_name of
-    | SOME (v_bit (bl, n)) =>
-     if n MOD 16 = 0 then SOME (v2w16s' bl) else NONE
-    | SOME (v_header vbit f_list) =>
-     (case header_entries2v f_list of
+    | SOME v =>
+     (case data_bits v of
       | SOME bl => v2w16s bl
       | NONE => NONE)
-    | SOME (v_struct f_list) =>
-     (case header_entries2v f_list of
-      | SOME bl => v2w16s bl
-      | NONE => NONE)
-    | _ => NONE)
+    | NONE => NONE)
  )
 End
 

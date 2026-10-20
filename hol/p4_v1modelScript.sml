@@ -163,15 +163,6 @@ End
 (********)
 (* hash *)
 
-Definition v1model_hash_bits_def:
- v1model_hash_bits v =
-  case v of
-  | v_bit (bl, n) => SOME bl
-  | v_struct x_v_l => header_entries2v x_v_l
-  | v_header validity x_v_l => if validity then header_entries2v x_v_l else SOME []
-  | _ => NONE
-End
-
 (* HashAlgorithm members in declaration order; the custom CRCs are the unconfigured crc32/crc16 of bmv2 *)
 Definition v1model_hash_det_def:
  v1model_hash_det (algo:num) bl =
@@ -211,7 +202,7 @@ Definition v1model_hash_def:
         | SOME (v_bit (bl_max, n_max)) =>
          (case lookup_lval scope_list (lval_varname (varn_name "data")) of
           | SOME data =>
-           (case v1model_hash_bits data of
+           (case data_bits data of
             | SOME bl =>
              (case v1model_hash_inner (v2n bl_algo) width oracle_index random_oracle bl of
               | SOME (h, oracle_index') =>
@@ -242,7 +233,7 @@ Definition v1model_verify_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case v1model_hash_bits data of
+         (case data_bits data of
           | SOME bl_data =>
            (case v1model_hash_det (v2n bl) bl_data of
             | SOME h =>
@@ -287,7 +278,7 @@ Definition v1model_update_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case v1model_hash_bits data of
+         (case data_bits data of
           | SOME bl_data =>
            (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
             | SOME $ v_bit (bl', n') =>
