@@ -653,14 +653,14 @@ Definition FOLDL_MATCH_alt_def:
   then
    (* TODO: Smallest priority wins (like for TDI) is hard-coded,
     *       other than priority zero. *)
+   let prio' = if (prio = 0) then acc else prio in
    case res_prio_opt of
    | SOME res_prio =>
-    let prio' = if (prio = 0) then acc else prio in
     if (prio' < res_prio)
     then
      FOLDL_MATCH_alt e_l (v, SOME prio') (acc+1) t
     else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t
-   | NONE => FOLDL_MATCH_alt e_l (v, SOME prio) (acc+1) t
+   | NONE => FOLDL_MATCH_alt e_l (v, SOME prio') (acc+1) t
   else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
 End
 
