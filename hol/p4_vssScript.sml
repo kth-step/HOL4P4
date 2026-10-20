@@ -177,27 +177,12 @@ Definition vss_input_f_def:
    | _ => NONE)
 End
 
-(* TODO: Since the same thing should be initialised
- *       for all known architectures, maybe it should be made a
- *       architecture-generic (core) function? *)
-(* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
- vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, random_oracle) =
-  case reduce_nonout (dlist, elist, v_map) of
-  | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
-  | NONE => NONE
+ vss_copyin_pbl = copyin_pbl_gen:vss_ascope copyin_pbl
 End
 
-(* TODO: Does anything need to be looked up for this function? *)
 Definition vss_copyout_pbl_def:
- vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, dlist, xlist, (status:status)) =
-  case copyout_pbl_gen xlist dlist g_scope_list v_map of
-  | SOME [v_map_scope] =>
-   (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):vss_ascope)
-    | NONE => NONE)
-  | _ => NONE
+ vss_copyout_pbl = copyout_pbl_gen:vss_ascope copyout_pbl
 End
 
 Definition vss_parser_runtime_def:
@@ -218,23 +203,15 @@ Definition vss_pre_deparser_def:
    | _ => NONE)
 End
 
-Definition vss_lookup_obj_def:
- vss_lookup_obj ext_obj_map v_map k =
-  case ALOOKUP v_map k of
-  | SOME (v_ext_ref i) =>
-   ALOOKUP ext_obj_map i
-  | _ => NONE
-End
-
 (* Add new header + data + Ethernet CRC as a tuple with new output port to output list *)
 (* Add data + Ethernet CRC *)
 (* TODO: Outsource obtaining the output port to an external function? *)
 (* NOTE: "b" renamed to "b_out" *)
 Definition vss_output_f_def:
  vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  (case vss_lookup_obj ext_obj_map v_map "b_out" of
+  (case lookup_obj ext_obj_map v_map "b_out" of
    | SOME (INL (core_v_ext_packet headers)) =>
-    (case vss_lookup_obj ext_obj_map v_map "data_crc" of
+    (case lookup_obj ext_obj_map v_map "data_crc" of
      | SOME (INL (core_v_ext_packet data_crc)) =>
       (case ALOOKUP v_map "outCtrl" of
        | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
@@ -283,14 +260,10 @@ Definition vss_apply_table_f_def:
     | NONE => NONE)
 End
 
-(* TODO: Generalise the below as needed *)
-
 Definition vss_get_oracle_index_def:
- vss_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  oracle_index
+ vss_get_oracle_index = get_oracle_index_gen:vss_ascope get_oracle_index
 End
 
 Definition vss_set_oracle_index_def:
- vss_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):vss_ascope
+ vss_set_oracle_index = set_oracle_index_gen:vss_ascope set_oracle_index
 End

@@ -689,36 +689,12 @@ Definition v1model_input_f_def:
     SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index):v1model_ascope))
 End
 
-(* TODO: Since the same thing should be initialised
- *       for all known architectures, maybe it should be made a
- *       architecture-generic (core) function? *)
-(* TODO: Don't reduce all arguments at once? *)
 Definition v1model_copyin_pbl_def:
- v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, random_oracle) =
-  case reduce_nonout (dlist, elist, v_map) of
-  | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
-  | NONE => NONE
+ v1model_copyin_pbl = copyin_pbl_gen:v1model_ascope copyin_pbl
 End
 
-(* Note that this re-uses the copyout function intended for P4 functions *)
 Definition v1model_copyout_pbl_def:
- v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, dlist, xlist, (status:status)) =
-  case copyout_pbl_gen xlist dlist g_scope_list v_map of
-  | SOME [v_map_scope] =>
-   (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):v1model_ascope)
-    | NONE => NONE)
-  | _ => NONE
-End
-
-(* TODO: Make generic *)
-Definition v1model_lookup_obj_def:
- v1model_lookup_obj ext_obj_map v_map k =
-  case ALOOKUP v_map k of
-  | SOME (v_ext_ref i) =>
-   ALOOKUP ext_obj_map i
-  | _ => NONE
+ v1model_copyout_pbl = copyout_pbl_gen:v1model_ascope copyout_pbl
 End
 
 (* Transfers the value of parsedHdr to hdr and the parserError value to standard_metadata,
@@ -770,9 +746,9 @@ End
 (* A little clumsy with the double v2n, but that makes things easier *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-  (case v1model_lookup_obj ext_obj_map v_map "b" of
+  (case lookup_obj ext_obj_map v_map "b" of
    | SOME (INL (core_v_ext_packet bl)) =>
-    (case v1model_lookup_obj ext_obj_map v_map "b_temp" of
+    (case lookup_obj ext_obj_map v_map "b_temp" of
      | SOME (INL (core_v_ext_packet bl')) =>
       (case ALOOKUP v_map "standard_metadata" of
        | SOME (v_struct struct) =>
@@ -816,14 +792,10 @@ val v1model_apply_table_f_def =
       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
      | NONE => NONE’;
 
-(* TODO: Generalise the below as needed *)
-
 Definition v1model_get_oracle_index_def:
- v1model_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-  oracle_index
+ v1model_get_oracle_index = get_oracle_index_gen:v1model_ascope get_oracle_index
 End
 
 Definition v1model_set_oracle_index_def:
- v1model_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):v1model_ascope
+ v1model_set_oracle_index = set_oracle_index_gen:v1model_ascope set_oracle_index
 End

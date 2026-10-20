@@ -569,10 +569,43 @@ Definition reduce_nonout_def:
  (reduce_nonout (_, _, v_map) = NONE)
 End
 
+(* TODO: Don't reduce all arguments at once? *)
+Definition copyin_pbl_gen_def:
+ copyin_pbl_gen (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index), random_oracle) =
+  case reduce_nonout (dlist, elist, v_map) of
+  | SOME elist' =>
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
+  | NONE => NONE
+End
+
+(* Re-uses the copy-out of P4 functions *)
 Definition copyout_pbl_gen_def:
- copyout_pbl_gen xlist dlist g_scope_list v_map =
-  let v_map_scope = v_map_to_scope v_map in
-   update_return_frame xlist dlist [v_map_scope] g_scope_list
+ copyout_pbl_gen (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index), dlist, xlist, (status:status)) =
+  case update_return_frame xlist dlist [v_map_to_scope v_map] g_scope_list of
+  | SOME [v_map_scope] =>
+   (case scope_to_vmap v_map_scope of
+    | SOME v_map' => SOME (counter, ext_obj_map, v_map', ctrl, oracle_index)
+    | NONE => NONE)
+  | _ => NONE
+End
+
+Definition get_oracle_index_gen_def:
+ get_oracle_index_gen (counter, ext_obj_map, v_map, ctrl, oracle_index:num) =
+  oracle_index
+End
+
+Definition set_oracle_index_gen_def:
+ set_oracle_index_gen i_opt (counter, ext_obj_map, v_map, ctrl, oracle_index:num) =
+  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i)
+End
+
+(* Looks up the extern object a v_map entry refers to *)
+Definition lookup_obj_def:
+ lookup_obj ext_obj_map v_map k =
+  case ALOOKUP v_map k of
+  | SOME (v_ext_ref i) =>
+   ALOOKUP ext_obj_map i
+  | _ => NONE
 End
 
 (* A separate definition so that symbolic execution can choose to not evaluate it
