@@ -869,39 +869,6 @@ basic:
         val fv_indices' = fv_indices@[fv_index]
         val disj_tms'' = disj_tms'@[mk_eq (case_lhs, default_action)]
 
-(* TODO: How to use ctrl_is_well_formed here:
-
-val e = “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”;
-val (fty_map, b_fty_map) = preprocess_ftymaps (symb_exec6_ftymap, symb_exec6_blftymap)
-
-(* For basic.p4:
-
-val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
-val pblock_action_names_map = basic_pblock_action_names_map
-
-*)
-
-val (_, pblock_map, _, _, _, _, _, _, _, _)= dest_actx $ snd $ dest_eq $ concl $ ctx_def;
-
-val ascope =  #1 $ dest_astate init_astate
-val ctrl =  #4 $ dest_v1model_ascope $ #4 $ dest_ascope pre_ascope
-
-(* Sanity check: *)
-prove(“F”,
-
-ASSUME_TAC wf_assumption >>
-fs[ctrl_is_well_formed_def] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“"ingress"”] thm) >>
-fs[] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“"t2"”] thm) >>
-fs[] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”] thm) >>
-fs[p4_v1modelTheory.v1model_apply_table_f_def]
-(* Proof should not work *)
-);
-
-*)
-
         fun v_list_case_tac thm =
 	 let
 	  val list = snd $ dest_comb $ lhs $ concl thm
@@ -925,27 +892,35 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 *)
 
+        val wf_conj =
+         case List.find (fn tm => is_v1model_tbl_is_well_formed tm andalso term_eq (#3 $ dest_v1model_tbl_is_well_formed tm) (mk_pair (tbl_name, tbl))) (strip_conj path_tm) of
+           SOME tm => tm
+         | NONE => raise (ERR "p4_should_branch" ("No v1model_tbl_is_well_formed conjunct for table "^((term_to_string tbl_name)^" in the path condition")))
+        (* The lookup result is the default action or the action of a well-formed entry *)
+        val wf_cases_thm =
+         let
+          val wf_thm = PURE_REWRITE_RULE path_cond_defs (ASSUME wf_conj)
+          val (ty_ctx, wf_pblock_map, _) = dest_v1model_tbl_is_well_formed $ concl wf_thm
+          val (wf_ftymap, wf_blftymap, wf_pblock_action_names_map) = (fn (a, (b, c)) => (a, b, c)) $ (I ## dest_pair) $ dest_pair ty_ctx
+          val inst_tms = [wf_ftymap, wf_blftymap, wf_pblock_action_names_map, wf_pblock_map, tbl_name, tbl, curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map, action_names_map, mk_l, default_action, action_names, e]
+          val cases_thm =
+           if mem_lpm
+           then ISPECL inst_tms v1model_tbl_is_well_formed_FOLDL_MATCH
+           else ISPECL (inst_tms@[term_of_int 1]) v1model_tbl_is_well_formed_FOLDL_MATCH_alt
+          val lookups_thm = funpow 4 (fn thm => MP thm (EQT_ELIM $ HOL4P4_CONV $ fst $ dest_imp_only $ concl thm)) (MP cases_thm wf_thm)
+         in
+          SIMP_RULE (srw_ss()) [] $ HOL4P4_RULE $ PURE_REWRITE_RULE [v1model_tbl_entry_is_well_formed_def] lookups_thm
+         end
+
         val disj_thm = prove (mk_imp (path_tm, mk_disj_list disj_tms''),
 	 strip_tac >>
-(* Remove all well-formedness assumptions on irrelevant tables. *)
-         try $ (qpat_x_assum ‘v1model_tbl_is_well_formed _ _ (^tbl_name,^tbl)’ (fn thm =>
-                              (rpt $ qpat_x_assum ‘_’ (fn thm' => ALL_TAC)) >> assume_tac thm)) >>
+         rpt (pop_assum (K ALL_TAC)) >>
+         assume_tac wf_cases_thm >>
          REWRITE_TAC [disj_list_def] >>
-	 FULL_SIMP_TAC pure_ss (path_cond_defs@[Once v1model_tbl_is_well_formed_def, Once p4_v1modelTheory.v1model_apply_table_f_def, Once p4_coreTheory.apply_table_f_gen_def]) >>
-
-         (* Specialise the well-formedness assumption and simplify it in isolation *)
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map] thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [action_names_map] thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [mk_l, action_names, default_action_name, default_action_args] thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC e thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC ctrl thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-         (* TODO: Avoid srw_ss() if possible... *)
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] thm) >>
+         pop_assum (fn thm => DISJ_CASES_TAC thm) >- (
+          (* Miss: the last disjunct *)
+          ASM_REWRITE_TAC []
+         ) >>
 
 	 (goal_term (fn tm => ABBREV_TAC “goal:bool = ^tm”) >>
 	  qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => hide_tac "goal" thm) >>
@@ -954,13 +929,16 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 
 	  unhide_tac "goal" >>
 	  UNABBREV_TAC "goal") >> (
-           qpat_assum ‘f = _’ (fn thm => let val fname = rhs $ concl thm in
-	   goal_term (fn tm =>
+           (fn (asl, tm) =>
 	    let
-	     val disj_bool_list = (map (fn tm' => if term_eq (fst $ dest_pair $ rhs $ snd $ boolSyntax.strip_exists tm') fname then true else false)) $ boolSyntax.strip_disj tm
+	     (* The action name, from the lookup equation or from f = name if a variable is left *)
+	     val name = fst $ dest_pair $ rhs $ valOf $ List.find (fn a => is_eq a andalso term_eq (lhs a) case_lhs) asl
+	     val fname = if is_var name then rhs $ valOf $ List.find (fn a => is_eq a andalso term_eq (lhs a) name) asl else name
+	     (* A hit never gives the miss disjunct, which is the last one *)
+	     val disj_bool_list = (map (fn tm' => term_eq (fst $ dest_pair $ rhs $ snd $ boolSyntax.strip_exists tm') fname) $ butlast $ boolSyntax.strip_disj tm)@[false]
 	    in
-	     irule (get_disj_thm disj_bool_list)
-	    end) end)
+	     irule (get_disj_thm disj_bool_list) (asl, tm)
+	    end)
           ) >>
           (* Below this point, each resulting action is a separate subgoal. *)
           (
@@ -2216,6 +2194,24 @@ fun p4_end_point_reached restr_tms end_point =
     handle HOL_ERR _ => false)
 ;
 
+(* Raises an error unless the path condition conjuncts about table entries hold when the
+ * symbolic entry lists are empty, so that they cannot make the precondition unsatisfiable *)
+fun check_tbl_wf_satisfiable path_cond_defs path_cond_tm =
+ let
+  val conjs = strip_conj path_cond_tm
+  val wf_conjs = List.filter is_v1model_tbl_is_well_formed conjs
+  val entry_vars = List.filter is_var $ map (snd o dest_pair o #3 o dest_v1model_tbl_is_well_formed) wf_conjs
+  val nil_subst = map (fn var => var |-> mk_nil (dest_list_type $ type_of var)) entry_vars
+  val checked_conjs = List.filter (fn conj => is_v1model_tbl_is_well_formed conj orelse List.exists (fn var => free_in var conj) entry_vars) conjs
+  val conv = QCONV (REWRITE_CONV (path_cond_defs@[v1model_tbl_is_well_formed_def, MAP, EVERY_DEF]) THENC HOL4P4_CONV)
+ in
+  List.app (fn conj =>
+   if Teq $ rhs $ concl $ conv $ subst nil_subst conj
+   then ()
+   else raise (ERR "p4_symb_exec" ("The path condition conjunct "^((term_to_string conj)^" does not hold for empty tables, so the precondition may be unsatisfiable")))) checked_conjs
+ end
+;
+
 (***********************)
 (* Top-level functions *)
 (* The below functions use symb_execLib to prove contracts, or to get intermediate symbolic
@@ -2244,6 +2240,8 @@ val (small_big_exec_tm, mk_small_big_exec, dest_small_big_exec, is_small_big_exe
  * Here, the static ctxt and the dynamic path condition have been merged. *)
 fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
  let
+  val _ = check_tbl_wf_satisfiable path_cond_defs (concl path_cond)
+
   (* Evaluation must stop at the inner functions of the packet_in methods *)
   val stop_consts_rewr = add_packet_in_stop_consts stop_consts_rewr
 

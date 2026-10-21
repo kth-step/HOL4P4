@@ -244,7 +244,6 @@ val symb_exec_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "symb_exec_ctx" (mk_eq(
 val symb_exec6_pblock_map = #2 $ p4Syntax.dest_actx symb_exec6_actx;
 val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec6_pblock_map), symb_exec6_pblock_map))
 val symb_exec6_ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope $ #4 $ p4Syntax.dest_aenv $ #1 $ p4Syntax.dest_astate symb_exec6_astate_symb;
-val symb_exec6_wf_tm = “v1model_ctrl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) (^symb_exec6_ctrl)”
 val symb_exec6_wf_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("t2",t2_ctrl)”
 
 

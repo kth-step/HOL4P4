@@ -21,6 +21,9 @@ val (p4_contract_at_tm, mk_p4_contract_at, dest_p4_contract_at, is_p4_contract_a
 val (p4_finished_tm, mk_p4_finished, dest_p4_finished, is_p4_finished) =
  syntax_fns1 "p4_symb_exec" "p4_finished";
 
+val (v1model_tbl_is_well_formed_tm, mk_v1model_tbl_is_well_formed, dest_v1model_tbl_is_well_formed, is_v1model_tbl_is_well_formed) =
+ syntax_fns3 "p4_symb_exec" "v1model_tbl_is_well_formed";
+
 val (wellformed_register_array_tm, mk_wellformed_register_array, dest_wellformed_register_array, is_wellformed_register_array) =
   syntax_fns2 "p4_symb_exec" "wellformed_register_array";
 
