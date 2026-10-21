@@ -188,6 +188,11 @@ val e_header_tm : term
 val is_e_header : term -> bool
 val mk_e_header : term * term -> term
 
+val dest_e_saved : term -> term * term
+val e_saved_tm : term
+val is_e_saved : term -> bool
+val mk_e_saved : term * term -> term
+
 val dest_s_sing : term -> term
 val is_s_sing : term -> bool
 val mk_s_sing : term -> term
@@ -349,6 +354,11 @@ val dest_is_e_lval : term -> term
 val is_e_lval_tm : term
 val is_is_e_lval : term -> bool
 val mk_is_e_lval : term -> term
+
+val dest_save_arg : term -> term * term * term
+val is_save_arg : term -> bool
+val mk_save_arg : term * term * term -> term
+val save_arg_tm : term
 
 val dest_lookup_lval : term -> term * term
 val is_lookup_lval : term -> bool

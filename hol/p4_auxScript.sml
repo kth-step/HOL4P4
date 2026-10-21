@@ -508,6 +508,29 @@ IMP_RES_TAC index_find_length >>
 fs [LENGTH_ZIP_MIN]
 QED
 
+Theorem is_d_out_eq:
+!d. is_d_out d <=> (d = d_out \/ d = d_inout)
+Proof
+Cases_on ‘d’ >> (
+ simp[is_d_out_def]
+)
+QED
+
+Theorem save_arg_SOME:
+!gsl ss e e'.
+save_arg gsl ss e = SOME e' ==>
+?v. e' = e_saved e v
+Proof
+rpt strip_tac >>
+gvs[save_arg_def, AllCaseEqs()]
+QED
+
+Theorem save_arg_APPEND:
+!gsl ss e. save_arg gsl ss e = save_arg (ss ++ gsl) [] e
+Proof
+simp[save_arg_def]
+QED
+
 Theorem index_not_const_NONE:
 !el.
 index_not_const el = NONE ==>
