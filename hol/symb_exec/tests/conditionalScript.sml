@@ -150,7 +150,7 @@ val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
 val path_cond = (ASSUME T)
-val p4_is_finished_alt_opt = NONE
+val end_point = “p4_finished:v1model_ascope astate -> bool”
 val n_max = 50;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
@@ -189,4 +189,11 @@ val (res_id1, res_cond1, res_thm1) = res_elem1
 
 (* Finishes at 45 steps (one step of which is a symbolic branch)
  * (higher numbers as arguments will work, but do no extra computations) *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;
+
+(* A path that runs out of fuel before the end point is rejected *)
+val fuel_out_rejected =
+ (p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point 10 “(\s. ~packet_has_port s 1):v1model_ascope astate -> bool” postcond_rewr_thms postcond_simpset;
+  false)
+ handle HOL_ERR e => String.isSubstring "did not reach the end point" (#message e);
+val _ = if fuel_out_rejected then () else raise mk_HOL_ERR "conditional" "fuel_out_rejected" "A path that ran out of fuel was accepted";

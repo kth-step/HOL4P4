@@ -2206,6 +2206,16 @@ fun p4_is_finished n step_thm =
 ;
 
 
+(* Decides whether the state of a step theorem satisfies the end point of a contract *)
+fun p4_end_point_reached restr_tms end_point =
+ if is_const end_point andalso same_const end_point p4_finished_tm
+ then p4_is_finished 0
+ else
+  (fn step_thm =>
+   (Teq $ rhs $ concl $ RESTR_EVAL_CONV restr_tms $ mk_comb (end_point, the_final_state_imp step_thm))
+    handle HOL_ERR _ => false)
+;
+
 (***********************)
 (* Top-level functions *)
 (* The below functions use symb_execLib to prove contracts, or to get intermediate symbolic
@@ -2688,6 +2698,9 @@ datatype defn_data =
  * path_cond: the initial path condition, which can be thought of as a precondition, stated
  * as a theorem, e.g. ASSUME (b8 = T).
  *
+ * end_point: a predicate on the architectural state, e.g. p4_finished; every path must reach
+ * a state satisfying it, where the postcondition is then proved
+ *
  * n_max: the maximum number of steps the symbolic execution can take per branch.
  *
  * postcond: the postcondition, a term which is a predicate on the architectural state
@@ -2697,9 +2710,19 @@ datatype defn_data =
  * postcond_simpset: additional simpset used when proving the postcondition *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset =
  let
   val stop_consts_rewr' = add_packet_in_stop_consts stop_consts_rewr
+
+  val _ =
+   if is_var end_point
+   then raise (ERR "p4_symb_exec_prove_contract" ("The end point "^((term_to_string end_point)^" is a variable: is its constant in the grammar of the calling script?")))
+   else ()
+  val end_point' = inst (match_type (type_of end_point) (type_of postcond)) end_point
+  val is_finished = p4_end_point_reached (stop_consts_rewr'@stop_consts_never) end_point'
+  (* The postcondition proved on every path: \s. end_point s /\ postcond s *)
+  val state_var = variant (free_vars (mk_pair (end_point', postcond))) (mk_var ("s", type_of init_astate))
+  val postcond' = mk_abs (state_var, mk_conj (mk_comb (end_point', state_var), mk_comb (postcond, state_var)))
 
   (* DEBUG *)
   val time_start = Time.now();
@@ -2719,7 +2742,13 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   (* DEBUG *)
   (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr' stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
+   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr' stop_consts_never thms_to_add path_cond (SOME is_finished) n_max;
+
+  val unfinished_ids = map #1 $ List.filter (not o is_finished o #3) path_cond_step_list
+  val _ =
+   if null unfinished_ids
+   then ()
+   else raise (ERR "p4_symb_exec_prove_contract" (String.concat ["Paths ", String.concatWith ", " (map Int.toString unfinished_ids), " did not reach the end point within ", Int.toString n_max, " steps"]))
 
   (* DEBUG *)
   val time_res = Time.toSeconds ((Time.now()) - time_start)
@@ -2728,7 +2757,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag postcond_rewr_thms (stop_consts_rewr'@stop_consts_never) postcond_simpset postcond path_cond_step_list
+   prove_postconds debug_flag (p4_finished_def::postcond_rewr_thms) (stop_consts_rewr'@stop_consts_never) postcond_simpset postcond' path_cond_step_list
 (*
    if debug_flag
    then
@@ -2755,13 +2784,14 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
   (* Fix contract format *)
   val ctx_lhs = lhs $ snd $ strip_forall $ concl ctx_def
-  val unified_ct_thm' = prove_contract' unified_ct_thm (path_cond, init_astate, ctx_lhs, postcond);
+  val unified_ct_thm' = prove_contract' unified_ct_thm (path_cond, init_astate, ctx_lhs, postcond');
+  val precond = #1 $ dest_p4_contract' $ concl unified_ct_thm'
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished unification of all contracts in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s.\n\n"]);
 
  in
-  unified_ct_thm'
+  EQ_MP (SYM $ ISPECL [precond, ctx_lhs, end_point', postcond] p4_contract_at_contract') unified_ct_thm'
  end
 ;
 
@@ -3065,13 +3095,13 @@ fun get_intermediate_state postcond wf_def =
  end
 ;
 
-(* This takes two contracts in p4_contract' formulation, and composes them sequentially.
+(* This takes two contracts in p4_contract_at formulation, and composes them sequentially.
  * wellformed_def is a definition stating the intermediate state is well-formed *)
 (* TODO: This can still be made more efficient *)
 fun p4_combine_contracts contract1 contract2 wellformed_def =
  let
-  val (pre1, ctx1, post1) = dest_p4_contract' $ concl contract1
-  val (pre2, ctx2, post2) = dest_p4_contract' $ concl contract2
+  val (pre1, ctx1, _, post1) = dest_p4_contract_at $ concl contract1
+  val (pre2, ctx2, end2, post2) = dest_p4_contract_at $ concl contract2
 
   val init_state1 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre1
   val init_state2 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre2
@@ -3108,13 +3138,13 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
      k (n1, n2, mid, fin)
     end)
  in
- (* “^(mk_p4_contract' (pre1, ctx2, post2))” *)
-  prove(mk_p4_contract' (pre1, ctx1, post2),
+ (* “^(mk_p4_contract_at (pre1, ctx1, end2, post2))” *)
+  prove(mk_p4_contract_at (pre1, ctx1, end2, post2),
     assume_tac contract1 >>
     (* Somehow massively more efficient than REWRITE_TAC... *)
-    EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [p4_contract'_alt_shape] thm)) >>
+    EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [p4_contract_at_def] thm)) >>
     EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [wellformed_def] thm)) >>
-    SIMP_TAC bool_ss [p4_contract'_alt_shape] >>
+    SIMP_TAC bool_ss [p4_contract_at_def] >>
     rpt strip_tac >>
     (* Simplify the first contract *)
     qpat_x_assum ‘!s. _’ (fn thm => assume_tac (SPEC init_state1 thm)) >>
@@ -3141,7 +3171,7 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
      * the first *)
     with_exec1 (fn (n1, mid) =>
      assume_tac (INST (fst $ match_term init_state2 mid) contract2)) >>
-    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape] >>
+    FULL_SIMP_TAC std_ss [p4_contract_at_def] >>
     discharge_antecedents >>
     FULL_SIMP_TAC std_ss [] >>
 

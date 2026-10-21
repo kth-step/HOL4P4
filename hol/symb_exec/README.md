@@ -93,6 +93,36 @@ that nor its negation follows, the symbolic execution branches on it, and the pa
 the packet is too short (`PacketTooShort`) is explored as well. The final stage of the
 postcondition prover decides the arithmetic on packet lengths with `numSimps.ARITH_ss`.
 
+## Contracts
+
+A contract is a theorem `p4_contract_at P ctx E Q` (`p4_symb_execScript.sml`): from every
+state satisfying the precondition `P`, some number of steps of `arch_multi_exec ctx` reaches
+a state that satisfies both the end point `E` and the postcondition `Q`. `P`, `E` and `Q` are
+predicates on architectural states, and the definition does not constrain them further.
+
+`p4_symb_exec_prove_contract` proves such a theorem by symbolic execution from the state term
+`init_astate` under the path condition it is given. It runs every path until its state
+satisfies `E`, proves `E` and `Q` for each final state, and combines the paths into the
+contract. Since its step theorems speak only about `init_astate`, the tool forms the
+precondition itself, as `\s. path_cond /\ s = init_astate`; the free variables of `init_astate`
+and of the path condition stay universally quantified in the theorem. `E` is an argument of
+`p4_symb_exec_prove_contract`, which fails with an error if a path has not reached `E` within
+`n_max` steps (a branch also costs one step of fuel).
+
+The end point decides what the contract says:
+
+* `p4_finished` (block index 0 and no input left) is the end of the run. A finished state has
+  no next step when block 0 is the input block and the input function fails on an empty input
+  list, as in all three architectures (`p4_finished_arch_exec`). By `p4_contract_at_final`
+  the contract then states that the run terminates and that every final state satisfies `Q`.
+  Use this end point for properties of the output, including negative ones such as "never
+  forwards to port 1".
+* `\s. p4_block_next s k` stops when block `k` is about to start, for splitting a proof in two
+  with `p4_combine_contracts` (see `tests/decomposeScript.sml`). Such a contract only says that
+  `Q` holds at some point where block `k` is next.
+* `\s. T` says that `Q` holds after some number of steps, possibly zero
+  (`p4_contract'_contract_at`); with it the executor stops each path after its first step.
+
 ## Tests and examples
 
 The tests are located in the `tests` subdirectory. After installation, run them by first executing

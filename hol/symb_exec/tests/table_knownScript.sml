@@ -190,7 +190,7 @@ val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
 val path_cond = ASSUME “48 <= LENGTH ^p”
-val p4_is_finished_alt_opt = NONE
+val end_point = “p4_finished:v1model_ascope astate -> bool”
 val n_max = 60;
 val postcond = “(\s. packet_has_port s 42 \/ packet_has_port s 101):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
@@ -227,4 +227,4 @@ val (path_tree, [(n, path_cond_res, step_thm), (n2, path_cond2_res, step_thm2)])
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (symb_exec4_ftymap, symb_exec4_blftymap, symb_exec4_pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;

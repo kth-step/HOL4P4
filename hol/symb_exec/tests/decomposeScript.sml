@@ -151,7 +151,7 @@ val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
 val path_cond = ASSUME “LENGTH ^p = 48”
-val p4_is_finished_alt_opt = NONE
+val end_point = “p4_finished:v1model_ascope astate -> bool”
 val n_max = 100;
 val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
 val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
@@ -161,6 +161,7 @@ val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def]
 (* Straightforward from index 2 to 4, problem at 5 since disjunction is needed *)
 val block_index_stop = “2:num”
 val p4_is_finished_alt_opt1 = SOME (fn step_thm => Teq $ rhs $ concl $ EVAL “p4_block_next ^(optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm) ^block_index_stop”);
+val end_point1 = “(\s. p4_block_next s ^block_index_stop):v1model_ascope astate -> bool”;
 
 (* Get well-formedness property after parser block just finished *)
 val p4_v1model_parser_wellformed_def = (fn defn => let val _ = Defn.save_defn defn in Defn.fetch_eqns defn end) $ get_v1model_wellformed_defs ctx init_astate block_index_stop;
@@ -189,12 +190,12 @@ val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
 val postcond_rewr_thms1 = [p4_v1model_parser_wellformed_def, p4_v1model_lookup_avar_def, p4_v1model_lookup_avar_validity_def, lookup_lval_def, p4_coreTheory.v_map_to_scope_def, p4_symb_execTheory.packet_slice_def]
 (* DEBUG
 
-val p4_is_finished_alt_opt = p4_is_finished_alt_opt1
+val end_point = end_point1
 val postcond = postcond1
 val postcond_rewr_thms = postcond_rewr_thms1
 
 *)
-val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt1 n_max postcond1 postcond_rewr_thms1 postcond_simpset;
+val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point1 n_max postcond1 postcond_rewr_thms1 postcond_simpset;
 
 (* 2. Introduce a new initial state from the fact that p4_v1model_parser_wellformed holds.
  *    The weakest possible state that satisfies WF: this is the state where all
@@ -203,7 +204,7 @@ val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty
 val init_astate2 = get_intermediate_state postcond1 p4_v1model_parser_wellformed_def;
 
 (* 3. Prove a contract from the intermediate to final state *)
-val contract_thm2 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate2 stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm2 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate2 stop_consts_rewr stop_consts_never [] path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;
 
 (* 4. Combine the contracts *)
 (* DEBUG

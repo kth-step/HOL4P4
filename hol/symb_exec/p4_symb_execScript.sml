@@ -237,6 +237,127 @@ eq_tac >> (
 )
 QED
 
+(* All input has been processed *)
+Definition p4_finished_def:
+ p4_finished (((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status):'a astate) <=>
+  (i = 0 /\ in_out_list = [])
+End
+
+(* From every state satisfying P, a state satisfying both E and Q is reached *)
+Definition p4_contract_at_def:
+ p4_contract_at P ctx E Q <=>
+  !s.
+   P s ==>
+   ?n s'. arch_multi_exec ctx s n = SOME s' /\ E s' /\ Q s'
+End
+
+Theorem p4_contract_at_contract':
+!P ctx E Q.
+p4_contract_at P ctx E Q <=> p4_contract' P ctx (\s. E s /\ Q s)
+Proof
+simp[p4_contract_at_def, p4_contract'_alt_shape]
+QED
+
+Theorem p4_contract'_contract_at:
+!P ctx Q.
+p4_contract' P ctx Q <=> p4_contract_at P ctx (\s. T) Q
+Proof
+simp[p4_contract_at_def, p4_contract'_alt_shape]
+QED
+
+Theorem arch_multi_exec_stuck:
+!actx s n.
+arch_exec actx s = NONE ==>
+arch_multi_exec actx s (SUC n) = NONE
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+gs[p4_exec_semTheory.arch_multi_exec_def]
+QED
+
+Theorem arch_multi_exec_stuck_add:
+!actx s n k s1 s2.
+arch_multi_exec actx s n = SOME s1 ==>
+arch_exec actx s1 = NONE ==>
+arch_multi_exec actx s (n + k) = SOME s2 ==>
+s2 = s1
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+PairCases_on ‘s1’ >>
+qpat_x_assum ‘arch_multi_exec _ _ (n + k) = _’ mp_tac >>
+ONCE_REWRITE_TAC [arithmeticTheory.ADD_COMM] >>
+asm_simp_tac std_ss [p4_exec_semTheory.arch_multi_exec_add] >>
+Cases_on ‘k’ >- (
+ simp[p4_exec_semTheory.arch_multi_exec_def]
+) >>
+simp[arch_multi_exec_stuck]
+QED
+
+Theorem arch_multi_exec_stuck_unique:
+!actx s n m s1 s2.
+arch_multi_exec actx s n = SOME s1 ==>
+arch_exec actx s1 = NONE ==>
+arch_multi_exec actx s m = SOME s2 ==>
+arch_exec actx s2 = NONE ==>
+s1 = s2
+Proof
+rpt strip_tac >>
+Cases_on ‘n <= m’ >- (
+ gs[arithmeticTheory.LESS_EQ_EXISTS] >>
+ imp_res_tac arch_multi_exec_stuck_add >>
+ gs[]
+) >>
+gs[arithmeticTheory.NOT_LESS_EQUAL] >>
+imp_res_tac arithmeticTheory.LESS_IMP_LESS_OR_EQ >>
+gs[arithmeticTheory.LESS_EQ_EXISTS] >>
+imp_res_tac arch_multi_exec_stuck_add >>
+gs[]
+QED
+
+(* If execution stops at the end point, Q holds at every end point reached *)
+Theorem p4_contract_at_final:
+!P ctx E Q.
+(!s. E s ==> arch_exec ctx s = NONE) ==>
+(p4_contract_at P ctx E Q <=>
+ !s.
+  P s ==>
+  (?n s'. arch_multi_exec ctx s n = SOME s' /\ E s') /\
+  (!n s'. arch_multi_exec ctx s n = SOME s' /\ E s' ==> Q s'))
+Proof
+rw[p4_contract_at_def] >>
+eq_tac >- (
+ rpt strip_tac >>
+ res_tac >- (
+  qexistsl_tac [‘n’, ‘s'’] >>
+  simp[]
+ ) >>
+ qspecl_then [‘ctx’, ‘s’, ‘n’, ‘n'’, ‘s'’, ‘s''’] mp_tac arch_multi_exec_stuck_unique >>
+ gs[]
+) >>
+rpt strip_tac >>
+res_tac >>
+qexistsl_tac [‘n’, ‘s'’] >>
+simp[]
+QED
+
+Theorem p4_finished_arch_exec:
+!ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map get_oracle_index set_oracle_index random_oracle s.
+EL 0 ab_list = arch_block_inp ==>
+(!ascope. input_f ([], ascope) = NONE) ==>
+p4_finished s ==>
+arch_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx) s = NONE
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+gs[p4_finished_def] >>
+Cases_on ‘s5’ >> (
+ Cases_on ‘s6’ >> (
+  gs[p4_exec_semTheory.arch_exec_def]
+ )
+)
+QED
+
 (* TODO: Annoying that entire ascope is used. You can make more efficient versions that only use ctrl, tailored for individual architectures. *)
 Definition v1model_ctrl_is_well_formed_def:
  v1model_ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) ctrl =

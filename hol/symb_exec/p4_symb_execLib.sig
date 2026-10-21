@@ -23,13 +23,13 @@ val p4_symb_exec:
 val p4_symb_exec_prove_contract:
    bool ->
    hol_type ->
-     defn_data -> (term * term * term) -> string list -> thm list -> term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> simpLib.simpset -> thm
+     defn_data -> (term * term * term) -> string list -> thm list -> term -> term list -> term list -> thm list -> thm -> term -> int -> term -> thm list -> simpLib.simpset -> thm
 
 val p4_symb_exec_prove_contract_conc:
    bool ->
    hol_type ->
      defn_data -> (term * term * term) -> string list -> thm list ->
-       term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> simpLib.simpset -> thm
+       term -> term list -> term list -> thm list -> thm -> term -> int -> term -> thm list -> simpLib.simpset -> thm
 
 val p4_debug_symb_exec:
    hol_type ->
