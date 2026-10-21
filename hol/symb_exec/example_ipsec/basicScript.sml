@@ -1274,13 +1274,9 @@ val basic_astate = ``((0,[],[],2,[(0,INR v1model_v_ext_ipsec_crypt); (1,INR (v1m
 (********************)
 (* MANUAL ADDITIONS *)
 
-(* Setting up the input packet. Note that this implicitly assumes the input has a certain length *)
-val eth_input = mk_symb_packet_prefix "eth" 112;
-val ipv4_input = mk_symb_packet_prefix "ip" 160;
-val esp_input = mk_symb_packet_prefix "esp" 64;
-val input = rhs $ concl $ EVAL “^eth_input ++ (^ipv4_input ++ ^esp_input)”;
+val p = “p:bool list”;
 
-val basic_astate_symb = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] “p4_append_input_list [(^input,0)] ^basic_astate”;
+val basic_astate_symb = rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] “p4_append_input_list [(^p,0)] ^basic_astate”;
 
 val ctx = basic_actx;
 val ctx_name = "basic_ctx"
@@ -1320,7 +1316,8 @@ val init_astate = basic_astate_symb
 val stop_consts_rewr = [“v1model_is_drop_port”, “v1model_register_read_inner”, “v1model_register_write_inner”, “v1model_update_checksum_inner”]
 val stop_consts_never = [“v1model_register_construct_inner”]
 val thms_to_add = []
-val path_cond = ASSUME “^basic_wf_sad_encrypt_tbl_tm /\
+val path_cond = ASSUME “336 <= LENGTH ^p /\
+                        ^basic_wf_sad_encrypt_tbl_tm /\
                         ^basic_wf_sad_decrypt_tbl_tm /\
                         ^basic_wf_forward_tbl_tm /\
                         ^basic_wf_spd_tbl_tm”
@@ -1330,11 +1327,10 @@ val p4_is_finished_alt_opt = NONE;
 
 
 (* Defining the postcondition *)
-(* Pick the bits at the right positions according to the input packet definition above *)
-val etherType = “[eth96; eth97; eth98; eth99; eth100;
-                  eth101; eth102; eth103; eth104; eth105; eth106; eth107; eth108; eth109;
-                  eth110; eth111]:bool list”;
-val protocol = “[ip72; ip73; ip74; ip75; ip76; ip77; ip78; ip79]:bool list”
+(* The fields of the input packet at their positions: etherType is bits 96 to 111 of the
+ * ethernet header, protocol is bits 72 to 79 of the IPv4 header, which starts at bit 112 *)
+val etherType = “packet_slice 96 16 ^p”;
+val protocol = “packet_slice 184 8 ^p”;
 
 val IPv4 = “[F; F; F; F; T; F; F; F; F; F; F; F; F; F; F; F]”
 val ESP = “[F; F; T; T; F; F; T; F]”
@@ -1345,20 +1341,19 @@ val postcond =
        (* or, if it's not, *)
        (?bit_list. get_packet s = SOME bit_list /\
         (* if etherType isn't IPv4, then packet length stays the same; *)
-        ((^etherType <> ^IPv4 /\ LENGTH bit_list = 336) \/
+        ((^etherType <> ^IPv4 /\ LENGTH bit_list = LENGTH ^p) \/
          (* if packet length increased, then ethertype must have been IPv4
           * and protocol can't have been ESP; *)
-         ((LENGTH bit_list = 336 \/ LENGTH bit_list = 400 \/ LENGTH bit_list = 480 \/ LENGTH bit_list = 544) /\
+         ((LENGTH bit_list = LENGTH ^p \/ LENGTH bit_list = LENGTH ^p + 64 \/ LENGTH bit_list = LENGTH ^p + 144 \/ LENGTH bit_list = LENGTH ^p + 208) /\
           (^etherType = ^IPv4 /\ ^protocol <> ^ESP)) \/
          (* if packet length decreased, then ethertype must have been IPv4
           * and protocol must have been ESP. *)
-         ((LENGTH bit_list = 336 \/ LENGTH bit_list = 272) /\
+         ((LENGTH bit_list = LENGTH ^p \/ LENGTH bit_list = LENGTH ^p - 64) /\
           (^etherType = ^IPv4 /\ ^protocol = ^ESP)))))):v1model_ascope astate -> bool”;
 
-val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def, p4_symb_execTheory.get_packet_def, p4_symb_execTheory.packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def];
+val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def, p4_symb_execTheory.get_packet_def, p4_symb_execTheory.packet_dropped_def, p4_v1modelTheory.v1model_is_drop_port_def, p4_symb_execTheory.packet_slice_def];
 
-(* TODO: ??? *)
-val postcond_simpset = pure_ss
+val postcond_simpset = srw_ss()++numSimps.ARITH_ss
 
 val time_start = Time.now();
 

@@ -12,7 +12,7 @@ open symb_execTheory p4_symb_execTheory p4_bigstepTheory;
 open p4Syntax p4_exec_semSyntax evalwrapLib p4_testLib symb_execSyntax p4_symb_execSyntax;
 open auxLib symb_execLib p4_bigstepSyntax;
 
-open p4_convLib p4_symb_exec_v1modelLib;
+open p4_convLib p4_symb_exec_coreLib p4_symb_exec_v1modelLib;
 
 val ERR = mk_HOL_ERR "p4_symb_exec"
 
@@ -1084,6 +1084,12 @@ val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; AR
       then approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope
       else if (ext_obj = "") andalso (ext_method = "update_checksum")
       then approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list
+      else if (ext_obj = "packet_in") andalso (ext_method = "extract")
+      then SOME (approx_packet_in_extract fv_index path_tm scope_list ascope)
+      else if (ext_obj = "packet_in") andalso (ext_method = "lookahead")
+      then SOME (approx_packet_in_lookahead fv_index path_tm scope_list ascope)
+      else if (ext_obj = "packet_in") andalso (ext_method = "advance")
+      then SOME (approx_packet_in_advance fv_index path_tm scope_list ascope)
       else NONE
      end
     else NONE
@@ -2208,6 +2214,9 @@ val (small_big_exec_tm, mk_small_big_exec, dest_small_big_exec, is_small_big_exe
  * Here, the static ctxt and the dynamic path condition have been merged. *)
 fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
  let
+  (* Evaluation must stop at the inner functions of the packet_in methods *)
+  val stop_consts_rewr = add_packet_in_stop_consts stop_consts_rewr
+
   (* Pre-process ftymap and b_fty_map *)
   val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
 
@@ -2589,10 +2598,6 @@ fun p4_prove_wellformed_state astate wf_def =
    val abstract_ext_obj_ctrl = mk_pair (abstract_ext_obj_map, abstract_ctrl)
    val ext_obj_ctrl_vars = List.filter (fn v => free_in v abstract_ext_obj_ctrl) vars
    val ext_obj_ctrl_witnesses = map (subst (fst $ match_term abstract_ext_obj_ctrl (mk_pair (ext_obj_map, ctrl)))) ext_obj_ctrl_vars
-   (* TODO: Remaining input packet *)
-(*
-   val input_packet_tail_var = snd $ dest_comb $ fst $ sumSyntax.dest_inl $ snd $ dest_pair $ hd $ fst $ dest_list ext_obj_map
-*)
 
    (* 2. Variables from v_map
     *    * Block parameters of V1Model *)
@@ -2602,9 +2607,6 @@ fun p4_prove_wellformed_state astate wf_def =
     *    * Desugaring struct for apply results *)
    val g_scope_list_bits = get_bits_of_v $ fst $ dest_pair $ snd $ dest_pair $ hd $ fst $ dest_list $ hd $ fst $ dest_list g_scope_list
   in
-(*
-   exists_tac input_packet_tail_var >>
-*)
    (map_every $ exists_tac) ext_obj_ctrl_witnesses >>
    (map_every $ exists_tac) v_map_bits >>
    exists_tac oracle_index >>
@@ -2677,6 +2679,7 @@ datatype defn_data =
  * provided freely *)
 fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset =
  let
+  val stop_consts_rewr' = add_packet_in_stop_consts stop_consts_rewr
 
   (* DEBUG *)
   val time_start = Time.now();
@@ -2696,7 +2699,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   (* DEBUG *)
   (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
+   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr' stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
 
   (* DEBUG *)
   val time_res = Time.toSeconds ((Time.now()) - time_start)
@@ -2705,7 +2708,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag postcond_rewr_thms (stop_consts_rewr@stop_consts_never) postcond_simpset postcond path_cond_step_list
+   prove_postconds debug_flag postcond_rewr_thms (stop_consts_rewr'@stop_consts_never) postcond_simpset postcond path_cond_step_list
 (*
    if debug_flag
    then
@@ -2959,7 +2962,8 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   val n = int_of_term n_tm
   val (tau1_v, tau2_v) = dest_pair tparams
 
-  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map) [(^n_tm, INL (core_v_ext_packet [])); (^(term_of_int (n+1)), INL (core_v_ext_packet []))]”
+val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
+  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map) [(^n_tm, INL (core_v_ext_packet ^packet_tail_var)); (^(term_of_int (n+1)), INL (core_v_ext_packet []))]”
   val ext_obj_ctrl_vars = free_varsl [ext_obj_map', ctrl]
   val counter' = term_of_int (n+2)
   val tau1 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau1_v”
@@ -2997,9 +3001,7 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   val g_scope_list' = mk_list ([mk_cons (gen_apply_result_var, var_stars)], scope_ty)
 
   (* TODO: Make this work for ctrl tables that are not constants *)
-(* OLD
-  val def_free_vars = [“packet_tail:bool list”]@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[hit_var, miss_var]@ar_free_vars
-*)
+  (* Note: p4_prove_wellformed_state provides the witnesses in this order *)
   val def_free_vars = ext_obj_ctrl_vars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
  in
   (* TODO: Adjust block index for the block in question, adjust extern map? *)
@@ -3011,9 +3013,9 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
  end
 ;
 
+(* TODO: Move *)
 val (p4_v1model_lookup_avar_validity_tm,  mk_p4_v1model_lookup_avar_validity, dest_p4_v1model_lookup_avar_validity, is_p4_v1model_lookup_avar_validity) =
   syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar_validity";
-
 val (p4_v1model_lookup_avar_tm,  mk_p4_v1model_lookup_avar, dest_p4_v1model_lookup_avar, is_p4_v1model_lookup_avar) =
   syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar";
 
@@ -3052,32 +3054,55 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
   val (pre2, ctx2, post2) = dest_p4_contract' $ concl contract2
 
   val init_state1 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre1
+  val init_state2 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre2
+
+  val discharge_antecedents =
+   rpt (qpat_x_assum ‘A ==> B’ (fn thm =>
+    SUBGOAL_THEN (fst $ dest_imp $ concl thm) (fn a => assume_tac (MP thm a)) >- asm_simp_tac bool_ss []))
+
+  fun execs_of asl =
+   List.mapPartial (fn thm =>
+     (let
+       val (l, r) = dest_eq (concl thm)
+       val (_, s, n) = dest_arch_multi_exec l
+      in SOME (s, n, dest_some r) end) handle HOL_ERR _ => NONE) asl
+  fun exec_from s execs =
+   case List.find (fn (s', _, _) => term_eq s' s) execs of
+     SOME (_, n, s') => (n, s')
+   | NONE => raise (ERR "p4_combine_contracts" "Could not find the execution from a state among the assumptions")
+
+  (* Applies k to the execution from the initial state in the assumptions: n1 steps to the
+   * intermediate state mid *)
+  fun with_exec1 k =
+   ASSUM_LIST (fn asl => k (exec_from init_state1 (execs_of asl)))
+
+  (* Applies k to the two executions in the assumptions: from the initial state in n1
+   * steps to the intermediate state mid, and from mid in n2 steps to the final state fin *)
+  fun with_execs k =
+   ASSUM_LIST (fn asl =>
+    let
+     val execs = execs_of asl
+     val (n1, mid) = exec_from init_state1 execs
+     val (n2, fin) = exec_from mid execs
+    in
+     k (n1, n2, mid, fin)
+    end)
  in
  (* “^(mk_p4_contract' (pre1, ctx2, post2))” *)
   prove(mk_p4_contract' (pre1, ctx1, post2),
-  (let
-    val gen_contract2 = (hol88Lib.GEN_ALL contract2)
-    val vars = fst $ strip_forall $ concl $ gen_contract2
-   in
     assume_tac contract1 >>
-(*
-    qpat_x_assum ‘!vars. _’ (fn thm => markerLib.ABBREV_TAC “contract2 = ^(concl thm)”) >>
-    qpat_x_assum ‘Abbrev (contract2 = _)’ (fn thm => markerLib.hide_tac "hide_contract2" thm) >>
-
-    goal_term (fn tm => markerLib.ABBREV_TAC “goal = ^tm”) >>
-    qpat_x_assum ‘Abbrev (goal = _)’ (fn thm => markerLib.hide_tac "goal_hide" thm) >>
-
-    rpt (qpat_x_assum ‘?vars. _’ (fn thm => CHOOSE_TAC thm)) >>
-*)
     (* Somehow massively more efficient than REWRITE_TAC... *)
     EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [p4_contract'_alt_shape] thm)) >>
     EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [wellformed_def] thm)) >>
     SIMP_TAC bool_ss [p4_contract'_alt_shape] >>
+    rpt strip_tac >>
     (* Simplify the first contract *)
     qpat_x_assum ‘!s. _’ (fn thm => assume_tac (SPEC init_state1 thm)) >>
     qpat_x_assum ‘A ==> B’ (fn thm => assume_tac (REWRITE_RULE [(EVAL_CONV $ fst $ dest_imp $ concl thm)] thm)) >>
+    discharge_antecedents >>
     FULL_SIMP_TAC pure_ss [] >>
-    qpat_x_assum ‘P s'’ (fn thm => assume_tac (REWRITE_RULE [(EVAL_CONV $ concl thm)] thm)) >>
+    (* Evaluate the postcondition of the first contract applied to the intermediate state *)
+    RULE_ASSUM_TAC (fn thm => let val tm = concl thm in if is_comb tm andalso is_abs (rator tm) then REWRITE_RULE [EVAL_CONV tm] thm else thm end) >>
     (**********************************************)
     (* Construction of the intermediate state s'  *)
 
@@ -3091,36 +3116,25 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
     rpt (qpat_x_assum ‘p4_v1model_lookup_avar _ _ = _’ (fn thm => (FULL_SIMP_TAC bool_ss [EVAL_RULE thm]))) >>
     (* Use all assumptions on validity bits *)
     rpt (qpat_x_assum ‘p4_v1model_lookup_avar_validity _ _ = _’ (fn thm => (FULL_SIMP_TAC bool_ss [EVAL_RULE thm]))) >>
-    
-    (* Introduce the second contract *)
-    qpat_assum ‘arch_multi_exec _ _ _ = _’ (fn thm => assume_tac $ SPECL (free_vars_lr $ rhs $ concl thm) gen_contract2) >>
-    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape] >>
 
-    (* Specialise the random oracle *)
-    qpat_x_assum ‘!random_oracle. _’ (fn thm =>
-     let
-      val oracle_var = el 1 $ fst $ strip_forall $ concl thm
-     in
-      assume_tac $ SPECL [oracle_var] thm
-     end) >>
-    FULL_SIMP_TAC std_ss []
-   end) >> (
+    (* Introduce the second contract, instantiated to the intermediate state reached by
+     * the first *)
+    with_exec1 (fn (n1, mid) =>
+     assume_tac (INST (fst $ match_term init_state2 mid) contract2)) >>
+    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape] >>
+    discharge_antecedents >>
+    FULL_SIMP_TAC std_ss [] >>
+
     (* Combine the two executions *)
-    qexistsl_tac [‘n + n'’, ‘s'’] >>
+    with_execs (fn (n1, n2, mid, fin) => exists_tac (numSyntax.mk_plus (n1, n2)) >> exists_tac fin) >>
     rfs[] >>
-    PairCases_on ‘s'’ >>
+    with_execs (fn (n1, n2, mid, fin) => PairCases_on [QUOTE (fst (dest_var fin))]) >>
     irule arch_multi_exec_comp_n_tl >>
-(* OLD
-    (* Use constraints on middle state:
-     * Currently, this looks for all instances of p4_v1model_lookup_avar, and validity version. *)
-    (* TODO: Use HOL4P4_CONV? *)
-    rpt (qpat_x_assum ‘p4_v1model_lookup_avar _ _ = _’ (fn thm => ASSUME_TAC $ EVAL_RULE thm)) >>
-    rpt (qpat_x_assum ‘p4_v1model_lookup_avar_validity _ _ = _’ (fn thm => ASSUME_TAC $ EVAL_RULE thm)) >>
-*)
     FULL_SIMP_TAC std_ss []
-   )
   )
-      
+ end
+;
+
 (* TODO: See if you can use abbreviations anywhere...
    markerLib.ABBREV_TAC “init_state1 = ^init_state1” >>
    qpat_x_assum ‘Abbrev (init_state1 = _)’ (fn thm => markerLib.hide_tac "hide_init_state1" thm) >>
@@ -3128,7 +3142,4 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
      markerLib.unhide_tac "hide_init_state1" >>
      markerLib.UNABBREV_TAC "init_state1" >>
 *)
- end
-;
-
 end

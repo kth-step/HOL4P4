@@ -1,6 +1,6 @@
 Theory p4_symb_exec
 Ancestors
-  p4 list symb_exec p4_v1model p4_bigstep p4_ebpf[qualified] p4_vss[qualified]
+  p4 p4_core list symb_exec p4_v1model p4_bigstep p4_ebpf[qualified] p4_vss[qualified]
 Libs
   wordsLib[qualified]
 (* wordsLib is loaded for its side effect of adding the word simpsets to srw_ss *)
@@ -540,6 +540,52 @@ Theorem w2v_exists:
 Proof
 rpt strip_tac >>
 fs[bitstringTheory.w2v_def]
+QED
+
+(****************************)
+(* Symbolic packet handling *)
+
+Definition packet_slice_def:
+ packet_slice n w (p:bool list) = GENLIST (\i. EL (n + i) p) w
+End
+
+Definition packet_word_def:
+ packet_word n (p:bool list) = (v2w (packet_slice n (dimindex (:'a)) p)):'a word
+End
+
+Theorem LENGTH_packet_slice:
+!n w p. LENGTH (packet_slice n w p) = w
+Proof
+simp[packet_slice_def]
+QED
+
+Theorem EL_packet_slice:
+!n w p i. i < w ==> EL i (packet_slice n w p) = EL (n + i) p
+Proof
+simp[packet_slice_def, listTheory.EL_GENLIST]
+QED
+
+Theorem packet_slice_TAKE_DROP:
+!n w p. n + w <= LENGTH p ==> packet_slice n w p = TAKE w (DROP n p)
+Proof
+rpt strip_tac >>
+simp[listTheory.LIST_EQ_REWRITE, LENGTH_packet_slice, listTheory.LENGTH_TAKE, EL_packet_slice, listTheory.EL_TAKE, listTheory.EL_DROP]
+QED
+
+Theorem packet_in_take_slice:
+!size n p.
+ n + size <= LENGTH p ==>
+ packet_in_take size (DROP n p) = SOME (packet_slice n size p, DROP (n + size) p)
+Proof
+asm_simp_tac (srw_ss() ++ numSimps.ARITH_ss) [packet_in_take_def, packet_slice_TAKE_DROP, rich_listTheory.DROP_DROP_T]
+QED
+
+Theorem packet_in_take_too_short:
+!size n p.
+ n <= LENGTH p /\ LENGTH p < n + size ==>
+ packet_in_take size (DROP n p) = NONE
+Proof
+simp[packet_in_take_def]
 QED
 
 (* The oracle index getters and setters of the architectures are sane, as required by the

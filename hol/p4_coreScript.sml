@@ -204,6 +204,14 @@ Definition set_v_def:
  (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in))
 End
 
+(* The symbolic executor stops evaluation at this function and branches *)
+Definition packet_in_take_def:
+ packet_in_take size packet_in_bl =
+  if size <= LENGTH packet_in_bl
+  then SOME (TAKE size packet_in_bl, DROP size packet_in_bl)
+  else NONE
+End
+
 (* See https://p4.org/p4-spec/docs/P4-16-v1.2.2.html#sec-packet-extract-one *)
 (* TODO: Extend to cover extraction to header stacks *)
 Definition packet_in_extract_gen_def:
@@ -216,18 +224,18 @@ Definition packet_in_extract_gen_def:
       | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
        (case size_in_bits (v_header valid_bit x_v_l) of
         | SOME size =>
-         if size <= LENGTH packet_in_bl
-         then
-          (case set_header x_v_l packet_in_bl of
-           | SOME header =>
-            (case assign scope_list header (lval_varname (varn_name "headerLvalue")) of
-             | SOME scope_list' =>
-              SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP size packet_in_bl))):(core_v_ext, 'b) sum), scope_list', status_returnv v_bot)
-             | NONE => NONE)
-           | NONE => NONE)
-         else
-          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+         (case packet_in_take size packet_in_bl of
+          | SOME (header_bl, packet_in_bl') =>
+           (case set_header x_v_l header_bl of
+            | SOME header =>
+             (case assign scope_list header (lval_varname (varn_name "headerLvalue")) of
+              | SOME scope_list' =>
+               SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet packet_in_bl')):(core_v_ext, 'b) sum), scope_list', status_returnv v_bot)
+              | NONE => NONE)
+            | NONE => NONE)
+          | NONE =>
+           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+           SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -246,15 +254,15 @@ Definition packet_in_lookahead_gen_def:
       | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
        (case size_in_bits dummy_v of
         | SOME size =>
-         if size <= LENGTH packet_in_bl
-         then
-          (case set_v dummy_v packet_in_bl of
-           | SOME v =>
-            SOME (ascope, scope_list, status_returnv v)
-           | NONE => NONE)
-         else
-          (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-          SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+         (case packet_in_take size packet_in_bl of
+          | SOME (v_bl, _) =>
+           (case set_v dummy_v v_bl of
+            | SOME v =>
+             SOME (ascope, scope_list, status_returnv v)
+            | NONE => NONE)
+          | NONE =>
+           (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+           SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -282,17 +290,80 @@ Definition packet_in_advance_gen_def:
     | SOME n_bits =>
      (case lookup_ascope_gen ascope_lookup ascope i of
       | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
-       if n_bits <= LENGTH packet_in_bl
-       then
-        SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (DROP n_bits packet_in_bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
-       else
-        (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-        SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject")
+       (case packet_in_take n_bits packet_in_bl of
+        | SOME (_, packet_in_bl') =>
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet packet_in_bl')):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
+        | NONE =>
+         (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+         SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
        | _ => NONE)
     | NONE => NONE)
   | _ => NONE
  )
 End
+
+
+Theorem packet_in_take_NONE:
+!size bl. packet_in_take size bl = NONE <=> LENGTH bl < size
+Proof
+simp[packet_in_take_def]
+QED
+
+Theorem set_fields_struct_TAKE:
+!x_v_l size acc bl m.
+ size_in_bits (v_struct x_v_l) = SOME size /\ size <= m ==>
+ set_fields x_v_l acc (TAKE m bl) = set_fields x_v_l acc bl
+Proof
+Induct_on ‘x_v_l’ >> rpt strip_tac >> (
+ simp[set_fields_def]
+) >>
+PairCases_on ‘h’ >>
+Cases_on ‘h1’ >> (
+ gvs[size_in_bits_def, set_fields_def, set_bit_def, set_bool_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [listTheory.HD_TAKE, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+)
+QED
+
+Theorem set_fields_header_TAKE:
+!b x_v_l size acc bl m.
+ size_in_bits (v_header b x_v_l) = SOME size /\ size <= m ==>
+ set_fields x_v_l acc (TAKE m bl) = set_fields x_v_l acc bl
+Proof
+gen_tac >>
+Induct_on ‘x_v_l’ >> rpt strip_tac >- (
+ simp[set_fields_def]
+) >>
+PairCases_on ‘h’ >>
+Cases_on ‘h1’ >> (
+ gvs[size_in_bits_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss() ++ numSimps.ARITH_ss) [set_fields_def, set_bit_def, set_bool_def, listTheory.HD_TAKE, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+)
+QED
+
+Theorem set_header_TAKE:
+!b x_v_l size bl.
+ size_in_bits (v_header b x_v_l) = SOME size ==>
+ set_header x_v_l (TAKE size bl) = set_header x_v_l bl
+Proof
+rpt strip_tac >>
+simp[set_header_def] >>
+drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_header_TAKE >>
+simp[]
+QED
+
+Theorem set_v_TAKE:
+!v size bl.
+ size_in_bits v = SOME size ==>
+ set_v v (TAKE size bl) = set_v v bl
+Proof
+Cases_on ‘v’ >> (
+ rpt strip_tac >>
+ TRY (rename1 ‘v_bit bvn’ >> Cases_on ‘bvn’) >>
+ gvs[size_in_bits_def, set_v_def, set_bit_def, set_bool_def, set_struct_def, set_header_def, listTheory.HD_TAKE, rich_listTheory.TAKE_TAKE_T] >>
+ TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_struct_TAKE >> simp[]) >>
+ TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_header_TAKE >> simp[])
+)
+QED
 
 
 (**********************)

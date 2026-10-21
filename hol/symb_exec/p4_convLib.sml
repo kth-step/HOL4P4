@@ -114,6 +114,16 @@ local
    hol4p4_compset
    [pairLib.add_pair_compset, optionLib.OPTION_rws, (wordsLib.add_words_compset true),
     stringLib.add_string_compset, alistLib.add_alist_compset]
+ (* n2v loops on free variables, so it is only evaluate on concrete numbers (put before add_thy_list) *)
+ val n2v_tm = prim_mk_const {Thy = "bitstring", Name = "n2v"}
+ fun n2v_conv tm =
+  if numSyntax.is_numeral (rand tm)
+  then REWR_CONV bitstringTheory.n2v_def tm
+  else raise (mk_HOL_ERR "p4_convLib" "n2v_conv" "symbolic argument")
+ val _ = List.app (fn cs => ((computeLib.scrub_const cs n2v_tm handle _ => ());
+                             computeLib.add_conv (n2v_tm, 1, n2v_conv) cs))
+                  [hol4p4_compset, computeLib.the_compset]
+
  val _ = add_thy_list list_of_thys hol4p4_compset
  val _ = computeLib.add_thms [alistTheory.AFUPDKEY_def] hol4p4_compset
  (* TODO: Nice to have? *)

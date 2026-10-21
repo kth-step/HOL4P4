@@ -517,8 +517,9 @@ val rhs_fin = snd $ dest_eq $ concl test_thm
 
 val hypo_thm = (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss) rewr_thms)) $ hypo
 *)
-  (* LIFT_COND_ss performs the case analysis on conditionals remaining in the final state, e.g. a symbolic drop port *)
-  val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss++boolSimps.LIFT_COND_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
+  (* LIFT_COND_ss performs the case analysis on conditionals remaining in the final state, e.g. a symbolic drop port.
+   * ARITH_ss decides the linear arithmetic that remains after that, e.g. the length of an output packet *)
+  val postcond_thm = EQT_ELIM $ (SIMP_CONV bool_ss rewr_thms THENC SIMP_CONV simpset [] THENC computeLib.RESTR_EVAL_CONV restr_tms THENC (SIMP_CONV ((srw_ss())++bitstringLib.BITSTRING_GROUND_ss++boolSimps.LET_ss++boolSimps.LIFT_COND_ss++numSimps.ARITH_ss) rewr_thms)) $ mk_imp (hypo, mk_comb (postcond, res_state_tm))
  in
   MATCH_MP prel_res_thm postcond_thm
  end

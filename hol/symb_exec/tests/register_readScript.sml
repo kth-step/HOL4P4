@@ -215,12 +215,10 @@ val symb_exec7_actx = ``([arch_block_inp;
    [("from_table",d_in); ("hit",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
+val p = “p:bool list”;
+
 val symb_exec7_astate_symb =
- rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] ``p4_append_input_list [([e1; e2; e3; e4; e5; e6; e7; e8;
- t0; t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13; t14; t15;
- F; F; F; F; F; F; F; F;
- F; F; F; F; F; F; F; F;
- T; F; T; T; F; F; F; F],0)] ((0,[],[],1,[(0,INR (v1model_v_ext_register (v1model_register_construct_inner 1024 32 0 random_oracle)))],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
+ rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] ``p4_append_input_list [(^p,0)] ((0,[],[],1,[(0,INR (v1model_v_ext_register (v1model_register_construct_inner 1024 32 0 random_oracle)))],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
   [("t2",t2_ctrl);
    ("t1",
     [(((λk.
@@ -277,7 +275,7 @@ val init_astate = symb_exec7_astate_symb
 val stop_consts_rewr = [“v1model_register_read_inner”]
 val stop_consts_never = [“v1model_register_construct_inner”]
 val thms_to_add = []
-val path_cond = ASSUME T
+val path_cond = ASSUME “48 <= LENGTH ^p”
 val p4_is_finished_alt_opt = NONE
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
