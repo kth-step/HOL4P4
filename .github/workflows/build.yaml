@@ -8,6 +8,11 @@ on:
   pull_request:
     branches: [ '**' ]
 
+# The push and pull_request runs of one branch share a group
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build
@@ -19,7 +24,6 @@ jobs:
         hol4: ['trindemossen-2']
 
     env:
-      CACHE_DIR: /home/runner/cache
       POLYML_VERSION: ${{ matrix.polyml }}
       HOL4_VERSION: ${{ matrix.hol4 }}
 
@@ -32,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            /home/runner/work/HOL4P4/HOL4P4/scripts/HOL
+            ${{ github.workspace }}/scripts/HOL
           key: os-${{ runner.os }}_polyml-${{ matrix.polyml }}_hol4-${{ matrix.hol4 }}
 
       - name: Prepare cached dependencies
@@ -41,10 +45,13 @@ jobs:
           cd scripts && ./install.sh
 
       - name: Export Ott files to HOL4 and run Holmake
-        run: eval "$(opam env)" && export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make hol
+        run: eval "$(opam env)" && export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make hol
         
+      - name: Compile tests of the base theories
+        run: export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make hol_tests
+
       - name: Compile metatheory
-        run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make metatheory
+        run: export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make metatheory
 
       - name: Compile symbolic execution tests
-        run: export PATH=$PATH:/home/runner/work/HOL4P4/HOL4P4/scripts/HOL/bin && make symb_exec_tests
+        run: export PATH=$PATH:$GITHUB_WORKSPACE/scripts/HOL/bin && make symb_exec_tests

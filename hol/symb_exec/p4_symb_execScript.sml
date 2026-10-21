@@ -596,7 +596,7 @@ Proof
 gs[oracle_index_getter_setter_sane_def] >>
 rpt strip_tac >> (
  PairCases_on ‘ascope’ >>
- gvs[v1model_get_oracle_index_def, v1model_set_oracle_index_def]
+ gvs[v1model_get_oracle_index_def, v1model_set_oracle_index_def, get_oracle_index_gen_def, set_oracle_index_gen_def]
 )
 QED
 
@@ -606,7 +606,7 @@ Proof
 gs[oracle_index_getter_setter_sane_def] >>
 rpt strip_tac >> (
  PairCases_on ‘ascope’ >>
- gvs[p4_vssTheory.vss_get_oracle_index_def, p4_vssTheory.vss_set_oracle_index_def]
+ gvs[p4_vssTheory.vss_get_oracle_index_def, p4_vssTheory.vss_set_oracle_index_def, get_oracle_index_gen_def, set_oracle_index_gen_def]
 )
 QED
 
@@ -616,6 +616,6 @@ Proof
 gs[oracle_index_getter_setter_sane_def] >>
 rpt strip_tac >> (
  PairCases_on ‘ascope’ >>
- gvs[p4_ebpfTheory.ebpf_get_oracle_index_def, p4_ebpfTheory.ebpf_set_oracle_index_def]
+ gvs[p4_ebpfTheory.ebpf_get_oracle_index_def, p4_ebpfTheory.ebpf_set_oracle_index_def, get_oracle_index_gen_def, set_oracle_index_gen_def]
 )
 QED

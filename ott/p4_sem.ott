@@ -255,9 +255,9 @@ formula :: formula_ ::=
   {{ com access of string in select key-value list }}
   {{ hol [[x']] = sel [[v]] [[s_list1 x1 ... s_listn xn]] [[x]]}}
   {{ tex [[x']] = \{ sl_1 : x_1 ; ... ; sl_n : x_n ; \_ : x \} [[v]] }}
-| check_args_red d_list e_list :: M :: signature_check  
-  {{ com check if arguments are isvar or isconst }}
-  {{ tex \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e_i))  }}
+| check_args_red d_list e_list :: M :: signature_check
+  {{ com check if arguments are saved or isconst }}
+  {{ tex \forall i \leqslant n. \, ((d_i \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e_i ) \land (d_i \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_saved} \, e_i))  }}
  % {{ tex \forall d ,\, e ,\, i \leqslant n. \, d = [[d_list]] [i] \, \land \, e = [[e_list]] [i] \, \implies  
  %        ((d \in \{\circ , \downarrow\} \implies \mathrm{is\_const} \, e ) \land (d \in \{\updownarrow , \uparrow\} \implies \mathrm{is\_var} \, e)) }}
   {{ hol (check_args_red [[d_list]] [[e_list]]) }}
@@ -269,8 +269,17 @@ formula :: formula_ ::=
   {{ hol ([[d]] = HD [[d_list]]) }}
   {{ tex [[d]] = \mathrm{hd} \,\, [[d_list]] }} 
 | unred_arg_index d_list e_list = i :: M :: parameter_index
-  {{ tex i = \mathrm{min} \, \{ j . \,\, [[d_list]] [j]  \in \{\circ , \downarrow\} \wedge \neg ( \mathrm{is\_const} \, [[e_list]] [j] ) \} }}
+  {{ tex i = \mathrm{min} \, \{ j . \,\, \neg \mathrm{is\_arg\_red} ( [[d_list]] [j] , [[e_list]] [j] ) \} }}
   {{ hol (unred_arg_index [[d_list]] [[e_list]] = SOME [[i]]) }}
+| is_d_out d :: M :: is_d_out
+  {{ tex [[d]] \in \{\updownarrow , \uparrow\} }}
+  {{ hol (is_d_out [[d]]) }}
+| ~is_d_out d :: M :: not_is_d_out
+  {{ tex [[d]] \in \{\circ , \downarrow\} }}
+  {{ hol (~is_d_out [[d]]) }}
+| e' = save_arg ( g_scope_list , scope_list , e ) :: M :: save_arg
+  {{ tex [[e']] = \mathrm{save\_arg} ([[g_scope_list]], [[scope_list]], [[e]]) }}
+  {{ hol (save_arg [[g_scope_list]] [[scope_list]] [[e]] = SOME [[e']]) }}
 
 %some operations on the headers and structs
 | unred_mem_index e_list = i :: M :: mem_index
@@ -1911,7 +1920,13 @@ val get_lval_of_e_def = Define `
    case get_lval_of_e e of
    | SOME lval => SOME (lval_slice lval ev1 ev2)
    | NONE => NONE) /\
+  (get_lval_of_e (e_saved e v) = get_lval_of_e e) /\
   (get_lval_of_e _ = NONE)
+`;
+
+val is_e_saved_def = Define `
+  (is_e_saved (e_saved e v) = T) /\
+  (is_e_saved _ = F)
 `;
 
 val is_e_lval_def = Define `
@@ -1941,12 +1956,12 @@ val unred_mem_index_def = Define `
 (* Checks if function arguments have been appropriately reduced. *)
 val is_arg_red_def = Define `
   is_arg_red d e =
-   ((~(is_d_out d) ==> is_const e) /\ (is_d_out d ==> is_e_lval e))
+   ((~(is_d_out d) ==> is_const e) /\ (is_d_out d ==> is_e_saved e))
 `;
 
 (* Obtains the minimum index where an unreduced argument is found:
  * for non-out-directed arguments, if it's not a constant, for
- * out-directed arguments, if it's not a lval *)
+ * out-directed arguments, if its value has not been saved *)
 val find_unred_arg_def = Define `
   find_unred_arg dlist elist = 
     (INDEX_FIND 0 (\(d, e). ~(is_arg_red d e)) (ZIP (dlist, elist)))
@@ -2071,6 +2086,25 @@ End
 
 
 
+(* Saves the current value of an out- or inout-directed argument *)
+val save_arg_def = Define `
+  save_arg gsl ss e =
+   case get_lval_of_e e of
+   | SOME lval =>
+    (case lookup_lval (ss++gsl) lval of
+     | SOME v => SOME (e_saved e v)
+     | NONE => NONE)
+   | NONE => NONE
+`;
+
+(* Arguments of programmable blocks are not saved, so their value is looked up *)
+val arg_lval_v_def = Define `
+  arg_lval_v ss lval e =
+   case e of
+   | e_saved e' v => SOME v
+   | _ => lookup_lval ss lval
+`;
+
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
@@ -2079,7 +2113,7 @@ val one_arg_val_for_newscope_def = Define `
   then
    (case get_lval_of_e e of
     | SOME lval =>
-     (case lookup_lval ss lval of
+     (case arg_lval_v ss lval e of
       | SOME v =>
        if is_d_in d
        then SOME ((v, i), SOME lval)
@@ -2627,6 +2661,8 @@ check_args_red [ d1 , .. , dn ] [ e1 , .. , en ]
 %Function call reduction of arguments
 [ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
 unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+d = [ d1 , .. , dn ] [ i ]
+~is_d_out d
 e = [ e1 , .. , en ] [ i ]
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
 [ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
@@ -2959,6 +2995,23 @@ ectx g_scope_list scope_list ( true OR e ) ~> ( true , empty )
 
 ----------------------------------- :: bin_or2
 ectx g_scope_list scope_list ( false OR e ) ~> ( e , empty )
+
+%%%%%%%%%%%%%
+%Function call saving of out- and inout-directed arguments
+
+[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
+unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+d = [ d1 , .. , dn ] [ i ]
+is_d_out d
+e = [ e1 , .. , en ] [ i ]
+e' = save_arg ( g_scope_list , scope_list , e )
+[ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+----------------------------------- :: call_save
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , empty )
+
+%A saved argument outside an out- or inout-directed position reads as its value
+----------------------------------- :: saved_v
+ectx g_scope_list scope_list ( saved ( e , v ) ) ~> ( v , empty )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Statement semantics ( single frame )%

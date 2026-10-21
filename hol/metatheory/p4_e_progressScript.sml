@@ -722,17 +722,6 @@ QED
 
 
 
-Triviality notlval_case:
-!e . 
-¬is_e_lval (e) ==>
-(¬is_const (e) \/ (?v. e = e_v v))
-Proof
-Induct_on `e` >>
-gvs[is_e_lval_def, is_const_def, get_lval_of_e_def] >>
-gvs[]
-QED
-
-
 Triviality unred_arg_eq:
 ! dl el .  
 unred_arg_index dl el ≠ NONE <=>
@@ -1066,6 +1055,16 @@ REPEAT STRIP_TAC >~ [`∃lval v. get_lval_of_e (e_acc e s) = SOME lval ∧
 		  
 IMP_RES_TAC var_lval_is_typed >> gvs[]
 
+) >~ [` ∃lval v'. get_lval_of_e (e_saved e v) = SOME lval ∧
+                  lookup_lval (scopest ⧺ gscope) lval = SOME v' ∧
+		  v_typ v' tau F `] >- (
+
+ OPEN_EXP_TYP_TAC ``(e_saved e v)`` >> fs[] >>
+ gvs[get_lval_of_e_def, is_e_lval_def] >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+ [`tau`, `gtsl`, `gscope`, `tsl`, `scopest`, `T_e`])) >>
+ gvs[is_e_lval_def]
+
 ) >>
 
 fs[get_lval_of_e_def] >>
@@ -1076,6 +1075,22 @@ QED
 
 
 
+
+(* A saved argument supplies its saved value *)
+Triviality saved_arg_wf:
+!e gtsl tsl T_e tau b ss.
+is_e_saved e /\
+e_typ (gtsl,tsl) T_e e tau b ==>
+?lval v. get_lval_of_e e = SOME lval /\ arg_lval_v ss lval e = SOME v
+Proof
+rpt strip_tac >>
+Cases_on ‘e’ >>
+gvs[is_e_saved_def, arg_lval_v_def] >>
+OPEN_EXP_TYP_TAC ``(e_saved e' v)`` >>
+gvs[get_lval_of_e_def] >>
+IMP_RES_TAC e_T_get_lval >>
+gvs[]
+QED
 
 Triviality wf_arg_single_implied:
 ! e d b x tau gtsl gscope tsl scopest T_e .
@@ -1092,10 +1107,7 @@ rpt strip_tac >>
 Cases_on `is_d_out d` >>
 fs[is_arg_red_def] >>
 fs[wf_arg_def] >| [
- fs[out_is_lval_def] >>
-
- gvs[] >>
- IMP_RES_TAC e_lval_WT >> gvs[]
+ IMP_RES_TAC saved_arg_wf >> gvs[]
  ,
 
  gvs[is_const_val_exsist] >>
@@ -1121,6 +1133,7 @@ rpt strip_tac >>
 Cases_on `is_d_out d` >>
 fs[is_arg_red_def] >>
 fs[wf_arg_def] >>
+IMP_RES_TAC saved_arg_wf >>
 IMP_RES_TAC e_lval_WT >> gvs[]
 QED
 
@@ -2024,6 +2037,7 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
    `(EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) (e_tau_x_d_b_list : (e # tau # string # d # bool) list)))`,
    `(c0,c1,c2,c3,c4,c5,c6,c7)`, `order`, `delta_g`, `delta_b`, `delta_t`, `delta_x`, `f'`, ‘Prs_n’])) >> gvs[] >>
  IMP_RES_TAC unred_arg_index_result >| [
+   DISJ1_TAC >>
    (* if d is in/none, then it shouldn't be a constant in order to reduce it *)
    gvs[] >>
    (* TODO: Why doesn't it work to rewrite? *)
@@ -2051,53 +2065,64 @@ Cases_on ` (unred_arg_index (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)
                      (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by gvs[MAP_MAP_txd] >>
      gvs[]
      ,
+     rfs[map_quad_zip112] >>
+     fs[GSYM UNZIP_MAP] >>
+     `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by gvs[MAP_MAP_txd] >>
+     gvs[]
+     ,
      rfs[map_quad_zip112] 
      ,
      rfs[map_quad_zip112] 
      ]
      
    ,
-   (* now when d is out, then it shouldn't be an lval to be able to reduce it reduced*)
-   (* now we do cases on the is_e_lval *)
-
-  IMP_RES_TAC notlval_case >| [
-    gvs[] >>
-    (* TODO: Why doesn't it work to rewrite? *)
-    assume_tac $ Q.SPECL
-       [`c0`, `c1`, `c2`, `c3`, `c4`, `c5`, ‘get_oracle_index’, ‘set_oracle_index’, ‘c6’, ‘c7’] $ GSYM WT_c_ec >>
-    gs[] >>
-
-    Q.EXISTS_TAC `framel` >>
-    Q.EXISTS_TAC `ZIP ( MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list ,
-       	          ZIP (LUPDATE e' i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
-		  ZIP (MAP FST xdl,MAP SND xdl)))` >>
-		  
-    Q.EXISTS_TAC `i` >>
-    Q.EXISTS_TAC `e'` >>
-
-    rw[] >| [
-      rfs[map_rw_quad, LUPDATE_def]
-      ,
-      rfs[map_quad_zip112] >>
-      fs[GSYM UNZIP_MAP]
-      ,
-      rfs[map_quad_zip112] >>
-      fs[GSYM UNZIP_MAP] >>
-      `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
-                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by  gvs[MAP_MAP_txd] >>
-      gvs[]
-      ,
-      rfs[map_quad_zip112] 
-      ,
-      rfs[map_quad_zip112] 
-      ]
-    ,
-
-   (* e = e_v *)
-   gvs[is_const_def] >>
-   IMP_RES_TAC unred_arg_out_is_lval_imp >>
-   gvs[is_d_out_def] >>
-   IMP_RES_TAC ev_not_typed_T
+   (* if d is out, the argument is saved *)
+   DISJ2_TAC >>
+   subgoal ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)’ >- (
+    IMP_RES_TAC unred_arg_out_is_lval_imp >>
+    gvs[is_d_out_def]
+   ) >>
+   assume_tac $ Q.SPECL
+      [`c0`, `c1`, `c2`, `c3`, `c4`, `c5`, ‘get_oracle_index’, ‘set_oracle_index’, ‘c6’, ‘c7’] $ GSYM WT_c_ec >>
+   gs[] >>
+   ‘is_e_lval (EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list))’ by (
+    IMP_RES_TAC e_lval_tlval >>
+    gvs[]
+   ) >>
+   (* the l-value of the argument can be looked up *)
+   qspecl_then [‘EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)’, ‘ARB’, ‘t_tau (EL i (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list))’, ‘t_scope_list_g’, ‘gscope’, ‘t_scope_list’, ‘scopest’, ‘(order,f',delta_g,delta_b,delta_x,delta_t)’] mp_tac e_lval_WT >>
+   impl_tac >- (
+    gvs[]
+   ) >>
+   strip_tac >>
+   Q.EXISTS_TAC `ZIP ( MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list ,
+                  ZIP (LUPDATE (e_saved (EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)) v) i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
+                  ZIP (MAP FST xdl,MAP SND xdl)))` >>
+   Q.EXISTS_TAC `i` >>
+   Q.EXISTS_TAC `e_saved (EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)) v` >>
+   rw[] >| [
+     rfs[map_quad_zip112]
+     ,
+     rfs[map_quad_zip112] >>
+     fs[GSYM UNZIP_MAP]
+     ,
+     rfs[map_quad_zip112] >>
+     fs[GSYM UNZIP_MAP] >>
+     `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by gvs[MAP_MAP_txd] >>
+     gvs[]
+     ,
+     rfs[map_quad_zip112] >>
+     fs[GSYM UNZIP_MAP] >>
+     `MAP (λ(t,x,d). d) (MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) e_tau_x_d_b_list) =
+                     (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` by gvs[MAP_MAP_txd] >>
+     gvs[]
+     ,
+     rfs[map_quad_zip112] >>
+     simp[save_arg_def]
+     ,
+     rfs[map_quad_zip112]
    ]
  ]
 ]
@@ -2319,6 +2344,17 @@ Cases_on `is_consts (MAP (λ(f_,e_,tau_,b_). (e_)) f_e_tau_b_list)` >| [
 
 ]
 
+
+,
+
+(****************)
+(*  saved       *)
+(****************)
+
+fs[prog_exp_def] >>
+rpt strip_tac >>
+SIMP_TAC (srw_ss()) [Once e_sem_cases] >>
+srw_tac [boolSimps.DNF_ss][clause_name_def]
 
 ,
 

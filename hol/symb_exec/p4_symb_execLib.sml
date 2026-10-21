@@ -204,13 +204,25 @@ fun get_funn_dirs funn (func_map, b_func_map, ext_fun_map) =
 
 fun is_arg_red (arg, dir) =
  if (is_d_out dir orelse is_d_inout dir)
- then term_eq T (rhs $ concl $ HOL4P4_CONV $ mk_is_e_lval arg) (* Must be lval *)
+ then is_e_saved arg (* Must be saved *)
  else is_e_v arg (* Must be constant *)
+;
+
+(* Is the next argument to reduce an unsaved out- or inout-directed one? *)
+fun next_arg_is_unsaved_out (func_map, b_func_map, ext_fun_map) e =
+ let
+  val (funn, e_list) = dest_e_call e
+  val d_list = get_funn_dirs funn (func_map, b_func_map, ext_fun_map)
+ in
+  case List.find (not o is_arg_red) (zip (fst $ dest_list e_list) d_list) of
+    SOME (arg, dir) => is_d_out dir orelse is_d_inout dir
+  | NONE => false
+ end
 ;
 
 
 fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
- if is_e_v e
+ if is_e_v e orelse is_e_saved e
  then NONE
  else if is_e_var e
  then SOME (fn e => e)
@@ -370,6 +382,9 @@ and e_get_next_subexp_syntax_f_args (func_map, b_func_map, ext_fun_map) []     _
   | e_get_next_subexp_syntax_f_args (func_map, b_func_map, ext_fun_map) ((arg, dir)::t) i =
    if is_arg_red (arg, dir)
    then e_get_next_subexp_syntax_f_args (func_map, b_func_map, ext_fun_map) t (i+1)
+   (* Saving an argument is a step of the call itself *)
+   else if is_d_out dir orelse is_d_inout dir
+   then NONE
    else
     (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) arg of
        SOME f => SOME (f, i)
@@ -916,7 +931,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
          try $ (qpat_x_assum ‘v1model_tbl_is_well_formed _ _ (^tbl_name,^tbl)’ (fn thm =>
                               (rpt $ qpat_x_assum ‘_’ (fn thm' => ALL_TAC)) >> assume_tac thm)) >>
          REWRITE_TAC [disj_list_def] >>
-	 FULL_SIMP_TAC pure_ss (path_cond_defs@[Once v1model_tbl_is_well_formed_def, Once p4_v1modelTheory.v1model_apply_table_f_def]) >>
+	 FULL_SIMP_TAC pure_ss (path_cond_defs@[Once v1model_tbl_is_well_formed_def, Once p4_v1modelTheory.v1model_apply_table_f_def, Once p4_coreTheory.apply_table_f_gen_def]) >>
 
          (* Specialise the well-formedness assumption and simplify it in isolation *)
 	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map] thm) >>
@@ -1269,6 +1284,8 @@ and dbg_print_arg_list_red (func_map, b_func_map, ext_fun_map) [] =
   | dbg_print_arg_list_red (func_map, b_func_map, ext_fun_map) ((arg,dir)::t) =
    if is_arg_red (arg, dir)
    then dbg_print_arg_list_red (func_map, b_func_map, ext_fun_map) t
+   else if is_d_out dir orelse is_d_inout dir
+   then (print (String.concat ["\nSaving function argument...\n\n"]); false)
    else
     let
      val _ = dbg_print_e_red (func_map, b_func_map, ext_fun_map) arg
@@ -1589,6 +1606,9 @@ fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
  (* TODO: Currently, nested calls are not handled by the bigstep semantics and must be ruled out here. *)
  if is_e_call e andalso (not $ contains_e_call_list $ fst $ dest_list $ snd $ dest_e_call e)
  then
+  if next_arg_is_unsaved_out (func_map, b_func_map, ext_fun_map) e
+  then res_f_args_shortcut
+  else
   (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
      SOME e' =>
     (case p4_e_is_shortcuttable e' of

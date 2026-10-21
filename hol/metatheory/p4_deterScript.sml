@@ -139,6 +139,73 @@ QED
 
 (*determinism proof of expressions*)
 
+val det_call_newframe_tac =
+` (stmt',MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list') =
+ (stmt,MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list)
+` by METIS_TAC [SOME_EL,SOME_11] >>
+
+` (MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list') =
+ (MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list)
+` by METIS_TAC [CLOSED_PAIR_EQ] >>
+
+IMP_RES_TAC lemma_MAP3>>
+REV_FULL_SIMP_TAC (list_ss) [rich_listTheory.MAP_FST_funs, same_frame_exp_def, option_case_def] >>
+REV_FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [option_case_def] >>
+` SOME (scope',i_opt') =  SOME (scope'',i_opt)
+` by METIS_TAC [SOME_EL,SOME_11] >>
+REV_FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [option_case_def];
+
+(* A frame is created only when no argument is left to reduce *)
+val det_call_newframe_other_tac =
+REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
+ASSUME_TAC fun_body_map_EQ >>
+Q.PAT_X_ASSUM `∀funn func_map ext_map stmt sdl' sdl. _`
+( STRIP_ASSUME_TAC o (Q.SPECL [
+`f`,
+`func_map`,
+`b_func_map`,
+`ext_map` ,
+`stmt` ,
+`MAP (λ(e_,e'_,x_,d_). (x_,d_)) (e_e'_x_d_list:(e#e#string#d)list)`,
+`MAP (λ(e_,x_,d_). (x_,d_)) (e_x_d_list:(e#string#d)list)` ])) >>
+rfs [] >>
+
+IMP_RES_TAC lemma_MAP1>>
+RES_TAC >>	
+IMP_RES_TAC lemma_args >>
+METIS_TAC[];
+
+val det_call_args_tac =
+`SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list) =
+SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SOME_11] >> rw[] >>
+(*REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >> *)
+
+(**first show that the d is the same in both lists, thus the i = i'*)
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+IMP_RES_TAC lemma_MAP2 >>
+`i = i''` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
+
+(*Now try to show that the EL i l is deterministic*)
+REV_FULL_SIMP_TAC (srw_ss()) [det_exp_list_def] >>
+PAT_ASSUM `` ∀x._``
+( STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,e'_,x_,d_). e_) (e_e'_x_d_list:(e#e#string#d)list)))` ])) >>
+rw[]>>
+IMP_RES_TAC unred_arg_index_in_range >>
+IMP_RES_TAC EL_MEM >> rfs[]>>
+FULL_SIMP_TAC list_ss [det_exp_def]  >>
+RES_TAC >> rw[] >>
+FULL_SIMP_TAC list_ss [same_frame_exp_def]>> rfs[] >>
+rw[] >> rw[];
+
+(* Both reductions are at the same argument, so out-direction and save_arg agree *)
+val det_call_same_index_tac =
+`SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list) =
+SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SOME_11] >> rw[] >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+IMP_RES_TAC lemma_MAP2 >>
+`i = i''` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
+gvs[same_frame_exp_def];
+
 Theorem P4_exp_det:
  ! (ty:'a itself) .
 (!  e .          det_exp e ty) /\
@@ -297,93 +364,30 @@ OPEN_EXP_RED_TAC ``(e_call s l)`` >>
 REV_FULL_SIMP_TAC (srw_ss()) [] >>
 RW_TAC (srw_ss()) []  >| [
 
-(*first subgoal*)
+(* e'' by call_newframe *)
 OPEN_EXP_RED_TAC ``(e_call s l)`` >>
 RW_TAC (srw_ss()) [] >| [
-
-` (stmt',MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list') =
- (stmt,MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list)
-` by METIS_TAC [SOME_EL,SOME_11] >>
-
-` (MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list') =
- (MAP (λ(e_,x_,d_). (x_,d_)) e_x_d_list)
-` by METIS_TAC [CLOSED_PAIR_EQ] >>
-
-IMP_RES_TAC lemma_MAP3>>
-REV_FULL_SIMP_TAC (list_ss) [rich_listTheory.MAP_FST_funs, same_frame_exp_def, option_case_def] >>
-REV_FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [option_case_def] >>
-` SOME (scope',i_opt') =  SOME (scope'',i_opt)
-` by METIS_TAC [SOME_EL,SOME_11] >>
-REV_FULL_SIMP_TAC (std_ss++optionSimps.OPTION_ss) [option_case_def]
-,
-
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
-ASSUME_TAC fun_body_map_EQ >>
-Q.PAT_X_ASSUM `∀funn func_map ext_map stmt sdl' sdl. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`f`,
-`func_map`,
-`b_func_map`,
-`ext_map` ,
-`stmt` ,
-`MAP (λ(e_,e'_,x_,d_). (x_,d_)) (e_e'_x_d_list:(e#e#string#d)list)`,
-`MAP (λ(e_,x_,d_). (x_,d_)) (e_x_d_list:(e#string#d)list)` ])) >>
-rfs [] >>
-
-IMP_RES_TAC lemma_MAP1>>
-RES_TAC >>	
-IMP_RES_TAC lemma_args >>
-METIS_TAC[]
+ det_call_newframe_tac,
+ det_call_newframe_other_tac,
+ det_call_newframe_other_tac
 ]
-
 ,
-(*second subgoal*)
-
+(* e'' by call_args *)
 OPEN_EXP_RED_TAC ``(e_call s l)`` >>
-RW_TAC (srw_ss()) [] >|[
-
-REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >>
-ASSUME_TAC fun_body_map_EQ >>
-
-Q.PAT_X_ASSUM `∀funn func_map ext_map stmt sdl' sdl. _`
-( STRIP_ASSUME_TAC o (Q.SPECL [
-`f`,
-`func_map`,
-`b_func_map`,
-`ext_map` ,
-`stmt` ,
-`MAP (λ(e_,e'_,x_,d_). (x_,d_)) (e_e'_x_d_list:(e#e#string#d)list)`,
-`MAP (λ(e_,x_,d_). (x_,d_)) (e_x_d_list:(e#string#d)list)` ])) >>
-rfs [] >>
-
-IMP_RES_TAC lemma_MAP1>>
-RES_TAC >>	
-IMP_RES_TAC lemma_args >>
-METIS_TAC[]
+RW_TAC (srw_ss()) [] >| [
+ det_call_newframe_other_tac,
+ det_call_args_tac,
+ det_call_same_index_tac
+]
 ,
-
-(*start the forth sub poof here*)
-`SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list) =
-SOME (MAP (λ(e_,e'_,x_,d_). (x_,d_)) e_e'_x_d_list') ` by METIS_TAC [SOME_EL,SOME_11] >> rw[] >>
-(*REV_FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >> *)
-
-(**first show that the d is the same in both lists, thus the i = i'*)
-REV_FULL_SIMP_TAC (srw_ss()) [] >>
-IMP_RES_TAC lemma_MAP2 >>
-`i = i''` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
-
-(*Now try to show that the EL i l is deterministic*)
-REV_FULL_SIMP_TAC (srw_ss()) [det_exp_list_def] >>
-PAT_ASSUM `` ∀x._``
-( STRIP_ASSUME_TAC o (Q.SPECL [`(EL i (MAP (λ(e_,e'_,x_,d_). e_) (e_e'_x_d_list:(e#e#string#d)list)))` ])) >>
-rw[]>>
-IMP_RES_TAC unred_arg_index_in_range >>
-IMP_RES_TAC EL_MEM >> rfs[]>>
-FULL_SIMP_TAC list_ss [det_exp_def]  >>
-RES_TAC >> rw[] >>
-FULL_SIMP_TAC list_ss [same_frame_exp_def]>> rfs[] >>
-rw[] >> rw[]
-]  ]
+(* e'' by call_save *)
+OPEN_EXP_RED_TAC ``(e_call s l)`` >>
+RW_TAC (srw_ss()) [] >| [
+ det_call_newframe_other_tac,
+ det_call_same_index_tac,
+ det_call_same_index_tac
+]
+]
 ,
 
 (*****************************)
@@ -505,8 +509,17 @@ FULL_SIMP_TAC list_ss [] >>
  MAP (λ(f_,e_,v_). v_) f_e_v_list'
 ` by METIS_TAC [SOME_EL,SOME_11] >>
 IMP_RES_TAC lemma_MAP6 >>
-fs[same_frame_exp_def] 
+fs[same_frame_exp_def]
 ]
+,
+
+(*****************************)
+(*   e_saved                 *)
+(*****************************)
+SIMP_TAC (srw_ss()) [det_exp_def] >>
+rpt strip_tac >>
+gvs[Once e_sem_cases] >>
+gvs[Once e_sem_cases, same_frame_exp_def]
 ,
 
 (*****************************)

@@ -24,19 +24,15 @@ Type ebpf_ascope = “:(num # ((num, ebpf_sum_v_ext) alist) # ((string, v) alist
 (**********************************************************)
 
 Definition ebpf_ascope_lookup_def:
- ebpf_ascope_lookup (ascope:ebpf_ascope) ext_ref = 
-  let ext_obj_map = FST $ SND ascope in
-   ALOOKUP ext_obj_map ext_ref
+ ebpf_ascope_lookup = ascope_lookup_gen:ebpf_ascope -> num -> ebpf_sum_v_ext option
 End
 
 Definition ebpf_ascope_update_def:
- ebpf_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+ ebpf_ascope_update = ascope_update_gen:ebpf_ascope -> num -> ebpf_sum_v_ext -> ebpf_ascope
 End
 
 Definition ebpf_ascope_update_v_map_def:
- ebpf_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+ ebpf_ascope_update_v_map = ascope_update_v_map_gen:ebpf_ascope -> string -> v -> ebpf_ascope
 End
 
 Definition ebpf_packet_in_extract:
@@ -172,53 +168,12 @@ Definition ebpf_input_f_def:
     | _ => NONE))
 End
 
-Definition ebpf_reduce_nonout_def:
- (ebpf_reduce_nonout ([], elist, v_map) = SOME []) /\
- (ebpf_reduce_nonout (d::dlist, e::elist, v_map) =
-  if is_d_out d
-  then oCONS (e, ebpf_reduce_nonout (dlist, elist, v_map))
-  else
-   (case e of
-    | (e_var (varn_name x)) =>
-     (case ALOOKUP v_map x of
-      | SOME v =>
-       (* NOTE: Only externs can be passed as directionless arguments here *)
-       oCONS (e_v v, ebpf_reduce_nonout (dlist, elist, v_map))
-      | _ => NONE)
-    | _ => NONE)) /\
- (ebpf_reduce_nonout (_, _, v_map) = NONE)
-End
-
-(* TODO: Since the same thing should be initialised
- *       for all known architectures, maybe it should be made a
- *       architecture-generic (core) function? *)
-(* TODO: Don't reduce all arguments at once? *)
 Definition ebpf_copyin_pbl_def:
- ebpf_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, random_oracle) =
-  case ebpf_reduce_nonout (dlist, elist, v_map) of
-  | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
-  | NONE => NONE
+ ebpf_copyin_pbl = copyin_pbl_gen:ebpf_ascope copyin_pbl
 End
 
-(* TODO: Does anything need to be looked up for this function? *)
-(* Note that this re-uses the copyout function intended for P4 functions *)
 Definition ebpf_copyout_pbl_def:
- ebpf_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope, dlist, xlist, (status:status)) =
-  case copyout_pbl_gen xlist dlist g_scope_list v_map of
-  | SOME [v_map_scope] =>
-   (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):ebpf_ascope)
-    | NONE => NONE)
-  | _ => NONE
-End
-
-Definition ebpf_lookup_obj_def:
- ebpf_lookup_obj ext_obj_map v_map k =
-  case ALOOKUP v_map k of
-  | SOME (v_ext_ref i) =>
-   ALOOKUP ext_obj_map i
-  | _ => NONE
+ ebpf_copyout_pbl = copyout_pbl_gen:ebpf_ascope copyout_pbl
 End
 
 Definition ebpf_inputPort_to_num_def:
@@ -238,7 +193,7 @@ Definition ebpf_output_f_def:
  ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   case ALOOKUP v_map "accept" of
   | SOME (v_bool T) =>
-   (case ebpf_lookup_obj ext_obj_map v_map "packet_copy" of
+   (case lookup_obj ext_obj_map v_map "packet_copy" of
     | SOME (INL (core_v_ext_packet bl)) =>
      (case ALOOKUP v_map "inCtrl" of
       | SOME (v_struct fields) =>
@@ -252,25 +207,15 @@ Definition ebpf_output_f_def:
   | _ => NONE
 End
 
+(* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
 Definition ebpf_apply_table_f_def:
- ebpf_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
-  (* TODO: Note that this function could do other stuff here depending on table name.
-   *       Ideally, one could make a general, not hard-coded, solution for this *)
-  case ALOOKUP ctrl x of
-   | SOME table =>
-    (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-    SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-   | NONE => NONE
+ ebpf_apply_table_f = apply_table_f_gen (\mk_list. T):ebpf_ascope apply_table_f
 End
 
-(* TODO: Generalise the below as needed *)
-
 Definition ebpf_get_oracle_index_def:
- ebpf_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
-  oracle_index
+ ebpf_get_oracle_index = get_oracle_index_gen:ebpf_ascope get_oracle_index
 End
 
 Definition ebpf_set_oracle_index_def:
- ebpf_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
-  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):ebpf_ascope
+ ebpf_set_oracle_index = set_oracle_index_gen:ebpf_ascope set_oracle_index
 End

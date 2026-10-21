@@ -222,6 +222,8 @@ REPEAT STRIP_TAC >| [
  RES_TAC >>
  gvs[]
  ,
+ fs[Once e_sem_cases]
+ ,
  fs[fr_len_strexp_list_def]
  ,
 

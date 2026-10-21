@@ -21,7 +21,7 @@ val ebpf_objectless_map =
 
 val ebpf_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], ebpf_packet_in_extract));
-    ("lookahead", ([("this", d_in); ("dummy_T", d_in)], ebpf_packet_in_lookahead));
+    ("lookahead", ([("this", d_in); ("targ1", d_in)], ebpf_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], ebpf_packet_in_advance));]``;
 
 val ebpf_packet_out_map =

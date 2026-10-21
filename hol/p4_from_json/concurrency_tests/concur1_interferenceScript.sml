@@ -141,31 +141,31 @@ val concur1_t2_s =
    )``;
 
 (*
-(* 28 steps to finishing first function *)
- val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 28
+(* 29 steps to finishing first function *)
+ val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 29
 
-(* 55 steps to finishing the entire program *)
- val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 55
+(* 56 steps to finishing the entire program *)
+ val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 56
 
 First witness from
-  T1: 55 steps
-  T2: 55 steps
+  T1: 56 steps
+  T2: 56 steps
 
 Second witness from
-  T1: 28 steps
-  T2: 28 steps
+  T1: 29 steps
+  T2: 29 steps
   T1: 27 steps
   T2: 27 steps
 
- val (_, ((i, _, in_out_list', _), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 55
+ val (_, ((i, _, in_out_list', _), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 56
 *)
 
 val init_conc_state = list_mk_pair[concur1_shared_s, concur1_t1_s, concur1_t2_s];
 
 val trace1_thm =
  let
-  val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 28 1
-  val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 28 2
+  val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 29 1
+  val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 29 2
   val thm3 = get_trace_thread_next_n "v1model" concur1_actx thm2 27 1
   val thm4 = get_trace_thread_next_n "v1model" concur1_actx thm3 27 2
  in
@@ -175,10 +175,10 @@ val trace1_thm =
 val trace2_thm =
  let
   (* Call 1: to get_trace_thread_n *)
-  val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 55 1
+  val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 56 1
 
   (* Call 2: Should be to a new to get_trace_thread_next_n that continues from a theorem *)
-  val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 55 2
+  val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 56 2
  in
   thm2
  end;
@@ -207,7 +207,7 @@ Theorem concur1_trace_path_interference:
    v1model_ascope_read_ext_obj (v1model_ascope_of_conc_state shared_s'') "r" =
     SOME (INR (v1model_v_ext_register [(fixwidth 16 (n2v 2), 16)])))
 Proof
-EXISTS_TAC “110:num” >>
+EXISTS_TAC “112:num” >>
 EXISTS_TAC t1_s' >>
 EXISTS_TAC t2_s' >>
 EXISTS_TAC shared_s' >>
