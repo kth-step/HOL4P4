@@ -123,6 +123,28 @@ The end point decides what the contract says:
 * `\s. T` says that `Q` holds after some number of steps, possibly zero
   (`p4_contract'_contract_at`); with it the executor stops each path after its first step.
 
+## Control plane
+
+A contract covers one run from the initial state, and the control plane does not change
+during the run:
+
+* Table entries are the `ctrl` component of the initial state. Nothing in the semantics
+  changes them, so every packet of the run sees the same entries. They can be symbolic,
+  e.g. `t2_ctrl` in `tests/table_unknownScript.sml`, constrained by
+  `v1model_tbl_is_well_formed` in the precondition; the contract then holds for every entry
+  list that satisfies the precondition, but for one list per run.
+* Default actions come from the program (the table map of each block in the context), not
+  from `ctrl`. On a miss the semantics calls that action with the arguments written in the
+  program (`NoAction` when the program declares no default). A controller may change a
+  non-`const` default action at run time (P4_16 spec 14.2.1.3); contracts do not cover that.
+
+`v1model_tbl_is_well_formed` constrains each entry: its action is one of the table's actions,
+called with both leading flags (called from a table, hit) true and values of the action's
+parameter types as arguments. The empty table satisfies it (`v1model_tbl_is_well_formed_NIL`),
+and before running, the executor checks that every conjunct of the path condition about table
+entries holds when the symbolic entry lists are empty, so that these conjuncts cannot make the
+precondition unsatisfiable.
+
 ## Tests and examples
 
 The tests are located in the `tests` subdirectory. After installation, run them by first executing
