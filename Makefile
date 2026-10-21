@@ -8,6 +8,9 @@ hol/p4Script.sml: ott/p4.ott ott/p4_sem.ott ott/p4_types.ott
 hol: hol/p4Script.sml hol/ottScript.sml hol/ottLib.sig hol/ottLib.sml
 	Holmake -r -I hol
 
+hol_tests: hol
+	Holmake -r -I hol/tests
+
 hol/p4_from_json: hol
 	Holmake -r -I hol/p4_from_json
 
@@ -35,7 +38,7 @@ docs/semantics/main.pdf: docs/semantics/p4_defs.tex docs/semantics/main.tex docs
 	cd docs/semantics && latexmk -pdf main.tex
 
 # Every directory with a Holmakefile; hol is cleaned recursively to cover hol/eval
-HOLDIRS = hol/metatheory hol/p4_from_json hol/p4_from_json/validation_tests hol/p4_from_json/concurrency_tests \
+HOLDIRS = hol/tests hol/metatheory hol/p4_from_json hol/p4_from_json/validation_tests hol/p4_from_json/concurrency_tests \
           hol/symb_exec hol/symb_exec/tests hol/symb_exec/imp hol/symb_exec/example_ipsec
 
 clean:
@@ -43,4 +46,4 @@ clean:
 	cd hol && Holmake clean -r
 	for d in $(HOLDIRS); do (cd $$d && Holmake clean) || exit 1; done
 
-.PHONY: default docs clean hol hol/p4_from_json validate fetch_tests metatheory concurrency symb_exec_tests
+.PHONY: default docs clean hol hol_tests hol/p4_from_json validate fetch_tests metatheory concurrency symb_exec_tests
