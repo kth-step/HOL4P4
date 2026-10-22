@@ -799,6 +799,7 @@ fun ebpf_add_ffblocks_to_ab_list ab_list_tm =
   val (ab_list, ab_list_ty) = dest_list ab_list_tm
   val ab_list' = [``arch_block_inp``,
                   (el 1 ab_list),
+                  ``arch_block_ffbl "parser_reject"``,
                   (el 2 ab_list),
                   ``arch_block_out``]
  in

@@ -15,7 +15,7 @@ HEAP="$SCRIPT_DIR/p4_from_json-heap"
 DEFAULT_LOG="$SCRIPT_DIR/p4_from_json.log"
 PETR4_REPO="https://github.com/verified-network-toolchain/petr4.git"
 PETR4_TESTS_TAG="0.1.2"   # the version of the petr4 examples the validation tests come from
-VALIDATE_EXPECTED="53 OK, 0 FAIL, 42 EXCLUDED"   # the import results of validate
+VALIDATE_EXPECTED="54 OK, 0 FAIL, 41 EXCLUDED"   # the import results of validate
 
 usage() {
  cat <<USAGE

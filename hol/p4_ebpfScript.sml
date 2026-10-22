@@ -158,8 +158,8 @@ Definition ebpf_input_f_def:
       * function for ebpf_ascope. *)
      (* TODO: Slightly vestigial from the VSS model:
       * needed to remember port when packet is accepted. Change to a more elegant solution later *)
-     let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",v_bit (w4 (n2w p)))]) in
-     let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
+     let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort",v_bit (fixwidth 32 (n2v p), 32))]) in
+     let v_map'' = AUPDATE_LIST v_map' [("parseError", v_bit (fixwidth 32 (n2v 0), 32)); ("parser_rejected", v_bool F)] in
      (case ALOOKUP v_map'' "packet_copy" of
       | SOME (v_ext_ref i') =>
        let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet bl)) in
@@ -172,8 +172,24 @@ Definition ebpf_copyin_pbl_def:
  ebpf_copyin_pbl = copyin_pbl_gen:ebpf_ascope copyin_pbl
 End
 
+(* Records a parser reject, for ebpf_parser_reject *)
 Definition ebpf_copyout_pbl_def:
- ebpf_copyout_pbl = copyout_pbl_gen:ebpf_ascope copyout_pbl
+ ebpf_copyout_pbl (g_scope_list, ascope:ebpf_ascope, dlist, xlist, status:status) =
+  case copyout_pbl_gen (g_scope_list, ascope, dlist, xlist, status) of
+  | SOME ascope' =>
+   if status = status_trans "reject"
+   then SOME (ebpf_ascope_update_v_map ascope' "parser_rejected" (v_bool T))
+   else SOME ascope'
+  | NONE => NONE
+End
+
+(* As in p4c's eBPF backend, a packet the parser rejects is dropped without running the filter *)
+Definition ebpf_parser_reject_def:
+ ebpf_parser_reject ((i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)):ebpf_ascope aenv) =
+  case ALOOKUP v_map "parser_rejected" of
+  | SOME (v_bool T) => SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index))
+  | SOME (v_bool F) => SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index))
+  | _ => NONE
 End
 
 Definition ebpf_inputPort_to_num_def:
@@ -188,22 +204,21 @@ Definition ebpf_inputPort_to_num_def:
 End
 
 (* TODO: Outsource obtaining the output port to an external function? *)
-(* This will also look up the value of "accept" and only output a packet if it is true *)
+(* The packet is output when "accept" is true; an unassigned accept is an oracle bit *)
 Definition ebpf_output_f_def:
  ebpf_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):ebpf_ascope) =
   case ALOOKUP v_map "accept" of
-  | SOME (v_bool T) =>
+  | SOME (v_bool b) =>
    (case lookup_obj ext_obj_map v_map "packet_copy" of
     | SOME (INL (core_v_ext_packet bl)) =>
      (case ALOOKUP v_map "inCtrl" of
       | SOME (v_struct fields) =>
        (case ebpf_inputPort_to_num fields of
         | SOME port =>
-         SOME (in_out_list++[(bl, port)], (counter, ext_obj_map, v_map, ctrl, oracle_index))
+         SOME (in_out_list++(if b then [(bl, port)] else []), (counter, ext_obj_map, v_map, ctrl, oracle_index))
         | NONE => NONE)
       | _ => NONE)
     | _ => NONE)
-  | SOME (v_bool F) => SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index))
   | _ => NONE
 End
 
