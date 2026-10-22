@@ -182,6 +182,22 @@ a packet for which egress sets `egress_spec` to 511 is dropped at the output.
 * The timestamps and queue fields of `standard_metadata`, and `egress_port` during ingress,
   are oracle bits.
 
+## assert, assume and random
+
+In the semantics, `assert` and `assume` have no effect, as with p4c's `--ndebug`. With the trace
+`p4_symb_exec_assertions` set (`set_trace "p4_symb_exec_assertions" 1`), the executor checks
+them:
+
+* `assert(c)`: `c` must follow from the path condition, by bit-blasting or by arithmetic on the
+  numbers of the bit-strings. Otherwise the executor stops with "assert may fail".
+* `assume(c)`: the path continues with `c` in its path condition, and the precondition of the
+  contract gets the conjunct `!vs. pc ==> c`, where `pc` is the path condition at the call and
+  `vs` are the executor's fresh variables in it. A path on which `c` contradicts the path
+  condition ends at the call.
+
+`random(r, lo, hi)` gives `r` fresh variables in `[lo, hi]`, unless the bounds alone decide the
+value. See `tests/assert_assumeScript.sml`.
+
 ## Tests and examples
 
 The tests are located in the `tests` subdirectory. After installation, run them by first executing

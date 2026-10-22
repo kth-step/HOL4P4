@@ -139,7 +139,8 @@ val arch_block_out_tm = prim_mk_const {Thy = "p4", Name = "arch_block_out"};
 val v1model_traffic_manager_block_tm = mk_comb (prim_mk_const {Thy = "p4", Name = "arch_block_ffbl"}, fromMLstring "traffic_manager");
 
 (* Folded only until the path condition rewrites a step after a branch on them *)
-val branch_stop_consts = [prim_mk_const {Thy = "p4_v1model", Name = "v1model_is_drop_port"}];
+val branch_stop_consts = [prim_mk_const {Thy = "p4_v1model", Name = "v1model_is_drop_port"},
+                          prim_mk_const {Thy = "p4_v1model", Name = "v1model_random_inner"}];
 
 (* Returns the information needed to perform a branch *)
 fun astate_get_branch_data ab_list astate =
@@ -746,6 +747,60 @@ fun get_disj_thm bool_list =
 (* Function that decides whether to branch or not: returns NONE if no branch should
  * be performed, otherwise SOME of a list of cases and a theorem stating the disjunction
  * between them *)
+(* With this trace set, assume adds its condition to the path condition and assert must
+ * follow from the path condition; otherwise both have no effect, as in the semantics *)
+val p4_symb_exec_assertions = ref false;
+val _ = register_btrace ("p4_symb_exec_assertions", p4_symb_exec_assertions);
+
+val disj_list_sing = prove(“!b. disj_list [b] = b”, rw[disj_list_def]);
+
+(* The condition passed to assert or assume *)
+fun get_check_arg scope_list =
+ dest_v_bool $ dest_some $ rhs $ concl $ HOL4P4_CONV (mk_lookup_lval (scope_list, mk_lval_varname "check"))
+;
+
+fun p4_check_assert path_tm scope_list =
+ let
+  val b = get_check_arg scope_list
+ in
+  if Teq $ rhs $ concl $ EVAL b
+  then NONE
+  else
+   let
+    val goal_tm = mk_imp (path_tm, b)
+    (* Bit-level properties, then arithmetic on the numbers of bit-strings *)
+    val _ =
+     blastLib.BBLAST_PROVE goal_tm
+     handle HOL_ERR _ =>
+      prove(goal_tm,
+       CONV_TAC (REWRITE_CONV [bitstringTheory.v2n_def, numposrepTheory.num_from_bin_list_def] THENC EVAL) >>
+       STRIP_TAC >>
+       FULL_SIMP_TAC arith_ss [arithmeticTheory.LESS_MOD])
+   in
+    NONE
+   end
+   handle HOL_ERR _ => raise (ERR "p4_should_branch" ("assert may fail: "^((term_to_string b)^(" does not follow from the path condition "^(term_to_string path_tm)))))
+ end
+;
+
+(* Branches on the hypothesis p4_assumption (!vs. path_tm ==> b), vs the fresh variables of the executor *)
+fun p4_assume_branch path_tm fv_index scope_list =
+ let
+  val b = get_check_arg scope_list
+ in
+  if Teq $ rhs $ concl $ EVAL b
+  then NONE
+  else
+   let
+    val fvs = List.filter (String.isPrefix p4_symb_arg_prefix o fst o dest_var) $ free_vars $ mk_conj (path_tm, b)
+    val assumption_tm = mk_p4_assumption (list_mk_forall (fvs, mk_imp (path_tm, b)))
+    val thm = SPECL fvs $ EQ_MP (ISPEC (dest_p4_assumption assumption_tm) p4_assumption_def) (ASSUME assumption_tm)
+   in
+    SOME (CONV_RULE (RAND_CONV (REWR_CONV (SYM $ ISPEC b disj_list_sing))) thm, [fv_index])
+   end
+ end
+;
+
 fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs (debug_flag, ctx_def) (fv_index, step_thm) =
  let
   (* DEBUG *)
@@ -1078,6 +1133,12 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       then approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope
       else if (ext_obj = "") andalso (ext_method = "update_checksum")
       then approx_v1model_update_checksum p4_symb_arg_prefix fv_index scope_list
+      else if (ext_obj = "") andalso (ext_method = "random")
+      then approx_v1model_random p4_symb_arg_prefix fv_index scope_list ascope
+      else if (ext_obj = "") andalso (ext_method = "assume") andalso !p4_symb_exec_assertions
+      then p4_assume_branch path_tm fv_index scope_list
+      else if (ext_obj = "") andalso (ext_method = "assert") andalso !p4_symb_exec_assertions
+      then p4_check_assert path_tm scope_list
       else if (ext_obj = "packet_in") andalso (ext_method = "extract")
       then SOME (approx_packet_in_extract fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "lookahead")
@@ -2512,7 +2573,21 @@ local
 fun p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) [] =
    (case List.find (fn (id', ct_thm) => id = id') id_ctthm_list of
      SOME (id'', thm) => thm
-   | NONE => raise (ERR "p4_unify_path_tree" ("Could not find contract with id: "^(int_to_string id))))
+   | NONE =>
+    (* A path that the assumptions exclude ends with symb_branch_cases R [] *)
+    if is_symb_branch_cases (concl path_disj_thm) andalso listSyntax.is_nil (snd $ dest_symb_branch_cases $ concl path_disj_thm)
+    then
+     let
+      val (R, cases) = dest_symb_branch_cases $ concl path_disj_thm
+      val (_, ctx, s, Q) =
+       case id_ctthm_list of
+         ((_, thm)::_) => dest_p4_contract $ concl thm
+       | [] => raise (ERR "p4_unify_path_tree" "The assumptions exclude every path")
+      val list_thm = prove(mk_p4_contract_list (R, cases, ctx, s, Q), REWRITE_TAC [p4_contract_list_def])
+     in
+      MATCH_MP (MATCH_MP p4_symb_exec_unify_n_gen path_disj_thm) list_thm
+     end
+    else raise (ERR "p4_unify_path_tree" ("Could not find contract with id: "^(int_to_string id))))
   | p4_unify_path_tree' id_ctthm_list (node (id, path_disj_thm, [])) path_tree_list_leafs =
    (* Unify *)
    let
@@ -2871,8 +2946,21 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished unification of all contracts in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s.\n\n"]);
 
+  val contract_thm = EQ_MP (SYM $ ISPECL [precond, ctx_lhs, end_point', postcond] p4_contract_at_contract') unified_ct_thm'
+
+  (* The hypotheses added by assume become conjuncts of the precondition *)
+  fun precond_conv c = RATOR_CONV (RATOR_CONV (RATOR_CONV (RAND_CONV c)))
+  fun add_assumption (h, thm) =
+   let
+    val (P, ctx', E, Q) = dest_p4_contract_at $ concl thm
+   in
+    CONV_RULE (precond_conv (DEPTH_CONV BETA_CONV)) $ MP (ISPECL [h, P, ctx', E, Q] p4_contract_at_assume) (DISCH h thm)
+   end
+  val assumptions = List.filter is_p4_assumption $ hyp contract_thm
  in
-  EQ_MP (SYM $ ISPECL [precond, ctx_lhs, end_point', postcond] p4_contract_at_contract') unified_ct_thm'
+  if null assumptions
+  then contract_thm
+  else CONV_RULE (precond_conv (PURE_REWRITE_CONV [p4_assumption_def])) $ foldl add_assumption contract_thm assumptions
  end
 ;
 

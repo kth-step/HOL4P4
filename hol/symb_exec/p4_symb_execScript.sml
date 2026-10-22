@@ -258,6 +258,18 @@ Proof
 simp[p4_contract_at_def, p4_contract'_alt_shape]
 QED
 
+(* Marks the hypotheses that assume statements add when the executor checks assertions *)
+Definition p4_assumption_def:
+ p4_assumption (b:bool) = b
+End
+
+Theorem p4_contract_at_assume:
+!H P ctx E Q.
+(H ==> p4_contract_at P ctx E Q) ==> p4_contract_at (\s. P s /\ H) ctx E Q
+Proof
+rw[p4_contract_at_def]
+QED
+
 Theorem p4_contract'_contract_at:
 !P ctx Q.
 p4_contract' P ctx Q <=> p4_contract_at P ctx (\s. T) Q
@@ -599,6 +611,25 @@ Theorem num_eq_add_numeral_F:
 Proof
 REWRITE_TAC [arithmeticTheory.NUMERAL_DEF, arithmeticTheory.BIT1, arithmeticTheory.BIT2] >>
 decide_tac
+QED
+
+Theorem v1model_random_inner_LENGTH:
+!lo hi w i f. LENGTH lo = w ==> LENGTH (v1model_random_inner lo hi w i f) = w
+Proof
+rw[v1model_random_inner_def, LENGTH_get_oracle_calls]
+QED
+
+Theorem v1model_random_inner_range:
+!lo hi w i f.
+v2n lo <= v2n hi ==>
+v2n lo <= v2n (v1model_random_inner lo hi w i f) /\ v2n (v1model_random_inner lo hi w i f) <= v2n hi
+Proof
+rpt gen_tac >>
+strip_tac >>
+simp[v1model_random_inner_def] >>
+rw[] >>
+qspec_then `get_oracle_calls w i f` assume_tac bitstringTheory.v2n_lt >>
+fs[LENGTH_get_oracle_calls]
 QED
 
 (*

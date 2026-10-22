@@ -55,7 +55,7 @@ Extern objects are instantiated once, at import time, and persist across packets
 
 ### Extern calls
 
-Every call of an extern function or extern object method must match an entry of the architecture's extern map by name and number of arguments, where the extern object and the dummy arguments added for the type arguments of `lookahead` count as arguments, and every instantiated extern object must have a constructor there; otherwise the import fails. This rejects, for example, `clone`, `truncate`, `mark_to_drop()` without argument, `packet_in.length()`, `meter` and `direct_counter` in v1model programs.
+Every call of an extern function or extern object method must match an entry of the architecture's extern map by name and number of arguments, where the extern object and the dummy arguments added for the type arguments of `lookahead` count as arguments, and every instantiated extern object must have a constructor there; otherwise the import fails. This rejects, for example, `clone`, `packet_in.length()`, `meter` and `direct_counter` in v1model programs. A v1model `mark_to_drop()` without argument becomes `mark_to_drop(sm)` for the one variable `sm` of type `standard_metadata_t` in scope, and fails to import when there is none or more than one.
 
 The type parameters of an extern object are bound to the type arguments of each instance, so that an integer literal passed for a parameter of type `T` of `register<bit<8>>(256) r` (as in `r.write(0, 42)`) gets width 8.
 

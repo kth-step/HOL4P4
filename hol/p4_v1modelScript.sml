@@ -122,6 +122,36 @@ Definition v1model_mark_to_drop_def:
    | NONE => NONE
 End
 
+(* No effect on the run, as with p4c --ndebug; the symbolic executor can check them *)
+Definition v1model_assert_def:
+ v1model_assert (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+Definition v1model_assume_def:
+ v1model_assume (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+(* As BMv2: the smallest length requested for the packet, in bytes, cuts the output *)
+Definition v1model_truncate_def:
+ v1model_truncate ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "length")) of
+  | SOME (v_bit (bl, n)) =>
+   let bl' = (case ALOOKUP v_map "truncate_length" of
+              | SOME (v_bit (bl_old, n_old)) => if v2n bl_old <= v2n bl then bl_old else bl
+              | _ => bl) in
+    SOME ((counter, ext_obj_map, AUPDATE v_map ("truncate_length", v_bit (bl', n)), ctrl, oracle_index), scope_list, status_returnv v_bot)
+  | _ => NONE
+End
+
+Definition v1model_truncate_packet_def:
+ v1model_truncate_packet v_map bl =
+  case ALOOKUP v_map "truncate_length" of
+  | SOME (v_bit (len_bl, n)) => TAKE (8 * v2n len_bl) bl
+  | _ => bl
+End
+
 (**********************)
 (* Checksum methods   *)
 (**********************)
@@ -215,12 +245,56 @@ Definition v1model_hash_def:
   | _ => NONE
 End
 
+(**********)
+(* random *)
+
+(* An oracle draw, replaced by lo when outside [lo, hi]; any value when lo > hi (v1model.p4).
+ * The bounds are tested first, so that a constant or full range needs no test of the draw *)
+Definition v1model_random_inner_def:
+ v1model_random_inner lo hi w oracle_index random_oracle =
+  let r = get_oracle_calls w oracle_index random_oracle in
+   if v2n hi < v2n lo then r
+   else if v2n lo = v2n hi then lo
+   else if v2n lo = 0 /\ v2n hi = 2 ** w - 1 then r
+   else if v2n lo <= v2n r /\ v2n r <= v2n hi then r
+   else lo
+End
+
+(* The width of the result is that of the out parameter, as in register_read *)
+Definition v1model_random_def:
+ v1model_random random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "result")) of
+  | SOME (v_bit (bl_res, w)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "lo")) of
+    | SOME (v_bit (bl_lo, n_lo)) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "hi")) of
+      | SOME (v_bit (bl_hi, n_hi)) =>
+       (case assign scope_list (v_bit (v1model_random_inner bl_lo bl_hi w oracle_index random_oracle, w)) (lval_varname (varn_name "result")) of
+        | SOME scope_list' =>
+         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index + w), scope_list', status_returnv v_bot)
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
+
+(* The *_with_payload checksums append the unparsed packet to the data padded to bytes, as bmv2's BufBuilder *)
+Definition v1model_checksum_data_def:
+ v1model_checksum_data with_payload ext_obj_map v_map bl =
+  if with_payload
+  then
+   (case lookup_obj ext_obj_map v_map "b_temp" of
+    | SOME (INL (core_v_ext_packet payload)) => SOME (pad_bits 8 bl ++ payload)
+    | _ => NONE)
+  else SOME bl
+End
+
 (*******************)
 (* verify_checksum *)
 
 (* Any algorithm, data length and checksum width; the comparison is numeric, as in bmv2 *)
-Definition v1model_verify_checksum_def:
- (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+Definition v1model_verify_checksum_gen_def:
+ (v1model_verify_checksum_gen with_payload ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
@@ -229,7 +303,7 @@ Definition v1model_verify_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case data_bits data of
+         (case OPTION_BIND (data_bits data) (v1model_checksum_data with_payload ext_obj_map v_map) of
           | SOME bl_data =>
            (case v1model_hash_det (v2n bl) bl_data of
             | SOME h =>
@@ -255,6 +329,14 @@ Definition v1model_verify_checksum_def:
  )
 End
 
+Definition v1model_verify_checksum_def:
+ v1model_verify_checksum = v1model_verify_checksum_gen F
+End
+
+Definition v1model_verify_checksum_with_payload_def:
+ v1model_verify_checksum_with_payload = v1model_verify_checksum_gen T
+End
+
 (*******************)
 (* update_checksum *)
 
@@ -264,8 +346,8 @@ Definition v1model_update_checksum_inner_def:
 End
 
 (* csum16 into a 16-bit field stays the folded v1model_update_checksum_inner for symbolic execution *)
-Definition v1model_update_checksum_def:
- (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+Definition v1model_update_checksum_gen_def:
+ (v1model_update_checksum_gen with_payload ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
@@ -274,7 +356,7 @@ Definition v1model_update_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case data_bits data of
+         (case OPTION_BIND (data_bits data) (v1model_checksum_data with_payload ext_obj_map v_map) of
           | SOME bl_data =>
            (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
             | SOME $ v_bit (bl', n') =>
@@ -299,6 +381,14 @@ Definition v1model_update_checksum_def:
     else SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
    | _ => NONE)
  )
+End
+
+Definition v1model_update_checksum_def:
+ v1model_update_checksum = v1model_update_checksum_gen F
+End
+
+Definition v1model_update_checksum_with_payload_def:
+ v1model_update_checksum_with_payload = v1model_update_checksum_gen T
 End
 
 (**************)
@@ -678,7 +768,7 @@ Definition v1model_input_f_def:
    let counter' = counter + 2 in
    let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("egress_port", 9); ("ingress_global_timestamp", 48)] in
    (* TODO: Currently, no garbage collection in v_map is done *)
-   let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
+   let v_map' = AUPDATE_LIST (FILTER (\ (k, v). k <> "truncate_length") v_map) [("b", v_ext_ref counter);
                                     ("b_temp", v_ext_ref (counter+1));
                                     ("standard_metadata", v_struct (AUPDATE_LIST (^v1model_standard_metadata_zeroed) ([("ingress_port", v_bit (w9 (n2w p))); ("packet_length", v_bit (fixwidth 32 (n2v (LENGTH bl DIV 8)), 32))]++drawn)));
                                     ("parsedHdr", tau1_uninit_v);
@@ -777,7 +867,7 @@ Definition v1model_output_f_def:
          | SOME (v_bit (spec_bl, n)) =>
           (case ALOOKUP struct "egress_port" of
            | SOME (v_bit (port_bl, n')) =>
-            SOME (in_out_list++(if v1model_is_drop_port spec_bl then [] else [(bl++bl', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl, oracle_index))
+            SOME (in_out_list++(if v1model_is_drop_port spec_bl then [] else [(v1model_truncate_packet v_map (bl++bl'), v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl, oracle_index))
            | _ => NONE)
          | _ => NONE)
        | _ => NONE)
