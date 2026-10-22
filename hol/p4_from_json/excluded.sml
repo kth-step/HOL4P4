@@ -14,7 +14,7 @@ val exclude_descs =
   ("adding signed integers to HOL4P4",
    ["type: [\"int\",", "[\"Left\",[\"int\","],
    []),
-  ("v1model registers that start at 0",
+  ("BMv2's zeroed initial register contents, which v1model.p4 leaves unspecified",
    [],
    ["issue1814-1-bmv2"]),
   ("dropping packets on a parser reject in the eBPF model",

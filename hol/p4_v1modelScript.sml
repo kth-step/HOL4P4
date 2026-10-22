@@ -323,6 +323,7 @@ Definition v1model_register_construct_inner_def:
   get_oracle_calls_array width oracle_index random_oracle size
 End
         
+(* v1model.p4 leaves the initial contents unspecified (BMv2 zeroes them), so they are oracle bits *)
 Definition register_construct_def:
  (register_construct random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
@@ -373,7 +374,7 @@ Definition v1model_register_read_inner_def:
  )
 End
 
-(* Note that register_read always has a result, according to v1model.p4. *)
+(* Always has a result (v1model.p4); the oracle index advances by the result width, also in range *)
 Definition register_read_def:
  (register_read random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
@@ -388,7 +389,7 @@ Definition register_read_def:
          let (bl', n') = v1model_register_read_inner n'' bl array oracle_index random_oracle in
            (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
             | SOME scope_list' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index + n''), scope_list', status_returnv v_bot)
             | NONE => NONE)
         | _ => NONE)
       | _ => NONE)
