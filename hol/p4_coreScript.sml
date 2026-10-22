@@ -443,12 +443,18 @@ Definition v2w16s_def:
  (v2w16s v = if (LENGTH v) MOD 16 = 0 then SOME (v2w16s' v) else NONE)
 End
 
+(* Zero-pads at the end to a multiple of n bits *)
+Definition pad_bits_def:
+ pad_bits n bl = bl ++ REPLICATE ((n - LENGTH bl MOD n) MOD n) F
+End
+
+(* Data that is not a multiple of 16 bits is zero-padded, as in RFC 1071 *)
 Definition get_checksum_incr_def:
  (get_checksum_incr scope_list ext_data_name =
    (case lookup_lval scope_list ext_data_name of
     | SOME v =>
      (case data_bits v of
-      | SOME bl => v2w16s bl
+      | SOME bl => SOME (v2w16s' (pad_bits 16 bl))
       | NONE => NONE)
     | NONE => NONE)
  )

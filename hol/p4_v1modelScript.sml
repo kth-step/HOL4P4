@@ -180,11 +180,6 @@ WF_REL_TAC `measure LENGTH` >>
 fs []
 End
 
-(* Zero-pads at the end to a multiple of n bits *)
-Definition pad_bits_def:
- pad_bits n bl = bl ++ REPLICATE ((n - LENGTH bl MOD n) MOD n) F
-End
-
 
 (********)
 (* hash *)

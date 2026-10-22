@@ -4,7 +4,7 @@ Ancestors
 Libs
   pairSyntax wordsSyntax listSyntax numSyntax p4Syntax p4_vssLib p4_testLib
 
-(* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. *)
+(* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. The CPU port gets the original frame (spec 5.2.3). *)
 
 (******************************)
 (*   Example program terms    *)
@@ -60,19 +60,22 @@ val parsed_packet_struct_uninit =
  mk_v_struct_list [(``"ethernet"``, ethernet_header_uninit), (``"ip"``, ipv4_header_uninit)];
 
 
-val init_counter = ``3:num``;
+val init_counter = ``4:num``;
 
 val init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
                           (1, INL (core_v_ext_packet []));
-                          (2, INL (core_v_ext_packet []))]:(num, (core_v_ext + vss_v_ext)) alist``;
+                          (2, INL (core_v_ext_packet []));
+                          (3, INL (core_v_ext_packet []))]:(num, (core_v_ext + vss_v_ext)) alist``;
 
 (* All variables used in the architectural scope need to be declared *)
-(* NOTE: the output packet is here called "data_crc". VSS spec has both input and output called "b" *)
+(* NOTE: the unparsed rest of the frame is called "payload" and the original frame "b_orig".
+ * VSS spec has both input and output called "b" *)
 val init_v_map = ``[("inCtrl", v_struct [("inputPort", ^(mk_v_biti_arb 4))]);
                     ("outCtrl", v_struct [("outputPort", ^(mk_v_biti_arb 4))]);
                     ("b_in", v_ext_ref 0);
                     ("b_out", v_ext_ref 1);
-                    ("data_crc", v_ext_ref 2);
+                    ("payload", v_ext_ref 2);
+                    ("b_orig", v_ext_ref 3);
                     ("parsedHeaders", (^parsed_packet_struct_uninit));
                     ("headers", (^parsed_packet_struct_uninit));
                     ("outputHeaders", (^parsed_packet_struct_uninit));
@@ -90,6 +93,11 @@ val init_ctrl = ``[("ipv4_match",
                     (* Destination MAC addess is computed from next hop IPv4 address *)
                     [(($= [e_v ^(mk_v_bitii (1,32))], 0),
                        ("Set_dmac", [e_v ^(mk_v_bitii (1,48))]) )]
+                   );
+                   ("check_ttl",
+                    (* A packet whose TTL has reached 0 goes to the CPU *)
+                    [(($= [e_v ^(mk_v_bitii (0,8))], 0),
+                       ("Send_to_cpu", []) )]
                    );
                    ("smac",
                     (* Source MAC addess is computed from output port *)
@@ -168,10 +176,10 @@ val ctxt = CONJ (ASSUME ass1) (ASSUME ass2);
 (* Version 1: Use stepwise EVAL with assumptions *)
 (* Takes around 20 seconds to run *)
 
-(* 184 steps for TTL=1 packet to get forwarded to CPU *)
+(* 185 steps for TTL=1 packet to reach the output block *)
 
 (* Theorem on line below proves data non-interference using proof approach 1 *)
-GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 184;
+GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate stop_consts_rewr stop_consts_never ctxt 185;
 
 
 (************************************************************************************************************)
@@ -205,15 +213,15 @@ Definition p4_vss_actx'_def:
 End
 val ctx' = ``p4_vss_actx' r``;
 
-(* EVAL-uate until packet is output (happens to be step 184) *)
+(* EVAL-uate until packet is output (happens to be step 186) *)
 (* Theorem on line below proves data non-interference using proof approach 2 *)
-GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 185``;
+GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 186``;
 
 
 (**************************************************)
 (* Version 3: Use repeated EVAL-under-assumptions *)
 (* Takes around 2 seconds to run *)
 
-(* Takes 68 steps, then another 104, then 13 *)
+(* Takes 68 steps, then another 104, then 14 *)
 (* Theorem on line below proves data non-interference using proof approach 3 *)
-GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [68, 104, 13];
+GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [68, 104, 14];

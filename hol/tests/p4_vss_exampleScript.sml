@@ -207,6 +207,7 @@ val vss_ab_list =
             vss_pipe_ab,  (* Match-Action Pipeline *)
             ``arch_block_ffbl "pre_deparser"``, (* pre-Deparser *)
             vss_deparser_ab,  (* Deparser *)
+            ``arch_block_ffbl "demux"``, (* Demux: recirculation *)
             ``arch_block_out`` (* Demux/queue built-in *)], ``:arch_block``);
 
 (* Architectural context components: *)

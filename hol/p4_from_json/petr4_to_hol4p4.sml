@@ -788,6 +788,7 @@ fun vss_add_ffblocks_to_ab_list ab_list_tm =
                   (el 2 ab_list),
                   ``arch_block_ffbl "pre_deparser"``,
                   (el 3 ab_list),
+                  ``arch_block_ffbl "demux"``,
                   ``arch_block_out``]
  in
   (mk_list (ab_list', ab_list_ty))

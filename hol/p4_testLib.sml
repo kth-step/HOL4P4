@@ -164,10 +164,9 @@ fun mk_eth_frame_ok data =
     val dst = fixedwidth_of_int (0, 48);
     (* EtherType - 0x0800 (2048) signifies IP payload *)
     val ty = fixedwidth_of_int (2048, 16);
-    (* CRC Checksum - TODO *)
-    val crc = fixedwidth_of_int (0, 32);
   in
-    rhs $ concl $ EVAL $ list_mk_append [src, dst, ty, data, crc]
+    (* No CRC trailer: the VSS arbiter removes it *)
+    rhs $ concl $ EVAL $ list_mk_append [src, dst, ty, data]
   end
 ;
 
