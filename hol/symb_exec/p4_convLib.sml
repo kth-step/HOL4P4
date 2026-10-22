@@ -66,7 +66,9 @@ local
 *)
  val list_of_thys = ["p4_aux", "p4_core", "p4_v1model", "p4_ebpf", "p4_vss"]
 
+ (* @temp..._def define enumeration constructors, and evaluating with them loops *)
  fun filtered_thm_names name =
+  (not $ String.isPrefix "@temp" name) andalso
   (not $ String.isSuffix "_aux" name) andalso
   (not $ String.isSuffix "_AUX" name) andalso
   (not $ String.isSuffix "_primitive" name) andalso

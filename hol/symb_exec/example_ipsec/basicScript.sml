@@ -1211,7 +1211,7 @@ val basic_actx = ``([arch_block_inp;
             v_bit
               ([F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F],16))])]),v1model_output_f,
- v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f,
+ v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);

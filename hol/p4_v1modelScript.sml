@@ -9,18 +9,12 @@ Libs
    https://github.com/p4lang/behavioral-model/blob/main/targets/simple_switch/simple_switch.cpp
 *)
 
-(* NOTE ON CONTROL PLANE APIS
- * By default, this model is set up to work with TDI-style tables, where priority annotation
- * leads to smallest priority winning out in case of multiple matches (for ternary match kinds).
- * Change this by setting the value of CONTROL_PLANE_API to correspond with the control plane
- * API you want to model.
- *
- * TDI (default): 0
- * P4Runtime API: 1
- *
- * *)
-
-val CONTROL_PLANE_API = 0;
+(* The control-plane API decides which of several matching entries wins (v1model_apply_table_f):
+ * in TDI, the longest prefix in tables with only lpm and exact keys and the smallest priority
+ * otherwise; in P4Runtime, the largest priority *)
+Datatype:
+ v1model_cp_api = v1model_api_tdi | v1model_api_p4runtime
+End
 
 (* TODO: v1model uses a checksum in the verify_checksum and update_checksum externs *)
 Datatype:
@@ -76,8 +70,9 @@ Definition v1model_packet_in_lookahead_def:
  v1model_packet_in_lookahead = packet_in_lookahead_gen v1model_ascope_lookup v1model_ascope_update_v_map
 End
 
+(* BMv2 fails an advance by a non-multiple of 8 bits with ParserInvalidArgument *)
 Definition v1model_packet_in_advance_def:
- v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
+ v1model_packet_in_advance = packet_in_advance_gen T v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
 Definition v1model_packet_out_emit_def:
@@ -870,12 +865,14 @@ Definition v1model_output_f_def:
    | _ => NONE)
 End
 
-(* Note that table priority is runtime-dependent, with only partial P4 language
- * support. *)
-(* API 0: longest prefix wins in tables with only lpm and exact keys, smallest priority otherwise (TDI); API 1: largest *)
-val v1model_largest_wins = if CONTROL_PLANE_API = 0 then “\mk_list:mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list” else “\mk_list:mk_list. T”;
+(* Whether the largest priority (for lpm, the longest prefix) wins *)
+Definition v1model_largest_wins_def:
+ (v1model_largest_wins v1model_api_tdi mk_list = (MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list)) /\
+ (v1model_largest_wins v1model_api_p4runtime (mk_list:mk_list) = T)
+End
+
 Definition v1model_apply_table_f_def:
- v1model_apply_table_f = apply_table_f_gen ^v1model_largest_wins:v1model_ascope apply_table_f
+ v1model_apply_table_f api = apply_table_f_gen (v1model_largest_wins api):v1model_ascope apply_table_f
 End
 
 Definition v1model_get_oracle_index_def:

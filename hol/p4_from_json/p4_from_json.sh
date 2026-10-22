@@ -3,8 +3,8 @@
 #
 #   p4_from_json.sh fetch-tests [PETR4_CLONE]
 #   p4_from_json.sh export DIR [INCLUDE_DIR]
-#   p4_from_json.sh convert FILE.json [--mode MODE] [--arch ARCH] [--log FILE] [--keep-info]
-#   p4_from_json.sh convert-dir DIR [-j N] [--mode MODE] [--log FILE] [--keep-info]
+#   p4_from_json.sh convert FILE.json [--mode MODE] [--arch ARCH] [--api API] [--log FILE] [--keep-info]
+#   p4_from_json.sh convert-dir DIR [-j N] [--mode MODE] [--api API] [--log FILE] [--keep-info]
 #   p4_from_json.sh validate [-j N]
 #
 # Run with no arguments for details. Works from any directory.
@@ -29,13 +29,15 @@ Usage: p4_from_json.sh COMMAND ...
   export DIR [INCLUDE_DIR]
       Run petr4 on every .p4 file in DIR, writing FILE.json next to it.
       INCLUDE_DIR defaults to p4include/.
-  convert FILE.json [--mode MODE] [--arch ARCH] [--log FILE] [--keep-info]
+  convert FILE.json [--mode MODE] [--arch ARCH] [--api API] [--log FILE] [--keep-info]
       Transform one JSON file into a HOL4P4 Script.sml next to it.
       MODE: concrete | stf | symbolic (default: stf if FILE.stf exists,
       otherwise concrete). ARCH: vss | ebpf | v1model (default: detected from
-      the program). --keep-info keeps petr4's source-position fields.
+      the program). API: tdi | p4runtime, the control-plane API whose priority
+      rule v1model tables follow (default: tdi). --keep-info keeps petr4's
+      source-position fields.
       Results are appended to the log (default: $DEFAULT_LOG).
-  convert-dir DIR [-j N] [--mode MODE] [--log FILE] [--keep-info]
+  convert-dir DIR [-j N] [--mode MODE] [--api API] [--log FILE] [--keep-info]
       Convert every JSON file in DIR, N at a time (default 1). Starts the log
       afresh and prints a summary.
   validate [-j N]
@@ -97,13 +99,14 @@ cmd_export() {
 
 # ---------------------------------------------------------------------------
 # Parses the options shared by convert and convert-dir into globals.
-MODE="" ARCH="" LOG="" KEEP_INFO="" JOBS=1
+MODE="" ARCH="" API="" LOG="" KEEP_INFO="" JOBS=1
 parse_convert_opts() {
  POSITIONAL=()
  while [ $# -gt 0 ]; do
   case "$1" in
    --mode) MODE="${2:?--mode needs a value}"; shift 2 ;;
    --arch) ARCH="${2:?--arch needs a value}"; shift 2 ;;
+   --api) API="${2:?--api needs a value}"; shift 2 ;;
    --log) LOG="$(readlink -f "${2:?--log needs a value}")"; shift 2 ;;
    --keep-info) KEEP_INFO=1; shift ;;
    -j) JOBS="${2:?-j needs a number}"; shift 2 ;;
@@ -114,6 +117,7 @@ parse_convert_opts() {
  LOG="${LOG:-$DEFAULT_LOG}"
  case "$MODE" in ""|concrete|stf|symbolic) ;; *) die "unknown mode $MODE" ;; esac
  case "$ARCH" in ""|vss|ebpf|v1model) ;; *) die "unknown architecture $ARCH" ;; esac
+ case "$API" in ""|tdi|p4runtime) ;; *) die "unknown control-plane API $API" ;; esac
 }
 
 buildheap_bin() {
@@ -130,6 +134,7 @@ convert_one() {
  local -a opts=()
  [ -n "$MODE" ] && opts+=("mode=$MODE")
  [ -n "$ARCH" ] && opts+=("arch=$ARCH")
+ [ -n "$API" ] && opts+=("api=$API")
  [ -n "$KEEP_INFO" ] && opts+=("keep-info")
  (cd "$SCRIPT_DIR" && "$(buildheap_bin)" --gcthreads=1 --holstate="$HEAP" petr4_to_hol4p4 "$json" "$LOG" "${opts[@]+"${opts[@]}"}")
 }

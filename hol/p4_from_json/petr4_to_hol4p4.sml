@@ -900,7 +900,7 @@ fun construct_ext_objs ext_map stop_consts n insts ascope =
  end
 ;
 
-fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm oracle_index top_inits =
+fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, blftymap) fmap pblock_map tbl_updates_tm arch_opt_tm ab_list_tm ttymap_tm pblock_action_names_map_tm oracle_index top_inits api_tm =
  let
   val extra_terms =
    if output_extra_maps
@@ -1024,7 +1024,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map', v1model_ffblock_map,
 		     v1model_input_f, v1model_output_f,
-		     v1model_copyin_pbl, v1model_copyout_pbl, v1model_apply_table_f,
+		     v1model_copyin_pbl, v1model_copyout_pbl, mk_comb (v1model_apply_table_f, api_tm),
 		     v1model_ext_map, fmap',
                      “v1model_get_oracle_index”, “v1model_set_oracle_index”,
                      random_oracle_tm]
@@ -1167,7 +1167,7 @@ fun unimplemented_ext_calls ext_map tm =
   (map (fn obj => obj^" (constructor)") $ Lib.mk_set $ List.filter (not o constructible) $ map (fromHOLstring o dest_funn_inst o fst o dest_e_call) $ find_terms is_inst_call tm)
  end;
 
-val usage = "Usage: petr4_to_hol4p4 FILE.json LOGFILE [mode=auto|concrete|concrete_stf|symbolic] [arch=vss|ebpf|v1model] [keep-info]\n";
+val usage = "Usage: petr4_to_hol4p4 FILE.json LOGFILE [mode=auto|concrete|concrete_stf|symbolic] [arch=vss|ebpf|v1model] [api=tdi|p4runtime] [keep-info]\n";
 
 fun main() =
  case drop_until (String.isSuffix ".json") (CommandLine.arguments()) of
@@ -1202,6 +1202,12 @@ fun main() =
     val stfname_opt = if mode = "concrete_stf" then SOME stfname else NONE;
     val output_extra_maps = (mode = "symbolic");
     val keep_info = List.exists (fn s => s = "keep-info") opts;
+    (* The control-plane API of v1model tables *)
+    val api_tm =
+     case getOpt (opt_value "api" opts, "tdi") of
+       "tdi" => “v1model_api_tdi”
+     | "p4runtime" => “v1model_api_p4runtime”
+     | a => fail ("Unknown control-plane API "^(a^(". "^usage)));
 
     (* TODO: Done in one split instead? *)
     val valname_no_prefix =
@@ -1268,7 +1274,7 @@ val ttymap_tm = (el 14 res_list)
 val pblock_action_names_map_tm = (el 15 res_list)
 val oracle_index_tm = (el 16 res_list)
 *)
-	  val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num” (el 16 res_list);
+	  val _ = output_hol4p4_vals outstream output_extra_maps valname stfname_opt (el 4 res_list, el 5 res_list) (el 6 res_list) (el 10 res_list) (el 11 res_list) (el 12 res_list) (el 13 res_list) (el 14 res_list) (el 15 res_list) “0:num” (el 16 res_list) api_tm;
 	  val _ = output_hol4p4_explicit outstream;
 	 in
 	  TextIO.closeOut outstream

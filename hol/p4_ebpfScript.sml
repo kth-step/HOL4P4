@@ -44,7 +44,7 @@ Definition ebpf_packet_in_lookahead:
 End
 
 Definition ebpf_packet_in_advance:
- ebpf_packet_in_advance = packet_in_advance_gen ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
+ ebpf_packet_in_advance = packet_in_advance_gen F ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
 End
 
 Definition ebpf_packet_out_emit:

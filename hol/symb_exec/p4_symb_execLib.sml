@@ -939,14 +939,20 @@ basic:
         (* NOTE: We shouldn't filter out the default action name here - it will have
          * different "hit" dummy arg if it resulted from a hit or a default case. *)
 
-        (* TODO: Depending on control plane API, this should use FOLDL_MATCH_alt instead
-         * depending on the match kinds involved *)
         (* TODO: CURRENTLY ONLY WORKS FOR V1MODEL, FIX! *)
         val mk_list = fst $ dest_pair $ dest_some $ rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbl_map, tbl_name)
-        (* TODO: The below doesn't work with HOL4P4_CONV *)
-        val mem_lpm = Teq $ rhs $ concl $ EVAL (mk_conj (mk_mem (“mk_lpm”, mk_list), “EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) ^mk_list”))
+        (* The priority rule of the control-plane API in the context's v1model_apply_table_f *)
+        val largest_wins =
+         let
+          val (apply_table_f, args) = strip_comb $ #8 $ dest_actx $ rhs $ snd $ strip_forall $ concl ctx_def
+         in
+          if same_const apply_table_f (prim_mk_const {Thy = "p4_v1model", Name = "v1model_apply_table_f"}) andalso length args = 1
+          (* TODO: The below doesn't work with HOL4P4_CONV *)
+          then Teq $ rhs $ concl $ EVAL (list_mk_comb (prim_mk_const {Thy = "p4_v1model", Name = "v1model_largest_wins"}, [hd args, mk_list]))
+          else raise (ERR "p4_should_branch" ("Unsupported table application function: "^(term_to_string apply_table_f)))
+         end
 	val case_lhs =
-         if mem_lpm
+         if largest_wins
          then “FST $ FOLDL_MATCH ^e (^default_action, NONE) ^tbl”
          else “FST $ FOLDL_MATCH_alt ^e (^default_action, NONE) (1:num) ^tbl”
 
@@ -1014,7 +1020,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
           val (wf_ftymap, wf_blftymap, wf_pblock_action_names_map) = (fn (a, (b, c)) => (a, b, c)) $ (I ## dest_pair) $ dest_pair ty_ctx
           val inst_tms = [wf_ftymap, wf_blftymap, wf_pblock_action_names_map, wf_pblock_map, tbl_name, tbl, curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map, action_names_map, mk_l, default_action, action_names, e]
           val cases_thm =
-           if mem_lpm
+           if largest_wins
            then ISPECL inst_tms v1model_tbl_is_well_formed_FOLDL_MATCH
            else ISPECL (inst_tms@[term_of_int 1]) v1model_tbl_is_well_formed_FOLDL_MATCH_alt
           val lookups_thm = funpow 4 (fn thm => MP thm (EQT_ELIM $ HOL4P4_CONV $ fst $ dest_imp_only $ concl thm)) (MP cases_thm wf_thm)

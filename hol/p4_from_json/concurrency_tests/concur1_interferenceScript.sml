@@ -79,7 +79,7 @@ val concur1_actx = ``([arch_block_inp;
  [("postparser",ffblock_ff v1model_postparser);
   ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
  v1model_input_f random_oracle 1 (v_struct [],v_struct []),v1model_output_f,
- v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f,
+ v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
