@@ -58,7 +58,8 @@ val v1model_copyout_pbl = ``v1model_copyout_pbl``;
 val v1model_apply_table_f = ``v1model_apply_table_f``;
 
 (* Fixed-function block map *)
-val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser)]``;
+val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser);
+                             ("traffic_manager", ffblock_ff (v1model_traffic_manager random_oracle))]``;
 
 val v1model_register_map =
  ``[("read", ([("this", d_in); ("result", d_out); ("index", d_in)], register_read random_oracle));

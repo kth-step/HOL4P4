@@ -90,6 +90,7 @@ val table_defaults_actx = ``([arch_block_inp;
   arch_block_pbl "MyIngress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "MyEgress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -156,8 +157,9 @@ val table_defaults_actx = ``([arch_block_inp;
        (stmt_ass lval_null
           (e_call (funn_ext "packet_out" "emit")
              [e_var (varn_name "b"); e_acc (e_var (varn_name "hdr")) "h"])),
-     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 0
+     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+ v1model_input_f random_oracle 0
    (v_struct [("h",v_header F [("f",v_bit ([F; F; F; F; F; F; F; F],8))])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
  v1model_apply_table_f,

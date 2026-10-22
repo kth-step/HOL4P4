@@ -110,6 +110,7 @@ datatype branch_data =
  | conditional of term
  | select of term * (term list) * term
  | apply of term * term
+ | traffic_manager of term * term
  | output of term;
 
 (* Looks up the ML string string in the HOL4 alist term alist,
@@ -125,17 +126,23 @@ fun alookup_str alist string =
  end
 ;
 
-fun v1model_get_egress_port v_map =
+(* The bits of a bit field of the v1model standard_metadata *)
+fun v1model_get_sm_field v_map fld =
  let
   val v = alookup_str v_map "standard_metadata"
-  val egress_port_v = alookup_str (dest_v_struct v) "egress_spec"
  in
-  fst $ dest_pair $ dest_v_bit egress_port_v
+  fst $ dest_pair $ dest_v_bit $ alookup_str (dest_v_struct v) fld
  end
 ;
 
+val arch_block_out_tm = prim_mk_const {Thy = "p4", Name = "arch_block_out"};
+val v1model_traffic_manager_block_tm = mk_comb (prim_mk_const {Thy = "p4", Name = "arch_block_ffbl"}, fromMLstring "traffic_manager");
+
+(* Folded only until the path condition rewrites a step after a branch on them *)
+val branch_stop_consts = [prim_mk_const {Thy = "p4_v1model", Name = "v1model_is_drop_port"}];
+
 (* Returns the information needed to perform a branch *)
-fun astate_get_branch_data astate =
+fun astate_get_branch_data ab_list astate =
  case astate_get_top_stmt astate of
    SOME stmt =>
   let
@@ -159,20 +166,21 @@ fun astate_get_branch_data astate =
    else no_branch
   end
  | NONE =>
-  (* TODO: Generalise this, or at least extend it to other architectures *)
-  (* TODO: Fix this hack: this indirectly uses the fact that last block has index 8 in
-   * V1Model in HOL4P4 *)
+  (* TODO: Extend this to other architectures *)
  let
-  val ascope = #1 $ dest_astate astate
-  val (i, _, _, ascope, _) = dest_ascope ascope
+  val (i, _, _, ascope) = dest_aenv $ #1 $ dest_astate astate
  in
-  if (int_of_term $ i) = 8 andalso
-     (type_of ascope = p4_v1modelLib.v1model_arch_ty)
+  if type_of ascope = p4_v1modelLib.v1model_arch_ty
   then
    let
+    val block = List.nth (ab_list, int_of_term i)
     val (_, _, v_map, _, _) = p4_v1modelLib.dest_v1model_ascope ascope
    in
-    output $ v1model_get_egress_port v_map
+    if term_eq block arch_block_out_tm
+    then output $ v1model_get_sm_field v_map "egress_spec"
+    else if term_eq block v1model_traffic_manager_block_tm
+    then traffic_manager (v1model_get_sm_field v_map "egress_spec", v1model_get_sm_field v_map "mcast_grp")
+    else no_branch
    end
   else no_branch
  end
@@ -745,12 +753,13 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
   val _ = dbg_print debug_flag (String.concat ["\nComputing whether symbolic branch should take place...\n"])
 
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
+  val ab_list = fst $ dest_list $ #1 $ dest_actx $ rhs $ snd $ strip_forall $ concl ctx_def
 
   (* A short-circuit operation is branched on its first operand like a condition *)
   val branch_data =
    case astate_get_short_circuit_operand (get_f_maps (astate, rhs $ snd $ strip_forall $ concl ctx_def)) astate of
      SOME e => conditional e
-   | NONE => astate_get_branch_data astate
+   | NONE => astate_get_branch_data ab_list astate
 
   val res =
    (case branch_data of
@@ -1079,6 +1088,13 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
      end
     else NONE
    end
+  (* Branch point: drop decision of the v1model traffic manager *)
+  | traffic_manager (spec_bl, mcast_bl) =>
+   if not $ Teq $ rhs $ concl $ EVAL (mk_eq (bitstringSyntax.mk_v2n mcast_bl, zero_tm))
+   then raise (ERR "p4_should_branch" ("mcast_grp may be nonzero after ingress: multicast is not modelled, so the traffic manager is stuck. mcast_grp: "^(term_to_string mcast_bl)))
+   else if (not $ null $ free_vars spec_bl orelse HOLset.member (all_atoms spec_bl, mk_arb bool))
+   then SOME (SPEC “v1model_is_drop_port ^spec_bl” disj_list_EXCLUDED_MIDDLE, [fv_index, fv_index])
+   else NONE
   (* Branch point: emission of packet in final block *)
   | output port_bl =>
    if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, mk_arb bool))
@@ -2284,7 +2300,7 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   val _ = check_tbl_wf_satisfiable path_cond_defs (concl path_cond)
 
   (* Evaluation must stop at the inner functions of the packet_in methods *)
-  val stop_consts_rewr = add_packet_in_stop_consts stop_consts_rewr
+  val stop_consts_rewr = filter (fn c => not (exists (same_const c) branch_stop_consts)) $ add_packet_in_stop_consts stop_consts_rewr
 
   (* Pre-process ftymap and b_fty_map *)
   val (fty_map', b_fty_map') = preprocess_ftymaps (fty_map, b_fty_map)
@@ -2301,7 +2317,7 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   (* TODO: Use eval_ctxt defined below for init_step_thm? *)
   val init_step_thm = eval_ctxt_gen (stop_consts_rewr@stop_consts_never) stop_consts_never path_cond (mk_arch_multi_exec (ctx, init_astate, 0))
 
-  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), stop_consts_never, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  val eval_ctxt = p4_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never@branch_stop_consts), stop_consts_never, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
 (* small-big:
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
 *)

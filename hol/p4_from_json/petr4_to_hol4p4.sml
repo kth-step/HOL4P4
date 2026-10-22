@@ -814,6 +814,7 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
                   ``arch_block_ffbl "postparser"``,
                   (el 2 ab_list), (* VerifyChecksum *)
                   (el 3 ab_list), (* Ingress *)
+                  ``arch_block_ffbl "traffic_manager"``,
                   (el 4 ab_list), (* Egress *)
                   (el 5 ab_list), (* ComputeChecksum *)
                   (el 6 ab_list), (* Deparser *)
@@ -1016,7 +1017,7 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
      val fmap' = eval_rhs ``AUPDATE_LIST ^v1model_func_map ^fmap``
      val tparams = eval_rhs “(\ (tau1, tau2). (zero_val_from_tau tau1, zero_val_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
      val (n_tm, g_scope_ties, pblock_map', insts) = tie_ext_insts v1model_init_counter top_inits pblock_map
-     val v1model_input_f = “v1model_input_f ^n_tm ^tparams”
+     val v1model_input_f = “v1model_input_f random_oracle ^n_tm ^tparams”
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
        list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map', v1model_ffblock_map,

@@ -165,6 +165,23 @@ and before running, the executor checks that every conjunct of the path conditio
 entries holds when the symbolic entry lists are empty, so that these conjuncts cannot make the
 precondition unsatisfiable.
 
+## V1Model packet flow
+
+As in BMv2's simple_switch, a traffic manager (`v1model_traffic_manager`) runs between
+ingress and egress. A packet with `egress_spec` 511 is dropped there and egress does not run
+for it; otherwise egress runs with `egress_port` set to `egress_spec` and `egress_spec` 0, and
+a packet for which egress sets `egress_spec` to 511 is dropped at the output.
+
+* Multicast is not modelled: the traffic manager has no step when `mcast_grp` is nonzero, and
+  the executor stops with an error when `mcast_grp` is not known to be 0 there. A proof split
+  before the traffic manager must therefore keep `mcast_grp` in the intermediate postcondition
+  (see `tests/decomposeScript.sml`).
+* The executor branches on `v1model_is_drop_port` at the traffic manager and at the output
+  when `egress_spec` is symbolic. It keeps that constant folded where needed itself, so it
+  need not be in `stop_consts_rewr`.
+* The timestamps and queue fields of `standard_metadata`, and `egress_port` during ingress,
+  are oracle bits.
+
 ## Tests and examples
 
 The tests are located in the `tests` subdirectory. After installation, run them by first executing

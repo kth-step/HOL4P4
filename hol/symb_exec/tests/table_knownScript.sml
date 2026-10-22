@@ -25,6 +25,7 @@ val symb_exec4_actx = ``([arch_block_inp;
   arch_block_pbl "ingress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "egress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -98,8 +99,9 @@ val symb_exec4_actx = ``([arch_block_inp;
           (stmt_ret (e_v v_bot))),[("from_table",d_in); ("hit",d_in)])],[],
    [],
    [("t",[mk_exact],"set_default_out_port",[e_v (v_bool T); e_v (v_bool F)])])],
- [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 0
+ [("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+ v1model_input_f random_oracle 0
    (v_struct
       [("h",
         v_header F

@@ -26,6 +26,7 @@ val symb_exec1_actx = ``([arch_block_inp;
   arch_block_pbl "ingress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "egress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -68,8 +69,9 @@ val symb_exec1_actx = ``([arch_block_inp;
           (stmt_ass
              (lval_field (lval_varname (varn_name "standard_meta"))
                 "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))))),
-     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 0
+     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+ v1model_input_f random_oracle 0
    (v_struct
       [("h",
         v_header F
@@ -174,8 +176,10 @@ val (fv_index1, disj_thm1, step_thm1) = hd res_list1
 
 (* 1. Prove a contract from initial to intermediate state *)
 (* Last conjunct needed for block_index stop from 3 onwards *)
+(* mcast_grp must be known to be 0: the traffic manager is stuck on multicast *)
 val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
                       p4_v1model_lookup_avar (lval_field (lval_field (lval_field (lval_varname (varn_name "parsedHdr")) "h") "row") "e") s = SOME $ v_bit (packet_slice 0 8 ^p,8) /\
+                      p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_metadata")) "mcast_grp") s = SOME $ v_bit (REPLICATE 16 F,16) /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "parsedHdr")) "h") s = SOME T (* /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T *) ):v1model_ascope astate -> bool”;
 (*
