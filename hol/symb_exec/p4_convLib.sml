@@ -249,10 +249,15 @@ val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
 
 *)
 
+ (* Adding a theorem to a compset again duplicates its rules, so the theories are added once *)
+ val thys_in_the_compset = ref false
 in
  fun get_HOL4P4_CONV thms_to_add =
   let
-   val _ = add_thy_list list_of_thys the_compset
+   val _ =
+    if !thys_in_the_compset
+    then ()
+    else (add_thy_list list_of_thys the_compset; thys_in_the_compset := true)
 
    val _ = computeLib.add_thms thms_to_add hol4p4_compset
   in
@@ -290,11 +295,13 @@ fun norewr_eval_ctxt_gen stop_consts ctxt tm =
   |> DISCH_CONJUNCTS_ALL
 ;
 *)
-fun get_norewr_eval_ctxt_gen stop_consts thms_to_add tm =
-  get_RESTR_HOL4P4_CONV thms_to_add stop_consts tm
-;
-fun p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) astate =
- get_norewr_eval_ctxt_gen (stop_consts@p4_stop_eval_consts) thms_to_add (mk_exec astate)
+(* The conversion is built once, not at every step *)
+fun p4_get_norewr_eval_ctxt_gen (stop_consts, thms_to_add, mk_exec) =
+ let
+  val conv = get_RESTR_HOL4P4_CONV thms_to_add (stop_consts@p4_stop_eval_consts)
+ in
+  fn astate => conv (mk_exec astate)
+ end
 ;
 
 (* TODO: This should simplify the scopes after shortcutting *)
