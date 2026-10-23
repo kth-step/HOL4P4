@@ -1905,7 +1905,7 @@ fun comp_nomidassl_MP thm1 thm2 =
  handle HOL_ERR _ => MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ thm1 thm2)
 ;
 
-fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm use_eval_in_ctxt step_thm =
+fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv, in_local_conv) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
   val time_start = Time.now();
@@ -2017,17 +2017,23 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 
     val block_index = #1 $ dest_aenv aenv
 
+    (* The prebuilt conversion knows ctx_def; rewriting with it is the fallback *)
+    fun prove_in_local tm =
+     EQT_ELIM (in_local_conv tm)
+     handle HOL_ERR _ => EQT_ELIM ((REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv) tm)
+          | UNCHANGED => EQT_ELIM ((REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv) tm)
+
     val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
      (* Non-function argument reduction *)
-     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     then (prove_in_local $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 (* OLD
      then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 *)
      (* Function argument reduction *)
-     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     else (prove_in_local $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
     val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ shortcut_conv bigstep_tm
 
@@ -2282,7 +2288,8 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
   (* Evaluating with the context constant spares converting the whole context at every step *)
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add@[ctx_def], (fn astate => mk_arch_multi_exec (lhs $ snd $ strip_forall $ concl ctx_def, astate, 1)))
   val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts)
-  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm
+  val in_local_conv = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), [ctx_def, in_local_fun'_def], I)
+  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv, in_local_conv) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
@@ -2291,7 +2298,8 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 (* DEBUG:
 val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def;
 val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts);
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm;
+val in_local_conv = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), [ctx_def, in_local_fun'_def], I);
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv, in_local_conv) comp_thm;
 val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
