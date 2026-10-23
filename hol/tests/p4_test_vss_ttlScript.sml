@@ -4,7 +4,7 @@ Ancestors
 Libs
   pairSyntax wordsSyntax listSyntax numSyntax p4Syntax p4_vssLib p4_testLib
 
-(* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. The CPU port gets the original frame (spec 5.2.3). *)
+(* This file includes complete test runs of the VSS example in the P4 spec for a TTL that is low enough to send the packet to CPU, with the bits in other fields that don't affect this computation set to free variables. The CPU port gets the original frame (spec 5.2.3). A TTL 2 packet is forwarded with the updated checksum. *)
 
 (******************************)
 (*   Example program terms    *)
@@ -225,3 +225,41 @@ GEN_ALL $ EVAL ``arch_multi_exec (^ctx') (^init_astate) 186``;
 (* Takes 68 steps, then another 104, then 14 *)
 (* Theorem on line below proves data non-interference using proof approach 3 *)
 GEN_ALL $ eval_under_assum_break ctx init_astate (stop_consts_rewr@stop_consts_never) ctxt [68, 104, 14];
+
+
+(**************************************************************************************)
+(* TTL 2: the packet leaves on port 0 with TTL 1, the incrementally updated checksum and dstAddr 1 *)
+
+val input_fwd = mk_eth_frame_ok (mk_ipv4_packet_ok_ttl input_data_ok 2);
+val init_aenv_fwd = ``(^(list_mk_pair [``0:num``, mk_list ([mk_pair (input_fwd, input_port_ok)], ``:in_out``), init_outlist_ok, ``(^init_ascope)``])):vss_ascope aenv``;
+val init_astate_fwd =
+ ``(^(pairSyntax.list_mk_pair [init_aenv_fwd,
+                               mk_list ([vss_init_global_scope], scope_ty),
+                               arch_frame_list_empty_tm,
+                               status_running_tm])):vss_ascope astate``;
+
+fun ttl_bits ttl = rhs $ concl $ EVAL ``fixwidth 8 (n2v ^(term_of_int ttl))``;
+
+(* ass1 and ass2 with the TTL word one higher *)
+val ttl_word = fn ttl => ``v2w (^(ttl_bits ttl) ++ [pr0; pr1; pr2; pr3; pr4; pr5; pr6; pr7]):word16``;
+val ass1_fwd = subst [rhs (concl (EVAL (ttl_word 1))) |-> rhs (concl (EVAL (ttl_word 2)))] ass1;
+val ass2_fwd = subst [rhs (concl (EVAL (ttl_word 0))) |-> rhs (concl (EVAL (ttl_word 1)))] ass2;
+val ctxt_fwd = CONJ (ASSUME ass1_fwd) (ASSUME ass2_fwd);
+
+(* The packet is output after 210 steps *)
+val fwd_thm = GEN_ALL $ eval_under_assum vss_arch_ty ctx init_astate_fwd stop_consts_rewr stop_consts_never ctxt_fwd 210;
+
+val expected_fwd =
+ let
+  val bits = fst $ dest_list input_fwd
+  val csum = ``vss_updated_checksum16 [hc0; hc1; hc2; hc3; hc4; hc5; hc6; hc7; hc8; hc9; hc10; hc11; hc12; hc13; hc14; hc15]``
+  val csum_bits = map (fn k => fcpSyntax.mk_fcp_index (csum, term_of_int k)) (List.tabulate (16, fn k => 15 - k))
+  val dst_bits = fst $ dest_list $ rhs $ concl $ EVAL ``fixwidth 48 (n2v 1)``
+ in
+  mk_list (dst_bits @ List.take (List.drop (bits, 48), 128) @ fst (dest_list (ttl_bits 1)) @ List.take (List.drop (bits, 184), 8) @ csum_bits @ List.drop (bits, 208), bool)
+ end;
+val _ =
+ if term_eq (#3 $ dest_aenv $ #1 $ dest_astate $ optionSyntax.dest_some $ rhs $ snd $ strip_imp $ snd $ strip_forall $ concl fwd_thm)
+            (mk_list ([mk_pair (expected_fwd, ``0:num``)], ``:in_out``))
+ then ()
+ else raise Fail "the forwarded frame is not the input frame with dstAddr 1, TTL 1 and the updated checksum";
