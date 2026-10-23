@@ -309,66 +309,80 @@ fun final_state_is_none step_thm = optionSyntax.is_none $ rhs $ concl step_thm
 
 (* Stepwise evaluation *)
 local
+(* One step. Only the input block (the head) and the output block (an append) look at the
+ * input and output lists, so their tail and whole are variables during evaluation *)
+fun eval_one actx astate =
+ let
+  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
+  val (i, inl, outl, ascope) = dest_aenv aenv
+  val (inl', inl_inst) =
+   if is_cons inl andalso is_cons (snd $ dest_cons inl)
+   then let val (h, t) = dest_cons inl val v = genvar (type_of t) in (mk_cons (h, v), [v |-> t]) end
+   else (inl, [])
+  val (outl', outl_inst) =
+   if is_cons outl
+   then let val v = genvar (type_of outl) in (v, [v |-> outl]) end
+   else (outl, [])
+  val step_thm = INST (inl_inst @ outl_inst) $ EVAL $ mk_arch_multi_exec (actx, mk_astate (mk_aenv (i, inl', outl', ascope), g_scope_list, arch_frame_list, status), 1)
+  val res = rhs $ concl step_thm
+ in
+  (* An output was appended to the restored output list *)
+  if is_some res andalso is_append (#3 $ dest_aenv $ #1 $ dest_astate $ dest_some res)
+  then CONV_RULE (RAND_CONV (RAND_CONV (LAND_CONV (RAND_CONV (RAND_CONV (LAND_CONV listLib.APPEND_CONV)))))) step_thm
+  else step_thm
+ end
+
+(* From the theorems for n steps and for one more step, the theorem for n+1 steps *)
+fun compose comp_thm step_thm step_thm2 =
+ let
+  fun split4 s = let val (a, r) = dest_pair s val (g, r') = dest_pair r val (f, st) = dest_pair r' in [a, g, f, st] end
+  val (_, [actx, s0, n]) = strip_comb $ lhs $ concl step_thm
+  val s1 = dest_some $ rhs $ concl step_thm
+  val m = rand $ lhs $ concl step_thm2
+  val s2 = dest_some $ rhs $ concl step_thm2
+  val assl = el 4 $ fst $ strip_forall $ concl comp_thm
+ in
+  CONV_RULE (LAND_CONV (RAND_CONV reduceLib.REDUCE_CONV))
+   (MP (MP (SPECL ([n, m, actx, assl] @ split4 s0 @ split4 s1 @ split4 s2) comp_thm) step_thm) step_thm2)
+ end
+
 fun eval_step' actx comp_thm step_thm 0 = step_thm
   | eval_step' actx comp_thm step_thm fuel =
  let
-  val curr_state = the_final_state step_thm
-  val step_thm2 =
-   EVAL “^(mk_arch_multi_exec (actx, curr_state, 1))”;
+  val step_thm2 = eval_one actx (the_final_state step_thm)
  in
   if final_state_is_none step_thm2
   then step_thm
-  else
-   let
-    val comp_step_thm =
-     SIMP_RULE simple_arith_ss []
-      (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
-   in
-    eval_step' actx comp_thm comp_step_thm (fuel-1)
-   end
+  else eval_step' actx comp_thm (compose comp_thm step_thm step_thm2) (fuel-1)
  end
 in
 fun eval_step_fuel ascope_ty actx astate fuel =
  let
-  val step_thm =
-   EVAL “^(mk_arch_multi_exec (actx, astate, 1))”;
+  val step_thm = eval_one actx astate
   val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
  in
   if fuel = 1
   then step_thm
   else eval_step' actx comp_thm step_thm (fuel-1)
  end
-end;
 
 (* WARNING: Not guaranteed to terminate! *)
-local
-fun eval_step' actx comp_thm step_thm =
- let
-  val curr_state = the_final_state step_thm
-  val step_thm2 =
-   EVAL “^(mk_arch_multi_exec (actx, curr_state, 1))”;
- in
-  if final_state_is_none step_thm2
-  then step_thm
-  else
-   let
-    val comp_step_thm =
-     SIMP_RULE simple_arith_ss []
-      (MATCH_MP (MATCH_MP comp_thm step_thm) step_thm2);
-   in
-    eval_step' actx comp_thm comp_step_thm
-   end
- end
-in
 fun eval_step ascope_ty actx astate =
  let
-  val step_thm =
-   EVAL “^(mk_arch_multi_exec (actx, astate, 1))”;
+  val step_thm = eval_one actx astate
   val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
+  fun loop step_thm =
+   let
+    val step_thm2 = eval_one actx (the_final_state step_thm)
+   in
+    if final_state_is_none step_thm2
+    then step_thm
+    else loop (compose comp_thm step_thm step_thm2)
+   end
  in
   if final_state_is_none step_thm
   then raise UNCHANGED
-  else eval_step' actx comp_thm step_thm
+  else loop step_thm
  end
 end;
 
