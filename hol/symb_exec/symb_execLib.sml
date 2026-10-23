@@ -275,11 +275,12 @@ local
   val SOME (disj_thm, fv_indices) = lang_should_branch (fv_index, step_thm)
  *)
      let
-      val _ = dbg_print debug_flag
+      (* The message is only built when debugging, since printing the terms is costly *)
+      val _ = if debug_flag then dbg_print debug_flag
        (String.concat ["\n\nPerforming symbolic branch...\n\n",
 		       (* "from step_thm:\n", (term_to_string $ concl step_thm), *)
 		       "using disj_thm:\n", (term_to_string $ concl disj_thm),
-		       "\n and path condition \n", (term_to_string $ concl path_cond), "\n\n"])
+		       "\n and path condition \n", (term_to_string $ concl path_cond), "\n\n"]) else ()
      in
       (case symb_branch debug_flag disj_thm path_cond of
 (*

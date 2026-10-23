@@ -1898,9 +1898,10 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigs
 
   val (ante, astate, nsteps) = the_final_state_hyp_imp_n step_thm
   (* DEBUG *)
-  val _ = dbg_print debug_flag (String.concat ["\nCommencing regular step from state with path condition: ",
+  (* The message is only built when debugging, since printing the path condition is costly *)
+  val _ = if debug_flag then dbg_print debug_flag (String.concat ["\nCommencing regular step from state with path condition: ",
 				(term_to_string $ ante),
-				"\n"])
+				"\n"]) else ()
 
   (* We can't let evaluation open match_all, or we won't be able to use our path condition,
    * where branch cases for table application are phrased in terms of match_all *)
