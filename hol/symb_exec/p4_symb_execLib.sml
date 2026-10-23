@@ -2137,7 +2137,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 (* small-big:
 	  (MATCH_MP small_big_exec_comp_conj (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
 *)
-	  (MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
+	  (MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) step_thm2)))
 
     (* TEST:
        val res =
@@ -2264,7 +2264,8 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 (* small-big:
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
 *)
-  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  (* Evaluating with the context constant spares converting the whole context at every step *)
+  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add@[ctx_def], (fn astate => mk_arch_multi_exec (lhs $ snd $ strip_forall $ concl ctx_def, astate, 1)))
   val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts)
   val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm
   val is_finished =
