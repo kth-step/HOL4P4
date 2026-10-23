@@ -1891,6 +1891,42 @@ fun p4_get_bigstep_comp_thms ctx_def =
  end
 ;
 
+(* SIMP_RULE simple_arith_ss reduces arithmetic on numerals (numSimps.REDUCE_ss): when the step
+ * count is the only such term, reducing it alone gives the same theorem *)
+local
+ val unary_reduce_ops = [numSyntax.even_tm, numSyntax.odd_tm, numSyntax.pre_tm, numSyntax.suc_tm, numSyntax.div2_tm]
+ val binary_reduce_ops = [numSyntax.mult_tm, numSyntax.plus_tm, numSyntax.minus_tm, numSyntax.div_tm, numSyntax.mod_tm, numSyntax.exp_tm, numSyntax.less_tm, numSyntax.leq_tm, numSyntax.greater_tm, numSyntax.geq_tm, numSyntax.min_tm, numSyntax.max_tm]
+ (* The same test of the arguments as in REDUCE_ss *)
+ fun reducible t = numSyntax.is_numeral t orelse (numSyntax.is_suc t andalso reducible (rand t))
+ fun is_reduce_redex t =
+  let
+   val (f, args) = strip_comb t
+  in
+   is_const f andalso List.all reducible args andalso
+   (case args of
+      [_] => List.exists (same_const f) unary_reduce_ops
+    | [a, _] => List.exists (same_const f) binary_reduce_ops orelse (same_const f equality andalso type_of a = numSyntax.num)
+    | _ => false)
+  end
+ fun has_reduce_redex tm = can (find_term is_reduce_redex) tm
+in
+fun simple_arith_rule extra_rewr_thms thm =
+ if null extra_rewr_thms
+ then
+  (let
+    val (assl, eqn) = dest_imp $ concl thm
+    val (exec_tm, res) = dest_eq eqn
+    val (actx, s0, _) = dest_arch_multi_exec exec_tm
+   in
+    if List.exists has_reduce_redex [assl, actx, s0, res]
+    then SIMP_RULE simple_arith_ss [] thm
+    else CONV_RULE (RAND_CONV (LAND_CONV (RAND_CONV reduceLib.REDUCE_CONV))) thm
+   end
+   handle HOL_ERR _ => SIMP_RULE simple_arith_ss [] thm
+        | UNCHANGED => SIMP_RULE simple_arith_ss [] thm)
+ else SIMP_RULE simple_arith_ss extra_rewr_thms thm
+end
+
 (* MATCH_MP of arch_multi_exec_comp_n_tl_assl_conj_nomidassl, with the instantiation read off the theorems *)
 fun comp_nomidassl_MP thm1 thm2 =
  let
@@ -2070,7 +2106,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
      else snd bigstep_comp_thms
 
     val res =
-     SIMP_RULE simple_arith_ss []
+     simple_arith_rule []
       (MATCH_MP (MATCH_MP (MATCH_MP shortcut_comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
 
     (* DEBUG *)
@@ -2146,7 +2182,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
        val time_start2 = Time.now();
 
        val res =
-	SIMP_RULE simple_arith_ss extra_rewr_thms
+	simple_arith_rule extra_rewr_thms
 (* Non-conj version:
 	 (MATCH_MP (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))
 *)
