@@ -64,6 +64,9 @@ will decrement `nthreads_ref` and return `true`, otherwise `false`.
 `work_fun:unit -> unit` and an integer `n`, forking `n` threads each computing `work_fun`,
 up to the limit `nthreads_max`.
 
+The concurrent version is still flaky since HOL4 is not perfectly thread safe.
+Stick to the sequential `p4_symb_exec_prove_contract` unless you have a thread-safe HOL4 version.
+
 ## "Big-step" shortcuts
 
 When the next statement is inside a local function, the P4 symbolic executor collapses
