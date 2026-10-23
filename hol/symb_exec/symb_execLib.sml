@@ -335,6 +335,9 @@ in
 	     (node (1, TRUTH, [])), [(1, 0, path_cond, lang_init_step_thm, fuel, false)], [])
 end;
 
+(* Raised once the path of an exception in a worker has been printed *)
+exception Reported_on_path of exn;
+
 fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state) =
  case get_job () of
    SOME (path_id, fv_index, path_cond, step_thm, fuel, nobranch_flag) =>
@@ -360,7 +363,7 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
      lang_regular_step nobranch_flag step_thm
       (* TODO: broadcastInterrupt doesn't seem to work properly *)
       handle Interrupt => ((* broadcastInterrupt(); *) print "Interrupt exception when running lang_regular_step!\n"; raise Interrupt)
-      handle exc => ((* broadcastInterrupt(); *) print "Exception when running lang_regular_step!\n"; raise exc)
+           | exc => ((* broadcastInterrupt(); *) print "Exception when running lang_regular_step!\n"; raise exc)
 
     val _ = dbg_print debug_flag
      (String.concat ["Finished regular symbolic execution step of path ID ",
@@ -381,11 +384,12 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
    end
  (* TODO: Silly, but works against silent exceptions *)
  handle Interrupt => ((* broadcastInterrupt(); *) print "Interrupt exception!\n"; raise Interrupt)
- handle exc => ((* broadcastInterrupt(); *)
+      | Reported_on_path exc => raise Reported_on_path exc
+      | exc => ((* broadcastInterrupt(); *)
                 print (String.concat ["Exception raised on path ID ", (Int.toString path_id), "\n",
                        "with ", (Int.toString fuel), " fuel remaining,\n",
                        "free variable index ", (Int.toString fv_index), ",\n",
-                       "and step_thm\n", (term_to_string $ concl step_thm), "\n"]); raise exc))
+                       "and step_thm\n", (term_to_string $ concl step_thm), "\n"]); raise Reported_on_path exc))
  | NONE => ()
 ;
 
@@ -399,13 +403,15 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
   val nthreads_ref = ref 0
   val all_done = conditionVar()
   val mutex_exec = mutex()
+  (* The first exception raised by a worker, re-raised by the main thread *)
+  val worker_exn = ref (NONE:exn option)
 
   fun get_job () =
    protect mutex_exec (fn () =>
     (let
       val queue = (!work_queue)
      in
-      if not (null queue)
+      if not (null queue) andalso not (isSome (!worker_exn))
       then
        let
         val res = (hd queue)
@@ -445,8 +451,16 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
 	 else true))
       else false)) job;
 
+  (* A worker that raises an exception has not decremented nthreads_ref yet *)
+  fun worker_failed (Reported_on_path exn) = worker_failed exn
+    | worker_failed exn =
+   protect mutex_exec (fn () =>
+    ((if isSome (!worker_exn) then () else worker_exn := SOME exn);
+     nthreads_ref := !nthreads_ref - 1;
+     if !nthreads_ref = 0 then signal all_done else ())) ();
+
   fun register_new_worker (work_fun:unit -> unit) =
-   protect mutex_exec (fn () => (if !nthreads_ref < nthreads_max then let val _ = (nthreads_ref := !nthreads_ref + 1); val _ = (fork (work_fun, [EnableBroadcastInterrupt true])) in () end else ())) ();
+   protect mutex_exec (fn () => (if !nthreads_ref < nthreads_max then let val _ = (nthreads_ref := !nthreads_ref + 1); val _ = (fork (fn () => (work_fun () handle exn => worker_failed exn), [EnableBroadcastInterrupt true])) in () end else ())) ();
 
   (* TODO: Slightly inefficient since it always loops through all iterations, but should work.
    * Make register_worker return a success bool also *)
@@ -464,9 +478,11 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
   (* TODO: Hack, enables this thread to shut down *)
   val _ = setAttributes [EnableBroadcastInterrupt true]
  in
-   (wait (all_done, mutex_exec);
-    (* TODO: Safe? *)
-     (!path_tree_ref, !done_list)
+   (* The mutex is held while testing and waiting, so that no signal is lost *)
+   (protect mutex_exec (fn () => while !nthreads_ref > 0 do wait (all_done, mutex_exec)) ();
+    case !worker_exn of
+      SOME exn => raise exn
+    | NONE => (!path_tree_ref, !done_list)
 (*
     print (String.concat ["Result: ",
                    String.concat $ map (fn el => (el^" ")) (map (term_to_string o concl o #3) (!done_list)),
