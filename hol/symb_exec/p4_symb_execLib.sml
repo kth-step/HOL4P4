@@ -1891,6 +1891,20 @@ fun p4_get_bigstep_comp_thms ctx_def =
  end
 ;
 
+(* MATCH_MP of arch_multi_exec_comp_n_tl_assl_conj_nomidassl, with the instantiation read off the theorems *)
+fun comp_nomidassl_MP thm1 thm2 =
+ let
+  val (assl, eq1) = dest_imp $ concl thm1
+  val (actx, s0, n) = dest_arch_multi_exec $ lhs eq1
+  val (exec2, res2) = dest_eq $ concl thm2
+  val (_, s1, m) = dest_arch_multi_exec exec2
+  fun parts s = let val (aenv, g_scope_list, arch_frame_list, status) = dest_astate s in [aenv, g_scope_list, arch_frame_list, status] end
+ in
+  MP (ISPECL ([n, m, actx, assl]@(parts s0)@(parts s1)@(parts (dest_some res2))) arch_multi_exec_comp_n_tl_assl_conj_nomidassl) (CONJ thm1 thm2)
+ end
+ handle HOL_ERR _ => MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ thm1 thm2)
+;
+
 fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
@@ -2138,7 +2152,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 (* small-big:
 	  (MATCH_MP small_big_exec_comp_conj (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
 *)
-	  (MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) step_thm2)))
+	  (comp_nomidassl_MP (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) step_thm2))
 
     (* TEST:
        val res =
