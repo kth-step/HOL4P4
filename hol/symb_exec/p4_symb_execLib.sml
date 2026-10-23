@@ -1010,60 +1010,6 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
      in
       if (ext_obj = "register")
       then approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list ascope
-(*
-       let
-	(* Array size *)
-	val array_size = fst $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "size"))”
-	val targ1_width = snd $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "targ1"))”
-
-	(* TODO: V1Model *)
-	val tm1 = “v1model_register_construct_inner ^array_size ^targ1_width”
-
-        val array_size_num = rhs $ concl $ EVAL “v2n ^array_size”
-(*
-	val approx_list_vars = fst $ dest_list $ fixedwidth_freevars_fromindex_ty (p4_symb_arg_prefix, fv_index, int_of_term array_size_num, mk_list_type bool)
-	val rhs_tm = mk_list (map (fn var => mk_pair (var, targ1_width)) approx_list_vars, mk_prod (mk_list_type bool, num))
-*)
-        (* TODO: Hacky... *)
-        val rhs_tm = hd $ fst $ dest_list $ fixedwidth_freevars_fromindex_ty (p4_symb_arg_prefix, fv_index, 1, mk_list_type $ mk_prod (mk_list_type bool, num))
-	val goal_tm = mk_disj_list [boolSyntax.mk_exists (rhs_tm, mk_conj (mk_eq (tm1, rhs_tm), “wellformed_register_array ^targ1_width ^rhs_tm”))]
-(*
-(* Unless you cache, these have to be proved every single time *)
-val list_var = mk_var("list", “:bool list”)
-val list_hyp = mk_eq(mk_length list_var, entry_width)
-val list_exists_thm = prove(mk_forall (list_var, mk_imp (list_hyp, list_mk_exists(fst $ dest_list approx_vars, mk_eq (list_var, approx_vars)))), 
-rpt strip_tac >>
-rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
-);
-*)
-
-(*
-val array_size = rhs $ concl $ EVAL “fixwidth 32 $ n2v 1024”
-
-val targ1_width = “32”
-
-val fv_index = 0
-
-val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32)]”
-*)
-
-	val approx_thm =
-         (* “^goal_tm” *)
-	 prove(goal_tm,
-          SIMP_TAC std_ss [disj_list_def, p4_v1modelTheory.v1model_register_construct_inner_def, wellformed_register_array_replicate_arb]
-	 );
-       in
-	SOME (approx_thm, [fv_index+1])
-       end
-*)
       else NONE
      end
     else if is_funn_ext funn
@@ -2000,48 +1946,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigs
      | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
    else ()
   (* TODO: Perform abbreviation/deabbreviation here? *)
-(*
-(* 1. Take the step theorem and disassemble it *)
-val test_thm = step_thm;
-
-val (ante, concl_step) = dest_imp $ concl step_thm
-val (prestate, poststate_opt) = dest_eq concl_step
-val poststate = dest_some poststate_opt
-val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
-
-(* 2. Take the sub-term to abbreviate and pick something to abbreviate it to *)
-val subs_tm = aenv;
-val abc_tm = ``(aenv:v1model_ascope aenv)``;
-val eq_tm = ``^abc_tm = ^subs_tm``
-
-(* 3. Construct a pattern to mark the sub-term to abbreviate in the conclusion of step_thm *)
-val B_tm = ``(B:v1model_ascope aenv)``;
-val pat_tm = “^(mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(B_tm, g_scope_list, arch_frame_list, status))))”
-
-(* 4. Perform the actual abbreviation *)
-
-val changed_thm = SUBST [B_tm |-> GSYM (ASSUME eq_tm)] pat_tm test_thm
-
-val changed_thm = REWRITE_RULE [GSYM (ASSUME eq_tm)] test_thm;
-
-(* 4. Deabbreviate - requires the stuff from step 2 *)
-
-(* Changing back using instantiation + evaluation: *)
-val changed_back_thm = BETA_RULE (CONV_RULE (RATOR_CONV EVAL) (INST [abc_tm |-> subs_tm] (DISCH_ALL changed_thm)));
-
-(* Changing back using instantiation + modus ponens: *)
-val changed_back_thm = MP (INST [abc_tm |-> subs_tm] (DISCH_ALL changed_thm)) (REFL subs_tm);
-(* Alternative variant: *)
-val changed_back_thm = MP (DISCH_ALL (INST [abc_tm |-> subs_tm] (changed_thm))) (REFL subs_tm);
-
-val changed_back_thm = REWRITE_RULE [gen_rev_thm] (DISCH_ALL (INST [abc_tm |-> subs_tm] (changed_thm)));
-
-*****************************
-
-(* TODO: Is this faster or slower? *)
-SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
-
-*)
  in
   (* TODO: If use_eval_in_ctxt, this should never shortcut apply or select statements, which
    * need to use assumptions in the middle of execution. Fix this when you enable shortcutting

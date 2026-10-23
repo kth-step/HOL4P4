@@ -358,7 +358,7 @@ Cases_on ‘s5’ >> (
 )
 QED
 
-(* Old definition, using action list stored in in tbl_map:
+(* Old definition, using action list stored in tbl_map:
 Definition ctrl_is_well_formed_def:
  ctrl_is_well_formed (ftymap, blftymap) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
   !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
@@ -594,7 +594,7 @@ QED
 *)
 
 (*
-(* Use this to easily identify abbreviations: a tuple is is used
+(* Use this to easily identify abbreviations: a tuple is used
  * to easily identifies which abbreviations are currently in play *)
 Definition symb_exec_abbrevs_def:
  (symb_exec_abbrevs stmt_stack_tl_abbrev_opt frame_stack_tl_abbrev_opt ascope_abbrev_opt =

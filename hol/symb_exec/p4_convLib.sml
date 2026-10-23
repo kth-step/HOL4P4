@@ -210,45 +210,6 @@ local
  val _ = copy_compset_thms computeLib.the_compset hol4p4_compset
 
 
-(* To compare between the two compsets:
-
-(use p4_symb_exec_test1Script or similar to find an init_state)
-
-Using hol4p4_compset:
-   val test_thm = Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV hol4p4_compset) (mk_arch_multi_exec (ctx, astate, 1))
-
-val astate2 = the_final_state test_thm
-
-   val test_thm2 = Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV hol4p4_compset) (mk_arch_multi_exec (ctx, astate2, 1))
-
-(* Doesn't seem the PMATCH conv is critical, since you can evaluate execution without it *)
- val _ = scrub_const computeLib.the_compset “PMATCH”
-Using the_compset:
-   Lib.with_flag (stoppers, SOME (same_const_disj_list (stop_consts_never@p4_stop_eval_consts))) (computeLib.CBV_CONV computeLib.the_compset) (mk_arch_multi_exec (ctx, init_astate, 2))
-
-
-To display the transformations in the two different compsets:
-
- val _ = PolyML.print_depth 9001;
-
- val default_thms = fst $ unzip $ listItems computeLib.the_compset;
-
- val custom_thms = fst $ unzip $ listItems hol4p4_compset;
-
- val in_default_notin_custom = filter (fn thm => not $ exists (fn thm' => thm' = thm) custom_thms) default_thms;
-
- val in_custom_notin_default = filter (fn thm => not $ exists (fn thm' => thm' = thm) default_thms) custom_thms;
-
-************************************************************
-
-val convs_in_the_compset = List.filter (fn e => List.exists (fn e' => is_conv e') (snd e)) (listItems computeLib.the_compset)
-val theories_with_convs = map (snd o fst) convs_in_the_compset
-
-val convs_in_hol4p4_compset = List.filter (fn e => List.exists (fn e' => is_conv e') (snd e)) (listItems hol4p4_compset)
-val theories_with_convs = map (snd o fst) convs_in_hol4p4_compset
-
-*)
-
  (* Adding a theorem to a compset again duplicates its rules, so the theories are added once *)
  val thys_in_the_compset = ref false
 in
