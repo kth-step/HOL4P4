@@ -37,6 +37,7 @@ val vss_objectless_map =
 
 val vss_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], vss_packet_in_extract));
+    ("extract_varbit", ([("this", d_in); ("headerLvalue", d_out); ("variableFieldSizeInBits", d_in)], vss_packet_in_extract_varbit));
     ("lookahead", ([("this", d_in); ("targ1", d_in)], vss_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], vss_packet_in_advance))]``;
 

@@ -108,6 +108,8 @@ v :: v_ ::=
   {{ com boolean value }}
 | bitv :: :: bit
   {{ com bit-string }}
+| varbit bitv w :: :: varbit
+  {{ com variable-width bit-string of maximum width w }}
 | x :: :: str
   {{ com string literal }} 
 | struct { x1 = v1 ; ... ; xn = vn } :: :: struct
@@ -588,6 +590,8 @@ tau {{ tex \tau }} :: tau_ ::=
 | bs num_exp :: :: bit
   {{ com bit-string }}
   {{ tex { { \mathbf{bs} }^{[[num_exp]]} } }}   
+| varbit num_exp :: :: varbit
+  {{ com variable-width bit-string }}
 | bot :: :: bot
   {{ com no value }}
   {{ tex \bot}}

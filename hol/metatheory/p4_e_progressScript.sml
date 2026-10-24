@@ -1692,7 +1692,7 @@ rpt strip_tac >>
    gvs[is_const_val_exsist] >>
      
    Cases_on `b` >>
-   fs[is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def] >>
+   fs[is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def] >>
 
    fs[clause_name_def] >>
    gvs[is_const_val_exsist] >>
@@ -1724,7 +1724,7 @@ rpt strip_tac >>
    OPEN_V_TYP_TAC ``v`` >>
 
    Cases_on `b` >>
-   fs[is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def] >>
+   fs[is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def] >>
 
    fs[clause_name_def] >>
    gvs[is_const_val_exsist] >>
@@ -1793,6 +1793,17 @@ rpt strip_tac >>
    gvs[] >>
    gvs[is_const_val_exsist] >>
    srw_tac [SatisfySimps.SATISFY_ss][] 
+   ,
+
+   (* both IH of is_eq_op b on varbits *)
+   fs[prog_exp_def] >>
+   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+   [‘gscope’, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
+    ‘t_tau (tau_varbit w)’, ‘b''’, ‘c’, ‘order’, ‘delta_g’,
+    ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >>
+   gvs[] >>
+   gvs[is_const_val_exsist] >>
+   srw_tac [SatisfySimps.SATISFY_ss][]
  ]
 
 ]

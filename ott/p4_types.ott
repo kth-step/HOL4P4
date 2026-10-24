@@ -395,6 +395,13 @@ is_bv_bool_op (oper:binop) =
 (oper = binop_eq)) 
 `;
 
+(* returns true if the operation is an equality test, the only operations on varbits *)
+Definition is_eq_op_def:
+is_eq_op (oper:binop) =
+((oper = binop_eq) \/
+(oper = binop_neq))
+End
+
 (* returns true if the operation is conducted between two bools and returns bool*)
 val is_bool_op_def = Define `
 is_bool_op (oper:binop) =
@@ -455,6 +462,11 @@ by
  w = width bitv
 ----------------------------------- :: bit
   bitv : ( bs w , false  )
+
+
+ width bitv <= w
+----------------------------------- :: varbit
+  varbit bitv w : ( varbit w , false  )
 
 
 ----------------------------------- :: bot
@@ -718,6 +730,13 @@ t_scopes_tup T_e |-  e   : ( bs w , b )
 t_scopes_tup T_e |-  e'  : ( bs w , b' )
 is_bv_bool_op binop
 ------------------------------------ :: binop_bv_bool
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
+t_scopes_tup T_e |-  e   : ( varbit w , b )
+t_scopes_tup T_e |-  e'  : ( varbit w , b' )
+is_eq_op binop
+------------------------------------ :: binop_varbit_bool
 t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 

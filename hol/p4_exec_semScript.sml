@@ -145,10 +145,16 @@ Definition binop_exec_def:
  (binop_exec binop_neq (v_bit bitv1) (v_bit bitv2) =
   SOME (v_bool (bitv1 <> bitv2)))
  /\
+ (binop_exec binop_neq (v_varbit bitv1 w1) (v_varbit bitv2 w2) =
+  SOME (v_bool (bitv1 <> bitv2)))
+ /\
  (binop_exec binop_neq (v_bool b1) (v_bool b2) =
   SOME (v_bool (b1 <> b2)))
  /\
  (binop_exec binop_eq (v_bit bitv1) (v_bit bitv2) =
+  SOME (v_bool (bitv1 = bitv2)))
+ /\
+ (binop_exec binop_eq (v_varbit bitv1 w1) (v_varbit bitv2 w2) =
   SOME (v_bool (bitv1 = bitv2)))
  /\
  (binop_exec binop_eq (v_bool b1) (v_bool b2) =

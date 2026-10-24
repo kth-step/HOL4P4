@@ -163,6 +163,8 @@ formula :: formula_ ::=
 %TODO: Unify the below eq_ to equality over values?
 | bitv EQ bitv' = b :: M :: eq_word
   {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
+| varbit bitv w EQ varbit bitv' w' = b :: M :: eq_varbit
+  {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
 | ( x EQ x' ) = b :: M :: eq_error
@@ -185,6 +187,8 @@ formula :: formula_ ::=
   {{ hol ((bitv_binpred binop_gt [[bitv]] [[bitv']]) = SOME [[b]]) }}
 %TODO: Unify the below neq_ to inequality over values?
 | bitv NE bitv' = b :: M :: neq_word
+  {{ hol (([[bitv]] <> [[bitv']]) <=> [[b]]) }}
+| varbit bitv w NE varbit bitv' w' = b :: M :: neq_varbit
   {{ hol (([[bitv]] <> [[bitv']]) <=> [[b]]) }}
 | ( x <> x' ) = b :: M :: neq_error
   {{ com inequality over strings - used for errors }}
@@ -560,6 +564,10 @@ formula :: formula_ ::=
   {{ com width of bitstring}}
   {{ tex [[w]] = \mathrm{width} \ ([[bitv]]) }}
   {{ hol ([[w]] = bs_width [[bitv]]) }}
+| width bitv <= w :: M :: width_le
+  {{ com width of bitstring at most w}}
+  {{ tex \mathrm{width} \ ([[bitv]]) \leq [[w]] }}
+  {{ hol (bs_width [[bitv]] <= [[w]]) }}
 | tau = lookup_tau ( t_scope_list , t_scope_list_g , varn ) :: :: topmost
   {{ tex [[tau]] = \mathrm{topmost} ([[t_scope_list]] , [[t_scope_list_g]] , [[varn]]) }}
   {{ hol SOME [[tau]] =  lookup_tau [[t_scope_list]] [[t_scope_list_g]] [[varn]] }}
@@ -638,6 +646,8 @@ formula :: formula_ ::=
   {{ hol is_bv_op [[binop]]}}
 | is_bv_bool_op binop :: :: is_bv_bool_op   
   {{ hol is_bv_bool_op [[binop]]}}
+| is_eq_op binop :: :: is_eq_op
+  {{ hol is_eq_op [[binop]]}}
 | is_bool_op binop :: :: is_bool_op   
   {{ hol is_bool_op [[binop]]}}
 | is_err_bool binop :: :: is_err_bool
@@ -2008,6 +2018,7 @@ End
 Definition init_out_v_def:
  (init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
+ (init_out_v random_oracle i (v_varbit (bl, n) w) = (v_varbit ([], 0) w, i)) /\
  (* Note you can't have string variables in P4 (but you can pass string literals to externs) *)
  (init_out_v random_oracle i (v_str x) = (v_str "", i)) /\
  (init_out_v random_oracle i (v_struct x_v_l) =
@@ -2060,6 +2071,7 @@ QED
 Definition init_from_tau_def:
  (init_from_tau random_oracle i tau_bool     = (v_bool $ random_oracle i, i+1)) /\
  (init_from_tau random_oracle i (tau_bit w)  = (v_bit (get_oracle_calls w i random_oracle, w), i+w)) /\
+ (init_from_tau random_oracle i (tau_varbit w) = (v_varbit ([], 0) w, i)) /\
  (init_from_tau random_oracle i tau_bot      = (v_bot, i)) /\
  (* NOTE: Extern objects can't be declared in blocks.
   *       They can be block-local, but will then always be instantiated, so this value doesn't matter *)
@@ -2934,6 +2946,10 @@ bitv NE bitv' = b
 ----------------------------------- :: neq
 ectx g_scope_list scope_list ( bitv NE bitv' ) ~> ( b , empty )
 
+varbit bitv w NE varbit bitv' w' = b
+----------------------------------- :: neq_varbit
+ectx g_scope_list scope_list ( varbit bitv w NE varbit bitv' w' ) ~> ( b , empty )
+
 b NE b' = b''
 ----------------------------------- :: neq_bool
 ectx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
@@ -2945,6 +2961,10 @@ ectx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 bitv EQ bitv' = b
 ----------------------------------- :: eq
 ectx g_scope_list scope_list ( bitv EQ bitv' ) ~> ( b , empty )
+
+varbit bitv w EQ varbit bitv' w' = b
+----------------------------------- :: eq_varbit
+ectx g_scope_list scope_list ( varbit bitv w EQ varbit bitv' w' ) ~> ( b , empty )
 
 b EQ b' = b''
 ----------------------------------- :: eq_bool

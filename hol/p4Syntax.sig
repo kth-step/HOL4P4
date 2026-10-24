@@ -26,6 +26,11 @@ val v_bit_tm : term
 val mk_v_bitii : int * int -> term
 val mk_v_biti_arb : int -> term
 
+val dest_v_varbit : term -> term * term
+val is_v_varbit : term -> bool
+val mk_v_varbit : term * term -> term
+val v_varbit_tm : term
+
 val dest_v_bool : term -> term
 val is_v_bool : term -> bool
 val mk_v_bool : term -> term
@@ -337,6 +342,11 @@ val dest_tau_bit : term -> int
 val is_tau_bit : term -> bool
 val mk_tau_bit : int -> term
 val tau_bit_tm : term
+
+val dest_tau_varbit : term -> int
+val is_tau_varbit : term -> bool
+val mk_tau_varbit : int -> term
+val tau_varbit_tm : term
 
 val dest_tau_xtl : term -> term * term
 val is_tau_xtl : term -> bool

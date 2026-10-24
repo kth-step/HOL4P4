@@ -2435,6 +2435,7 @@ QED
 Definition v_to_tau_def:
   (v_to_tau (v_bool boolv) = SOME tau_bool) /\
   (v_to_tau (v_bit (bl, n)) = if LENGTH bl = n then SOME (tau_bit n) else NONE) /\
+  (v_to_tau (v_varbit (bl, n) w) = if LENGTH bl = n /\ n <= w then SOME (tau_varbit w) else NONE) /\
   (v_to_tau (v_struct ((x,v)::t)) =
    OPTION_BIND (v_to_tau (v_struct t))
     (\ res. case res of
@@ -2508,6 +2509,10 @@ Cases_on ‘v’ >> (
   gs[v_to_tau_def]
  )
 ) >- (
+ Cases_on ‘p’ >> (
+  gs[v_to_tau_def]
+ )
+) >- (
  Cases_on ‘l’ >> (
   gs[v_to_tau_def] >>
   Cases_on ‘h’ >> (
@@ -2527,6 +2532,7 @@ QED
 Definition zero_val_from_tau_def:
  (zero_val_from_tau tau_bool     = v_bool F) /\
  (zero_val_from_tau (tau_bit w)  = v_bit ( (GENLIST (\x. F) w ) , w)) /\
+ (zero_val_from_tau (tau_varbit w) = v_varbit ([], 0) w) /\
  (zero_val_from_tau tau_bot      = v_bot) /\
  (zero_val_from_tau tau_ext      = v_ext_ref 0) /\
  (zero_val_from_tau (tau_xtl struct_ty_struct []) =  v_struct []) /\

@@ -45,6 +45,7 @@ End
 Definition size_in_bits_def:
  (size_in_bits (v_bool b) = SOME 1) /\
  (size_in_bits (v_bit (bl, n)) = SOME n) /\
+ (size_in_bits (v_varbit (bl, n) w) = SOME n) /\
  (size_in_bits (v_struct x_v_l) = fields_size_in_bits x_v_l) /\
  (size_in_bits (v_header valid_bit x_v_l) = fields_size_in_bits x_v_l) /\
  (size_in_bits _ = NONE) /\
@@ -142,6 +143,7 @@ Definition set_fields_def:
   case h of
   | (x:x, (v_bool b)) => set_fields t (acc++[(x, set_bool packet_in)]) (DROP 1 packet_in)
   | (x, (v_bit (bv, l))) => set_fields t (acc++[(x, set_bit l packet_in)]) (DROP l packet_in)
+  | (x, (v_varbit (bv, l) w)) => set_fields t (acc++[(x, v_varbit (TAKE l packet_in, l) w)]) (DROP l packet_in)
   | (x, (v_struct x_v_l)) =>
    (case size_in_bits (v_struct x_v_l) of
     | SOME n =>
@@ -177,6 +179,7 @@ End
 
 Definition set_v_def:
  (set_v (v_bit (bitv, n)) packet_in = SOME (set_bit n packet_in)) /\
+ (set_v (v_varbit bitv w) packet_in = NONE) /\
  (set_v (v_bool b)        packet_in = SOME (set_bool packet_in)) /\
  (set_v (v_struct x_v_l)  packet_in = (set_struct x_v_l packet_in)) /\
  (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in))
@@ -286,6 +289,64 @@ Definition packet_in_advance_gen_def:
  )
 End
 
+(* Sets the first varbit field to width n; returns its maximum width and the new fields *)
+Definition set_varbit_width_def:
+ (set_varbit_width n [] = NONE) /\
+ (set_varbit_width n ((x:x, v)::t) =
+  case v of
+  | v_varbit bitv w => SOME (w, (x, v_varbit (REPLICATE n F, n) w)::t)
+  | _ =>
+   (case set_varbit_width n t of
+    | SOME (w, t') => SOME (w, (x, v)::t')
+    | NONE => NONE))
+End
+
+(* With byte_aligned, an extract of a varbit of a non-multiple of 8 bits fails, as in BMv2 *)
+Definition packet_in_extract_varbit_gen_def:
+ (packet_in_extract_varbit_gen byte_aligned ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case lookup_lval_header scope_list (lval_varname (varn_name "headerLvalue")) of
+    | SOME (valid_bit, x_v_l) =>
+     (case lookup_lval_bit32 scope_list (lval_varname (varn_name "variableFieldSizeInBits")) of
+      | SOME n =>
+       if byte_aligned /\ n MOD 8 <> 0
+       then
+        (* NOTE: Serialisation of errors is assumed here - "ParserInvalidArgument" -> 6 *)
+        SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 6), 32)), scope_list, status_trans "reject")
+       else
+       (case set_varbit_width n x_v_l of
+        | SOME (w, x_v_l') =>
+         (case lookup_ascope_gen ascope_lookup ascope i of
+          | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
+           (case size_in_bits (v_header valid_bit x_v_l') of
+            | SOME size =>
+             (case packet_in_take size packet_in_bl of
+              | SOME (header_bl, packet_in_bl') =>
+               if n > w
+               then
+                (* NOTE: Serialisation of errors is assumed here - "HeaderTooShort" -> 4 *)
+                SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 4), 32)), scope_list, status_trans "reject")
+               else
+               (case set_header x_v_l' header_bl of
+                | SOME header =>
+                 (case assign scope_list header (lval_varname (varn_name "headerLvalue")) of
+                  | SOME scope_list' =>
+                   SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet packet_in_bl')):(core_v_ext, 'b) sum), scope_list', status_returnv v_bot)
+                  | NONE => NONE)
+                | NONE => NONE)
+              | NONE =>
+               (* NOTE: Serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
+               SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
+            | NONE => NONE)
+          | _ => NONE)
+        | NONE => NONE)
+      | NONE => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
 
 Theorem packet_in_take_NONE:
 !size bl. packet_in_take size bl = NONE <=> LENGTH bl < size
@@ -309,6 +370,10 @@ Cases_on ‘h1’ >- (
  PairCases_on ‘p’ >>
  gvs[size_in_bits_def, AllCaseEqs()] >>
  asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, set_bit_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+) >- (
+ PairCases_on ‘p’ >>
+ gvs[size_in_bits_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
 ) >> (
  gvs[size_in_bits_def, AllCaseEqs()] >>
  asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, size_in_bits_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
@@ -357,6 +422,7 @@ Definition header_fields_bits_def:
  (header_field_bits (x:x, v) =
   case v of
   | v_bit (bl, n) => SOME bl
+  | v_varbit (bl, n) w => SOME bl
   | v_bool b => SOME [b]
   | v_struct x_v_l => header_fields_bits x_v_l
   | _ => NONE
@@ -426,6 +492,7 @@ Definition header_entries2v_def:
  (data_bits v =
   case v of
   | (v_bit (bl, n)) => SOME bl
+  | (v_varbit (bl, n) w) => SOME bl
   | (v_bool b) => SOME [b]
   | (v_struct x_v_l) => header_entries2v x_v_l
   (* Invalid headers contribute no bits, as in bmv2 *)
