@@ -543,6 +543,12 @@ Definition petr4_parse_ptype_def:
                petr4_parse_compiletime_num gscope expr >>=
                \n. SOME (p_tau_bit n)
               | _ => NONE));
+    ("varbit", \json'.
+                (case json_parse_obj ["tags"; "expr"] json' of
+                 | SOME [tags; expr] =>
+                  petr4_parse_compiletime_num gscope expr >>=
+                  \n. SOME (p_tau_varbit n)
+                 | _ => NONE));
     ("bool", \json'. SOME p_tau_bool);
     ("error", \json'. SOME (p_tau_bit 32));
     ("void", \json'. SOME p_tau_bot);
@@ -575,6 +581,17 @@ Definition petr4_parse_type_def:
   \p_tau. deparameterise_tau p_tau
 End
 
+(* A tuple type is a struct with the fields "1", ..., "n", as a tuple expression is *)
+Definition petr4_parse_tuple_type_def:
+ petr4_parse_tuple_type gscope tyenv json =
+  json_parse_arr "tuple"
+   (\json'. case json_parse_obj ["tags"; "xs"] json' of
+             | SOME [tags; Array xs] =>
+              OPT_MMAP (petr4_parse_ptype gscope F tyenv) xs >>=
+              \p_taus. SOME (p_tau_xtl struct_ty_struct (ZIP (MAP toString (TL (COUNT_LIST (LENGTH p_taus + 1))), p_taus)))
+             | _ => NONE) json
+End
+
 (* TODO: Avoid explicit case matching on list possible? *)
 Definition petr4_typedef_to_tyenvupdate_def:
  petr4_typedef_to_tyenvupdate gscope tyenv json =
@@ -583,7 +600,9 @@ Definition petr4_typedef_to_tyenvupdate_def:
    opt_pair
     (petr4_parse_name ty_name)
     (json_parse_arr "Left" SOME typ_or_decl >>=
-     petr4_parse_ptype gscope F tyenv)
+     \ty. case petr4_parse_ptype gscope F tyenv ty of
+          | SOME p_tau => SOME p_tau
+          | NONE => petr4_parse_tuple_type gscope tyenv ty)
   | _ => NONE
 End
 
@@ -713,6 +732,7 @@ Definition exp_to_p_tau_def:
   case exp of
   | (e_v $ v_bool b) => SOME p_tau_bool
   | (e_v (v_bit (bl, n))) => SOME (p_tau_bit n)
+  | (e_v (v_varbit (bl, n) w)) => SOME (p_tau_varbit w)
   | (e_acc struct fld) =>
    (case exp_to_p_tau (vtymap, ftymap) struct of
     | SOME (p_tau_xtl struct_ty f_t_list) =>
@@ -765,6 +785,21 @@ Definition exp_is_composite_def:
    (case exp_to_p_tau (vtymap, ftymap) exp of
     | SOME (p_tau_xtl struct_ty f_t_list) => T
     | _ => F)
+End
+
+Definition p_tau_is_varbit_def:
+ p_tau_is_varbit p_tau =
+  case p_tau of
+  | p_tau_varbit w => T
+  | _ => F
+End
+
+(* Only ==, != and assignment operate on varbit expressions *)
+Definition exp_is_varbit_def:
+ exp_is_varbit (vtymap, ftymap) exp =
+  case exp_to_p_tau (vtymap, ftymap) exp of
+  | SOME p_tau => p_tau_is_varbit p_tau
+  | NONE => F
 End
 
 Definition exp_to_funn_def:
@@ -1125,6 +1160,9 @@ Definition petr4_parse_expression_gen_def:
              ("expr", op)]] =>
    (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op, NONE) of
     | SOME_msg res_op =>
+     if (case res_op of Exp op_exp => exp_is_varbit (vtymap, ftymap) op_exp | _ => F)
+     then get_error_msg "casts of varbit unsupported: " exp
+     else
      (case petr4_parse_type gscope tyenv cast_type of
       | SOME (tau_bit n) =>
        (case res_op of
@@ -1146,6 +1184,7 @@ Definition petr4_parse_expression_gen_def:
          get_error_msg "apply expression unsupported for casts: " op
         | SetExp set_exp =>
          get_error_msg "apply expression unsupported for set expressions: " op)
+      | SOME (tau_varbit n) => get_error_msg "casts to varbit unsupported: " exp
       | SOME _ => get_error_msg "unsupported cast type: " cast_type
       | NONE => get_error_msg "unknown cast type: " cast_type)
     | NONE_msg op_msg => NONE_msg op_msg)
@@ -1164,7 +1203,9 @@ Definition petr4_parse_expression_gen_def:
       | SOME unop =>
        (case res_op of
         | Exp op_exp =>
-         SOME_msg (Exp (e_unop unop op_exp))
+         if exp_is_varbit (vtymap, ftymap) op_exp
+         then get_error_msg "operations on varbit other than == and != unsupported: " exp
+         else SOME_msg (Exp (e_unop unop op_exp))
         | InlineApp s_l app_exp =>
          SOME_msg (InlineApp s_l (e_unop unop app_exp))
         | _ =>
@@ -1194,6 +1235,8 @@ Definition petr4_parse_expression_gen_def:
           | (Exp op1_exp, Exp op2_exp) =>
            if MEM optype ["Eq"; "NotEq"] /\ (exp_is_composite (vtymap, ftymap) op1_exp \/ exp_is_composite (vtymap, ftymap) op2_exp)
            then get_error_msg "equality on structs, headers or tuples unsupported: " exp
+           else if ~MEM optype ["Eq"; "NotEq"] /\ (exp_is_varbit (vtymap, ftymap) op1_exp \/ exp_is_varbit (vtymap, ftymap) op2_exp)
+           then get_error_msg "operations on varbit other than == and != unsupported: " exp
            else SOME_msg (Exp (mk_binop op1_exp op2_exp))
           | (Exp op1_exp, Number op2_const) =>
            (case exp_to_p_tau (vtymap, ftymap) op1_exp of
@@ -1201,6 +1244,7 @@ Definition petr4_parse_expression_gen_def:
              (* Shifting by at least the width gives the same result *)
              let op2_const' = if is_shift then MIN op2_const (2 ** n - 1) else op2_const in
              SOME_msg (Exp (mk_binop op1_exp (e_v (v_bit (fixwidth n (n2v op2_const'), n)))))
+            | SOME (p_tau_varbit n) => get_error_msg "operations on varbit with an integer constant unsupported: " exp
             | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
             | NONE => get_error_msg "type inference failed for expression: " exp)
           | (Number op1_const, Exp op2_exp) =>
@@ -1213,6 +1257,7 @@ Definition petr4_parse_expression_gen_def:
             (case exp_to_p_tau (vtymap, ftymap) op2_exp of
              | SOME (p_tau_bit n) =>
               SOME_msg (Exp (mk_binop (e_v (v_bit (fixwidth n (n2v op1_const), n))) op2_exp))
+             | SOME (p_tau_varbit n) => get_error_msg "operations on varbit with an integer constant unsupported: " exp
              | SOME _ => get_error_msg "non-bitstring type inference unsupported for expression: " exp
              | NONE => get_error_msg "type inference failed for expression: " exp)
           | (Number op1_const, Number op2_const) =>
@@ -1340,6 +1385,9 @@ Definition petr4_parse_expression_gen_def:
                    ("hi", hi)]] =>
    (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (bits, NONE) of
     | SOME_msg (Exp bits_exp) =>
+     if exp_is_varbit (vtymap, ftymap) bits_exp
+     then get_error_msg "bit-slices of varbit unsupported: " exp
+     else
      (case petr4_parse_compiletime_num gscope lo of
       | SOME lo_n =>
        (case petr4_parse_compiletime_num gscope hi of
@@ -1729,6 +1777,30 @@ Definition petr4_mark_to_drop_args_def:
       | _ => NONE_msg "mark_to_drop() needs exactly one variable of type standard_metadata_t in scope")
     | NONE => NONE_msg "mark_to_drop() needs the type standard_metadata_t")
   else SOME_msg res_args
+End
+
+(* The two-argument extract is the extern method extract_varbit *)
+Definition petr4_extract_funn_def:
+ petr4_extract_funn (vtymap, ftymap) ext_name extfun_name res_args =
+  if ext_name = "packet_in" /\ extfun_name = "extract"
+  then
+   (case res_args of
+    | [hdr] =>
+     (case exp_to_p_tau (vtymap, ftymap) hdr of
+      | SOME (p_tau_xtl struct_ty_header f_t_list) =>
+       if EXISTS (p_tau_is_varbit o SND) f_t_list
+       then NONE_msg "extract of a header with a varbit field needs the size of the varbit field as second argument"
+       else SOME_msg (funn_ext ext_name extfun_name)
+      | _ => SOME_msg (funn_ext ext_name extfun_name))
+    | [hdr; size_arg] =>
+     (case exp_to_p_tau (vtymap, ftymap) hdr of
+      | SOME (p_tau_xtl struct_ty_header f_t_list) =>
+       if LENGTH (FILTER (p_tau_is_varbit o SND) f_t_list) = 1
+       then SOME_msg (funn_ext ext_name "extract_varbit")
+       else NONE_msg "the two-argument extract needs a header with exactly one varbit field"
+      | _ => NONE_msg "could not infer the header type of a two-argument (varbit) extract")
+    | _ => SOME_msg (funn_ext ext_name extfun_name))
+  else SOME_msg (funn_ext ext_name extfun_name)
 End
 
 Definition p4_seq_append_stmt_def:
@@ -2445,9 +2517,12 @@ Definition petr4_parse_method_call_def:
                 else
                  (case obj_opt of
                   | SOME obj =>
-                   (case petr4_postprocess_extern_method_call tyenv (funn_ext ext_name extfun_name) (obj::res_args) tyargs of
-                    | SOME_msg stmt => SOME_msg ([], [], [], [], [], p4_dontcare_block dontcare_decls stmt)
-                    | NONE_msg postproc_ext_msg => NONE_msg postproc_ext_msg)
+                   (case petr4_extract_funn ((MAP (\ (varn, tau, lval_opt). (varn, parameterise_tau tau)) dontcare_decls)++vtymap, ftymap) ext_name extfun_name res_args of
+                    | SOME_msg funn' =>
+                     (case petr4_postprocess_extern_method_call tyenv funn' (obj::res_args) tyargs of
+                      | SOME_msg stmt => SOME_msg ([], [], [], [], [], p4_dontcare_block dontcare_decls stmt)
+                      | NONE_msg postproc_ext_msg => NONE_msg postproc_ext_msg)
+                    | NONE_msg extract_msg => NONE_msg extract_msg)
                   | NONE => get_error_msg "no object provided for extern object method call: " func)
                | (funn_name fun_name) =>
                  SOME_msg ([], [], [], [], [], p4_dontcare_block dontcare_decls (stmt_ass lval_null (e_call funn (add_args++res_args))))
@@ -3649,6 +3724,7 @@ Definition petr4_parse_keys_def:
       (case petr4_parse_expression (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (key, NONE) of
        | SOME_msg res_key =>
         (case exp_to_p_tau (vtymap, ftymap) res_key of
+         | SOME (p_tau_varbit w) => get_error_msg "varbit table keys unsupported: " h
          | SOME p_tau =>
           (case deparameterise_tau p_tau of
            | SOME res_tau =>
@@ -4296,6 +4372,9 @@ Definition petr4_parse_trans_def:
      | SOME_msg exps_res =>
       (case exps_to_p_taus (vtymap, ftymap) exps_res of
        | SOME p_taus =>
+        if EXISTS p_tau_is_varbit p_taus
+        then get_error_msg "select on varbit unsupported: " (Array exps)
+        else
         (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_taus cases of
          | SOME_msg cases_res =>
           if cases_res <> [] /\ is_default_case (FST $ LAST cases_res)

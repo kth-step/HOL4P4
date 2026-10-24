@@ -2649,6 +2649,7 @@ Datatype:
 p_tau =
    p_tau_bool   (* Note that the integer width must be a compile-time known value *)
  | p_tau_bit num_exp
+ | p_tau_varbit num_exp
  | p_tau_bot
  (* Note that structs can be type-parametrized *)
  | p_tau_xtl struct_ty ((x#p_tau) list)
@@ -2668,6 +2669,7 @@ Definition deparameterise_tau_def:
   case t of
   | p_tau_bool => SOME tau_bool
   | p_tau_bit num_exp => SOME (tau_bit num_exp)
+  | p_tau_varbit num_exp => SOME (tau_varbit num_exp)
   | p_tau_bot => SOME tau_bot
   | p_tau_xtl struct_ty fields =>
    deparameterise_x_taus fields >>= \fields'.
@@ -2694,6 +2696,7 @@ Definition parameterise_tau_def:
   case t of
   | tau_bool => p_tau_bool
   | tau_bit num_exp => (p_tau_bit num_exp)
+  | tau_varbit num_exp => (p_tau_varbit num_exp)
   | tau_bot => p_tau_bot
   | tau_xtl struct_ty fields =>
    (p_tau_xtl struct_ty (parameterise_x_taus fields))
