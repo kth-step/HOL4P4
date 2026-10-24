@@ -382,6 +382,9 @@ Definition petr4_ct_binop_def:
    else if optype = "Mul" then SOME (petr4_ct_wrap w_opt (a * b))
    else if (optype = "Div" \/ optype = "Mod") /\ 0 <= a /\ 0 < b
    then SOME (petr4_ct_wrap w_opt (if optype = "Div" then a / b else a % b))
+   (* Bitwise operations are not defined on int (spec 8.8) *)
+   else if MEM optype ["BitAnd"; "BitOr"; "BitXor"] /\ IS_SOME w_opt
+   then SOME (&(BITWISE (THE w_opt) (if optype = "BitAnd" then $/\ else if optype = "BitOr" then $\/ else (\x y. x <> y)) (Num a) (Num b)), w_opt)
    else NONE
 End
 
@@ -481,6 +484,9 @@ Definition petr4_parse_compiletime_constantexp_def:
       | SOME [tags; Array [String "UMinus"; op_tags]; arg] =>
        petr4_parse_compiletime_constantexp gscope arg >>=
        \ (i, w_opt). SOME (petr4_ct_wrap w_opt (-i))
+      | SOME [tags; Array [String "BitNot"; op_tags]; arg] =>
+       petr4_parse_compiletime_constantexp gscope arg >>=
+       \ (i, w_opt). if IS_SOME w_opt then SOME (petr4_ct_wrap w_opt (-i - 1)) else NONE
       | _ => NONE)
     else if exptype = "binary_op"
     then (* Binary operation *)
@@ -1752,7 +1758,7 @@ End
 (* Assigns an unspecified value to varn, taken from the declaration of a fresh variable *)
 Definition p4_havoc_var_def:
  p4_havoc_var varn tau =
-  stmt_block [(varn_name "#fresh", tau, NONE)] (stmt_ass (lval_varname varn) (e_var (varn_name "#fresh")))
+  stmt_block [(varn_name "fresh$", tau, NONE)] (stmt_ass (lval_varname varn) (e_var (varn_name "fresh$")))
 End
 
 (* Havocs the block variables of an inlined block, except extern objects *)
@@ -2080,6 +2086,72 @@ Definition p4_stmt_exists_e_def:
   | _ => F
 End
 
+(* Holds if stmt reads the variable x outside the blocks that declare x *)
+Definition p4_stmt_uses_free_var_def:
+ p4_stmt_uses_free_var x stmt =
+  case stmt of
+  | stmt_cond e stmt1 stmt2 =>
+   p4_e_exists (\e'. e' = e_var x) e \/ p4_stmt_uses_free_var x stmt1 \/ p4_stmt_uses_free_var x stmt2
+  | stmt_block decl_list stmt' => ~MEM x (MAP FST decl_list) /\ p4_stmt_uses_free_var x stmt'
+  | stmt_seq stmt1 stmt2 => p4_stmt_uses_free_var x stmt1 \/ p4_stmt_uses_free_var x stmt2
+  | _ => p4_stmt_exists_e (\e'. e' = e_var x) stmt
+End
+
+(* Names of the functions called by name in e *)
+Definition p4_e_called_funs_def:
+ p4_e_called_funs e =
+  case e of
+  | e_call funn el => (case funn of funn_name f => [f] | _ => [])++FLAT (MAP p4_e_called_funs el)
+  | e_list el => FLAT (MAP p4_e_called_funs el)
+  | e_acc e' x => p4_e_called_funs e'
+  | e_unop unop e' => p4_e_called_funs e'
+  | e_cast cast e' => p4_e_called_funs e'
+  | e_binop e' binop e'' => p4_e_called_funs e'++p4_e_called_funs e''
+  | e_concat e' e'' => p4_e_called_funs e'++p4_e_called_funs e''
+  | e_slice e' e'' e''' => p4_e_called_funs e'++p4_e_called_funs e''++p4_e_called_funs e'''
+  | e_select e' s_l_x_l x => p4_e_called_funs e'
+  | e_struct x_e_l => FLAT (MAP (\ (x,e). p4_e_called_funs e) x_e_l)
+  | e_header b x_e_l => FLAT (MAP (\ (x,e). p4_e_called_funs e) x_e_l)
+  | _ => []
+Termination
+WF_REL_TAC `measure e_size` >>
+fs[e_size_def] >>
+rpt strip_tac >>
+IMP_RES_TAC e1_tuple_size_mem >>
+IMP_RES_TAC e3_size_mem >>
+fs[]
+End
+
+Definition p4_stmt_called_funs_def:
+ p4_stmt_called_funs stmt =
+  case stmt of
+  | stmt_ass lval e => p4_e_called_funs e
+  | stmt_cond e stmt1 stmt2 => p4_e_called_funs e++p4_stmt_called_funs stmt1++p4_stmt_called_funs stmt2
+  | stmt_block decl_list stmt' => p4_stmt_called_funs stmt'
+  | stmt_ret e => p4_e_called_funs e
+  | stmt_seq stmt1 stmt2 => p4_stmt_called_funs stmt1++p4_stmt_called_funs stmt2
+  | stmt_trans e => p4_e_called_funs e
+  | stmt_app x el => FLAT (MAP p4_e_called_funs el)
+  | _ => []
+End
+
+Definition p4_calls_fun_def:
+ p4_calls_fun fname body = p4_stmt_exists_e (\ e. case e of e_call (funn_name f') el => f' = fname | _ => F) body
+End
+
+Definition p4_calls_before_def:
+ (p4_calls_before fname ([]:b_func_map) = F) /\
+ (p4_calls_before fname ((f, (body, args))::t) = if f = fname then F else (p4_calls_fun fname body \/ p4_calls_before fname t))
+End
+
+(* What inlined code needs to keep its meaning: the global extern objects it reads, and as varn_star the global functions it calls *)
+Definition p4_inlined_free_names_def:
+ p4_inlined_free_names (gscope:g_scope) stmts (tbl_map:tbl_map_extra) =
+  (FILTER (\x. EXISTS (p4_stmt_uses_free_var x) stmts) (MAP FST (FILTER (\ (x, (v, lval_opt)). case v of v_ext_ref i => T | _ => F) gscope)))++
+  (MAP (\f. varn_star (funn_name f))
+       (FILTER (\f. ~MEM #"." f) (FLAT (MAP p4_stmt_called_funs stmts)++FLAT (MAP (\ (tbl, (mk_l, action_names, (def_action, e_l))). def_action::action_names) tbl_map))))
+End
+
 (* Holds if a table key applied in stmt uses the variable varn *)
 Definition p4_keys_use_var_def:
  p4_keys_use_var varn stmt =
@@ -2147,9 +2219,21 @@ Definition ctor_sep_def:
  ctor_sep = "#"
 End
 
+(* The parameters recorded in tyenv as type_name#param *)
+Definition petr4_tyenv_params_def:
+ petr4_tyenv_params tyenv type_name =
+  MAP (\ (k, v). (DROP (LENGTH (type_name++ctor_sep)) k, v)) (FILTER (\ (k, v). isPREFIX (type_name++ctor_sep) k) (tyenv:(string # p_tau) list))
+End
+
+(* The constructor parameters that are not of control type, as variables *)
+Definition petr4_value_ctor_params_def:
+ petr4_value_ctor_params (ctor_params:(string # p_tau) list) =
+  MAP (varn_name o FST) (FILTER (\ (c, p_tau). case p_tau of p_tau_blk blty => F | _ => T) ctor_params)
+End
+
 (* Inlines the apply of the control instance app_name of type block_type_name, with parsed arguments *)
 Definition petr4_inline_apply_def:
- petr4_inline_apply (gscope, pblock_map, tbl_entries_map) app_name block_type_name res_args =
+ petr4_inline_apply (tyenv, gscope, pblock_map, tbl_entries_map) app_name block_type_name res_args =
   case ALOOKUP pblock_map block_type_name of
   | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
    (case FIND_EXTRACT_ONE (\ (k,v). k = block_type_name) b_func_map of
@@ -2158,22 +2242,25 @@ Definition petr4_inline_apply_def:
      if p4_stmt_contains_return body
      then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
      else
-      let gscope = p4_shadow_gscope gscope ((MAP (varn_name o FST) params)++(MAP FST decl_list)) in
+      let gscope = p4_shadow_gscope gscope ((MAP (varn_name o FST) params)++(MAP FST decl_list)++petr4_value_ctor_params (petr4_tyenv_params tyenv block_type_name)) in
       (* Prefixing of variables, tables and functions in body happens here *)
-      (case petr4_inline_block gscope app_name (p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
+      let body' = p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map app_name body in
+      (case petr4_inline_block gscope app_name body' [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
        | SOME_msg (decl_list', stmt) =>
         (case ALOOKUP tbl_entries_map block_type_name of
          | SOME tbl_entries =>
           (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
           let inline_decl_list = p4_prefix_decl_list gscope app_name (decl_list'++decl_list) in
           (* TODO: Prefixing of variables in local functions here, prove it is OK *)
-          SOME_msg (p4_prefix_vars_in_b_func_map gscope app_name b_func_map',
-                    p4_prefix_tbls_in_tbl_map b_func_map' app_name tbl_map,
+          let b_func_map_upds = p4_prefix_vars_in_b_func_map gscope app_name b_func_map' in
+          let tbl_map_upds = p4_prefix_tbls_in_tbl_map b_func_map' app_name tbl_map in
+          SOME_msg (b_func_map_upds,
+                    tbl_map_upds,
                     (* decl_list' is the parameters, decl_list is the pblock variables *)
                     p4_remove_copyout_lval_decl_list inline_decl_list,
                     p4_prefix_tbls_funs_in_tbl_entries b_func_map' app_name tbl_entries,
                     (* List of taboo variable names *)
-                    MAP FST inline_decl_list,
+                    MAP FST inline_decl_list++p4_inlined_free_names gscope (body'::MAP (FST o SND) b_func_map_upds) tbl_map_upds,
                     p4_seq_append_stmt (p4_havoc_decl_list (p4_prefix_decl_list gscope app_name decl_list)) stmt)
          | NONE => NONE_msg ("could not find control block in tbl_entries_map: "++block_type_name))
        | NONE_msg inline_msg => NONE_msg inline_msg)
@@ -2192,7 +2279,7 @@ Definition petr4_resolve_ctor_params_def:
       | SOME (p_tau_blk bound_inst) =>
        (case ALOOKUP vtymap (varn_name bound_inst) of
         | SOME (p_tau_blk block_type_name) =>
-         if IS_SOME (ALOOKUP (FST (SND ctxt)) block_type_name)
+         if IS_SOME (ALOOKUP (FST (SND (SND ctxt))) block_type_name)
          then petr4_inline_apply ctxt bound_inst block_type_name args
          (* Bound to a constructor parameter of the enclosing block: resolved when that block is inlined *)
          else SOME_msg ([], [], [], [], [], stmt_ass lval_null (e_call (funn_ext bound_inst "apply") args))
@@ -2273,6 +2360,15 @@ Definition p4_dontcare_block_def:
   if NULL decls
   then stmt
   else stmt_block decls stmt
+End
+
+(* A sub-parser call with arguments typed by the parameters of the parser *)
+Definition petr4_parse_subparser_call_def:
+ petr4_parse_subparser_call ctxt inst param_types args =
+  case petr4_parse_dontcare_args ctxt [] 0 (ZIP (args, parameterise_taus param_types)) of
+  | SOME_msg (res_args, dontcare_decls) =>
+   SOME_msg (p4_dontcare_block dontcare_decls (stmt_ass lval_null (e_call (funn_ext inst "apply") res_args)))
+  | NONE_msg msg => NONE_msg ("could not parse sub-parser call: "++msg)
 End
 
 (* static_assert is checked at import and then becomes the empty statement *)
@@ -2360,12 +2456,16 @@ Definition petr4_parse_method_call_def:
               (case ALOOKUP vtymap (varn_name app_name) of
                | SOME (p_tau_blk block_type_name) =>
                 (case ALOOKUP pblock_map block_type_name of
+                 | SOME ((pbl_type_parser, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
+                  (case petr4_parse_subparser_call (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) app_name param_types args of
+                   | SOME_msg stmt => SOME_msg ([], [], [], [], [], stmt)
+                   | NONE_msg msg => NONE_msg msg)
                  | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
                   (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
                    | SOME_msg res_args =>
-                    (case petr4_inline_apply (gscope, pblock_map, tbl_entries_map) app_name block_type_name res_args of
+                    (case petr4_inline_apply (tyenv, gscope, pblock_map, tbl_entries_map) app_name block_type_name res_args of
                      | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmt) =>
-                      (case petr4_resolve_ctor_params (gscope, pblock_map, tbl_entries_map) vtymap app_name stmt of
+                      (case petr4_resolve_ctor_params (tyenv, gscope, pblock_map, tbl_entries_map) vtymap app_name stmt of
                        | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', stmt') =>
                         SOME_msg (b_func_map_upds++b_func_map_upds', tbl_map_upds++tbl_map_upds', decl_list_upds++decl_list_upds', tbl_entries_upds++tbl_entries_upds', taboo_list++taboo_list', stmt')
                        | NONE_msg resolve_msg => NONE_msg resolve_msg)
@@ -2416,35 +2516,17 @@ Definition petr4_parse_direct_application_def:
 
            (case ALOOKUP pblock_map app_name of
             | SOME ((pbl_type_control, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
-             (case FIND_EXTRACT_ONE (\ (k,v). k = app_name) b_func_map of
-              (* Params has format (string # dir) *)
-              | SOME ((name, (body, params')), b_func_map') =>
-               (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
-                | SOME_msg res_args =>
-                 let gscope = p4_shadow_gscope gscope ((MAP (varn_name o FST) params)++(MAP FST decl_list)) in
-                 if p4_stmt_contains_return body
-                 then NONE_msg ("nested control block "++(app_name++(" of type "++(app_name++" contains a return statement, which is unsupported by the inlining scheme"))))
-                 else
-                  (* Prefixing of variables, tables and functions in body happens here *)
-                  (case petr4_inline_block gscope app_name (p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map app_name body) [] stmt_empty stmt_empty (ZIP(params, ZIP(res_args, param_types))) of
-                   | SOME_msg (decl_list', stmt) =>
-                    (case ALOOKUP tbl_entries_map app_name of
-                     | SOME tbl_entries =>
-                      (* TODO: Prefixing of variables in decl_list happens here - also prove it is OK *)
-                      let inline_decl_list = p4_prefix_decl_list gscope app_name (decl_list'++decl_list) in
-                      (* TODO: Prefixing of variables in local functions here, prove it is OK *)
-                      SOME_msg (p4_prefix_vars_in_b_func_map gscope app_name b_func_map',
-                                p4_prefix_tbls_in_tbl_map b_func_map' app_name tbl_map,
-                                (* decl_list' is the parameters, decl_list is the pblock variables *)
-                                p4_remove_copyout_lval_decl_list inline_decl_list,
-                                p4_prefix_tbls_funs_in_tbl_entries b_func_map' app_name tbl_entries,
-                                (* List of taboo variable names *)
-                                MAP FST inline_decl_list,
-                                p4_seq_append_stmt (p4_havoc_decl_list (p4_prefix_decl_list gscope app_name decl_list)) stmt)
-                     | NONE => NONE_msg ("could not find control block in tbl_entries_map: "++app_name))
-                   | NONE_msg inline_msg => NONE_msg inline_msg)
-                | NONE_msg args_msg => NONE_msg ("could not parse nested control block: "++args_msg))
-              | NONE => NONE_msg ("could not find instantiation of nested control block: "++app_name))
+             (case petr4_parse_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (ZIP (args, MAP SOME (parameterise_taus param_types))) of
+              | SOME_msg res_args => petr4_inline_apply (tyenv, gscope, pblock_map, tbl_entries_map) app_name app_name res_args
+              | NONE_msg args_msg => NONE_msg ("could not parse nested control block: "++args_msg))
+            (* Inlined when the parser is parsed, under the type name *)
+            | SOME ((pbl_type_parser, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
+             if IS_SOME (ALOOKUP vtymap (varn_name app_name))
+             then NONE_msg ("direct invocation of parser type "++(app_name++" where a variable or instance of that name is in scope"))
+             else
+              (case petr4_parse_subparser_call (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) app_name param_types args of
+               | SOME_msg stmt => SOME_msg ([], [], [], [], [], stmt)
+               | NONE_msg msg => NONE_msg msg)
             | _ => NONE_msg ("could not find control block: "++app_name))
 
         | _ =>
@@ -2769,6 +2851,9 @@ Definition petr4_parse_stmts_def:
            | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, vtymap_upds, true_case_res) =>
             (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) [false_case] of
              | SOME_msg (b_func_map_upds', tbl_map_upds', decl_list_upds', tbl_entries_upds', taboo_list', vtymap_upds', false_case_res) =>
+              if MEM (varn_name tbl_name) (taboo_list++taboo_list')
+              then NONE_msg ("the result of table "++(tbl_name++" in a condition shadows a name that a nested block in its branches uses"))
+              else
               (case ALOOKUP apply_map tbl_name of
                | SOME keys =>
                 (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
@@ -2841,7 +2926,10 @@ Definition petr4_parse_stmts_def:
          (case petr4_parse_stmts (tyenv, enummap, (varn, parameterise_tau tau)::vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
           | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, vtymap_upds, stmts_res) =>
            if MEM varn ((^apply_result_placeholder_varn)::taboo_list)
-           then get_error_msg "taboo variable name found when parsing declaration statement: " decl_obj
+           then
+            (if p4_is_global_ext gscope varn
+             then get_error_msg "global extern object used in a nested block is shadowed by the declaration: " decl_obj
+             else get_error_msg "taboo variable name found when parsing declaration statement: " decl_obj)
            else
             (case init_var_opt of
              | SOME init_var =>
@@ -2871,6 +2959,9 @@ Definition petr4_parse_stmts_def:
             | SOME_msg labels' =>
              (case petr4_parse_stmts_list (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) stmts of
               | SOME_msg (b_func_map_upds, tbl_map_upds, decl_list_upds, tbl_entries_upds, taboo_list, stmts_res_list) =>
+               if MEM (varn_name tbl_name) taboo_list
+               then NONE_msg ("the result of table "++(tbl_name++" in a switch statement shadows a name that a nested block in its cases uses"))
+               else
                (case ALOOKUP apply_map tbl_name of
                 | SOME keys =>
                  (case petr4_parse_stmts (tyenv, enummap, vtymap, ftymap, gscope, pblock_map, apply_map, tbl_entries_map, action_list, extfun_list) t of
@@ -3350,12 +3441,6 @@ Definition petr4_parse_inst_names_def:
   | _ => NONE)
 End
 
-(* The parameters recorded in tyenv as type_name#param *)
-Definition petr4_tyenv_params_def:
- petr4_tyenv_params tyenv type_name =
-  MAP (\ (k, v). (DROP (LENGTH (type_name++ctor_sep)) k, v)) (FILTER (\ (k, v). isPREFIX (type_name++ctor_sep) k) (tyenv:(string # p_tau) list))
-End
-
 (* Constructor parameters of control type (p_tau_blk) or of a value type *)
 Definition petr4_parse_ctor_params_def:
  (petr4_parse_ctor_params (tyenv, bltymap) [] = SOME_msg []) /\
@@ -3442,11 +3527,9 @@ Definition petr4_parse_inst_def:
         | SOME blk_name =>
          (* Constructor parameters are bound per instance, value ones as prefixed variables *)
          let ctor_params = petr4_tyenv_params tyenv type_name in
-         if EXISTS (\ (c, p_tau). (case p_tau of p_tau_blk blty => F | _ => T) /\ p4_is_global_ext gscope (varn_name c)) ctor_params
-         then NONE_msg ("constructor parameter of "++(type_name++" named like a global extern object"))
-         else if LENGTH args = LENGTH ctor_params
+         if LENGTH args = LENGTH ctor_params
          then
-          (case petr4_parse_ctor_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (\ c. p4_prefix_vars_in_varn gscope blk_name (varn_name c)) blk_name (ZIP (ctor_params, args)) of
+          (case petr4_parse_ctor_args (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (\ c. p4_prefix_vars_in_varn (p4_shadow_gscope gscope (petr4_value_ctor_params ctor_params)) blk_name (varn_name c)) blk_name (ZIP (ctor_params, args)) of
            | SOME_msg (decl_upds, inits_upds, vty_upds) =>
             SOME_msg (decl_list++decl_upds,
                       p4_seq_append_stmt inits inits_upds,
@@ -4237,20 +4320,20 @@ End
 
 (* TODO: This ignores nested programmable blocks, for now *)
 Definition petr4_parse_states_def:
- (petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) (pars_map:pars_map) [] =
+ (petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,pblock_map,extfun_list) (pars_map:pars_map) [] =
   SOME_msg pars_map) /\
- (petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) pars_map (h::t) =
+ (petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,pblock_map,extfun_list) pars_map (h::t) =
   case json_parse_obj ["tags"; "annotations"; "name"; "statements"; "transition"] h of
    | SOME [tags; annot; name; Array stmts; Array trans] =>
     (case petr4_parse_name name of
      | SOME state_name =>
-      (case petr4_parse_stmts (tyenv,enummap,vtymap,ftymap,gscope,[],[],[],[],extfun_list) stmts of
+      (case petr4_parse_stmts (tyenv,enummap,vtymap,ftymap,gscope,pblock_map,[],[],[],extfun_list) stmts of
        | SOME_msg (_, _, _, _, _, vtymap_upds, stmts_res) =>
         (case petr4_parse_trans (tyenv,enummap,vtymap_upds++vtymap,ftymap,gscope,extfun_list) trans of
          | SOME_msg (trans_res, F) =>
-          petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) (AUPDATE pars_map (state_name, p4_append_trans stmts_res trans_res)) t
+          petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,pblock_map,extfun_list) (AUPDATE pars_map (state_name, p4_append_trans stmts_res trans_res)) t
          | SOME_msg (trans_res, T) =>
-          (case petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,extfun_list) (AUPDATE pars_map (state_name, p4_append_trans stmts_res trans_res)) t of
+          (case petr4_parse_states (tyenv,enummap,vtymap,ftymap,gscope,pblock_map,extfun_list) (AUPDATE pars_map (state_name, p4_append_trans stmts_res trans_res)) t of
            | SOME_msg pars_map =>
             SOME_msg (add_set_no_match_state pars_map)
            | NONE_msg stats_msg => NONE_msg stats_msg)
@@ -4260,39 +4343,74 @@ Definition petr4_parse_states_def:
    | _ => get_error_msg "unknown JSON format of parser state: " h)
 End
 
-(* Splits stmt at its first sub-parser call outside blocks and conditionals *)
-Definition p4_split_subparser_call_def:
- p4_split_subparser_call vtymap stmt =
-  case stmt of
-  | stmt_ass lval_null (e_call (funn_ext inst fname) args) =>
-   (case ALOOKUP vtymap (varn_name inst) of
-    | SOME (p_tau_blk blk_type) =>
-     if fname = "apply" then SOME (stmt_empty, (inst, args), stmt_empty) else NONE
-    | _ => NONE)
-  | stmt_seq stmt1 stmt2 =>
-   (case p4_split_subparser_call vtymap stmt1 of
-    | SOME (before, call, after) => SOME (before, call, p4_seq_append_stmt after stmt2)
-    | NONE =>
-     (case p4_split_subparser_call vtymap stmt2 of
-      | SOME (before, call, after) => SOME (p4_seq_append_stmt stmt1 before, call, after)
-      | NONE => NONE))
-  | _ => NONE
+(* A call of the apply method of a sub-parser instance, or of a directly invoked parser type *)
+Definition p4_is_subparser_call_def:
+ p4_is_subparser_call (pblock_map:(string # (pblock_extra # tau list)) list) vtymap e =
+  case e of
+  | e_call (funn_ext inst fname) args =>
+   (fname = "apply" /\
+    (case ALOOKUP vtymap (varn_name inst) of
+     | SOME (p_tau_blk blk_type) => T
+     | SOME _ => F
+     | NONE => IS_SOME (ALOOKUP pblock_map inst)))
+  | _ => F
 End
 
-Theorem p4_split_subparser_call_size:
- !vtymap stmt before call after.
-  p4_split_subparser_call vtymap stmt = SOME (before, call, after) ==>
-  stmt_size after < stmt_size stmt
-Proof
- ho_match_mp_tac p4_split_subparser_call_ind >>
- rpt strip_tac >>
- pop_assum mp_tac >>
- once_rewrite_tac[p4_split_subparser_call_def] >>
- BasicProvers.EVERY_CASE_TAC >>
- rw[stmt_size_def, p4_seq_append_stmt_def] >>
- BasicProvers.EVERY_CASE_TAC >>
- fs[stmt_size_def]
-QED
+(* The parser type of the sub-parser call on inst: a direct invocation names the type itself *)
+Definition p4_subparser_type_def:
+ p4_subparser_type vtymap inst =
+  case ALOOKUP vtymap (varn_name inst) of
+  | SOME (p_tau_blk type_name) => SOME type_name
+  | SOME _ => NONE
+  | NONE => SOME inst
+End
+
+Definition p4_stmt_decls_def:
+ p4_stmt_decls stmt =
+  case stmt of
+  | stmt_block decl_list stmt' => MAP FST decl_list++p4_stmt_decls stmt'
+  | stmt_seq stmt1 stmt2 => p4_stmt_decls stmt1++p4_stmt_decls stmt2
+  | stmt_cond e stmt1 stmt2 => p4_stmt_decls stmt1++p4_stmt_decls stmt2
+  | _ => []
+End
+
+(* Block variable $state.i.x for x declared in block i of parser state state: the only names starting with $ *)
+Definition p4_hoisted_name_def:
+ p4_hoisted_name state (i:num) varn =
+  case varn of
+  | varn_name x => varn_name ("$"++(state++("."++(toString i++("."++x)))))
+  | _ => varn
+End
+
+(* Moves the block declarations of a body of parser state state to block variables, numbering the blocks *)
+Definition p4_hoist_state_locals_def:
+ p4_hoist_state_locals state i stmt =
+  case stmt of
+  | stmt_block decl_list stmt' =>
+   let names = MAP (\ (varn, tau, lval_opt). (varn, p4_hoisted_name state i varn, tau)) decl_list in
+   let (i', decls, stmt'') = p4_hoist_state_locals state (i + 1) stmt' in
+   (i', (MAP (\ (varn, varn', tau). (varn', tau, NONE:lval option)) names)++decls,
+    p4_seq_append_stmt (FOLDL (\ s (varn, varn', tau). p4_seq_append_stmt s (p4_havoc_var varn' tau)) stmt_empty names)
+                       (FOLDL (\ s (varn, varn', tau). p4_rename_var_in_stmt varn varn' s) stmt'' names))
+  | stmt_seq stmt1 stmt2 =>
+   let (i', decls1, stmt1') = p4_hoist_state_locals state i stmt1 in
+   let (i'', decls2, stmt2') = p4_hoist_state_locals state i' stmt2 in
+   (i'', decls1++decls2, stmt_seq stmt1' stmt2')
+  | stmt_cond e stmt1 stmt2 =>
+   let (i', decls1, stmt1') = p4_hoist_state_locals state i stmt1 in
+   let (i'', decls2, stmt2') = p4_hoist_state_locals state i' stmt2 in
+   (i'', decls1++decls2, stmt_cond e stmt1' stmt2')
+  | _ => (i, [], stmt)
+End
+
+Definition p4_stmt_to_list_def:
+ p4_stmt_to_list stmt =
+  case stmt of
+  | stmt_seq stmt1 stmt2 => p4_stmt_to_list stmt1++p4_stmt_to_list stmt2
+  | stmt_empty => []
+  | _ => [stmt]
+End
+
 
 (* State name of the inlined sub-parser state x at call site site *)
 Definition p4_subparser_state_def:
@@ -4346,11 +4464,11 @@ Definition p4_rename_ext_params_def:
          | _ => stmt') stmt ext_params
 End
 
-(* Inlines a sub-parser call: entry statement, prefixed states, copy-out, declarations, functions *)
+(* Inlines a sub-parser call: entry statement, prefixed states, copy-out, declarations, functions, and the names the inlined code needs *)
 Definition petr4_inline_subparser_def:
- petr4_inline_subparser (gscope, pblock_map, vtymap) site inst args =
-  case ALOOKUP vtymap (varn_name inst) of
-  | SOME (p_tau_blk type_name) =>
+ petr4_inline_subparser (tyenv, gscope, pblock_map, vtymap) site inst args =
+  case p4_subparser_type vtymap inst of
+  | SOME type_name =>
    (case ALOOKUP pblock_map type_name of
     | SOME ((pbl_type_parser, params, b_func_map, decl_list, pars_map, tbl_map):pblock_extra, param_types) =>
      (case FIND_EXTRACT_ONE (\ (k,v). k = type_name) b_func_map of
@@ -4358,7 +4476,7 @@ Definition petr4_inline_subparser_def:
        if EXISTS (\ (x, (tau, lval_opt)). tau = tau_ext) decl_list
        then NONE_msg ("extern objects in sub-parser "++(type_name++" are not supported"))
        else
-        let gscope = p4_shadow_gscope gscope ((MAP (varn_name o FST) params)++(MAP FST decl_list)) in
+        let gscope = p4_shadow_gscope gscope ((MAP (varn_name o FST) params)++(MAP FST decl_list)++petr4_value_ctor_params (petr4_tyenv_params tyenv type_name)) in
         let all_params = ZIP (params, ZIP (args, param_types)) in
         let ext_params = FILTER (\ (param, arg, param_type). param_type = tau_ext) all_params in
         let val_params = FILTER (\ (param, arg, param_type). param_type <> tau_ext) all_params in
@@ -4366,13 +4484,16 @@ Definition petr4_inline_subparser_def:
         then
          (case petr4_inline_params gscope inst [] stmt_empty stmt_empty val_params of
           | SOME_msg (param_decls, copyin_res, copyout_res) =>
-           let inline_stmt = (\ stmt. p4_rename_ext_params gscope inst ext_params (p4_rename_trans site (p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map inst stmt))) in
+           let prefix_stmt = p4_prefix_vars_tbls_funs_in_stmt gscope b_func_map inst in
+           let inline_stmt = (\ stmt. p4_rename_ext_params gscope inst ext_params (p4_rename_trans site (prefix_stmt stmt))) in
+           let b_func_map_upds = p4_prefix_vars_in_b_func_map gscope inst b_func_map' in
            SOME_msg (p4_seq_append_stmt copyin_res (p4_seq_append_stmt (p4_havoc_decl_list (p4_prefix_decl_list gscope inst decl_list)) (inline_stmt init_body)),
                      (MAP (\ (state_name, stmt). (p4_subparser_state site state_name, p4_copyout_on_reject copyout_res (inline_stmt stmt))) pars_map)++
                      [(p4_subparser_state site "reject", p4_seq_append_stmt copyout_res (stmt_trans (e_v (v_str "reject"))))],
                      copyout_res,
                      p4_remove_copyout_lval_decl_list (p4_prefix_decl_list gscope inst (param_decls++decl_list)),
-                     p4_prefix_vars_in_b_func_map gscope inst b_func_map')
+                     b_func_map_upds,
+                     p4_inlined_free_names gscope ((MAP prefix_stmt (init_body::MAP SND pars_map))++MAP (FST o SND) b_func_map_upds) [])
           | NONE_msg inline_msg => NONE_msg inline_msg)
         else NONE_msg ("extern arguments of sub-parser "++(inst++" must be variables"))
       | NONE => NONE_msg ("could not find the start of sub-parser "++type_name))
@@ -4380,51 +4501,55 @@ Definition petr4_inline_subparser_def:
   | _ => NONE_msg ("could not find the type of sub-parser instance "++inst)
 End
 
-(* Splits a parser state at its sub-parser calls: the first part keeps the state name *)
-Definition petr4_inline_subparser_calls_def:
- petr4_inline_subparser_calls (gscope, pblock_map, vtymap) state_name stmt =
-  case p4_split_subparser_call vtymap stmt of
-  | SOME (before, (inst, args), after) =>
-   let site = state_name++("."++inst) in
-   (case petr4_inline_subparser (gscope, pblock_map, vtymap) site inst args of
-    | SOME_msg (entry, sub_states, copyout_res, decl_upds, b_func_map_upds) =>
-     (case petr4_inline_subparser_calls (gscope, pblock_map, vtymap) (p4_subparser_state site "accept") after of
-      | SOME_msg (cont_stmt, cont_states, decl_upds', b_func_map_upds') =>
-       SOME_msg (p4_seq_append_stmt before entry,
-                 sub_states++((p4_subparser_state site "accept", p4_seq_append_stmt copyout_res cont_stmt)::cont_states),
-                 decl_upds++decl_upds',
-                 b_func_map_upds++b_func_map_upds')
-      | NONE_msg msg => NONE_msg msg)
+(* Splits the tail stmts++[final] of a parser state at its sub-parser calls: the head stays in the state named name *)
+Definition petr4_split_subparser_calls_def:
+ (petr4_split_subparser_calls ctxt name [] final = SOME_msg (final, [], [], [], [])) /\
+ (petr4_split_subparser_calls (tyenv, gscope, pblock_map, vtymap) name (stmt::stmts) final =
+  if ~p4_stmt_exists_e (p4_is_subparser_call pblock_map vtymap) stmt
+  then
+   (case petr4_split_subparser_calls (tyenv, gscope, pblock_map, vtymap) name stmts final of
+    | SOME_msg (head, states, decl_upds, b_func_map_upds, free_names) =>
+     SOME_msg (p4_seq_append_stmt stmt head, states, decl_upds, b_func_map_upds, free_names)
     | NONE_msg msg => NONE_msg msg)
-  | NONE => SOME_msg (stmt, [], [], [])
-Termination
-WF_REL_TAC `measure (stmt_size o SND o SND)` >>
-rpt strip_tac >>
-IMP_RES_TAC p4_split_subparser_call_size
+  else
+   case stmt of
+   | stmt_ass lval_null (e_call (funn_ext inst fname) args) =>
+    let site = name++("."++inst) in
+    (case petr4_inline_subparser (tyenv, gscope, pblock_map, vtymap) site inst args of
+     | SOME_msg (entry, sub_states, copyout_res, decl_upds, b_func_map_upds, free_names) =>
+      (case petr4_split_subparser_calls (tyenv, gscope, pblock_map, vtymap) (p4_subparser_state site "accept") stmts final of
+       | SOME_msg (head, states, decl_upds', b_func_map_upds', free_names') =>
+        SOME_msg (entry,
+                  sub_states++((p4_subparser_state site "accept", p4_seq_append_stmt copyout_res head)::states),
+                  decl_upds++decl_upds',
+                  b_func_map_upds++b_func_map_upds',
+                  free_names++free_names')
+       | NONE_msg msg => NONE_msg msg)
+     | NONE_msg msg => NONE_msg msg)
+   | _ => NONE_msg "sub-parser calls inside conditionals are not supported")
 End
 
+(* Inlines the sub-parser calls, after hoisting the block declarations of the states with calls or with blocks shadowing parameters *)
 Definition petr4_inline_subparsers_def:
- petr4_inline_subparsers ctxt (pars_map:pars_map) =
+ petr4_inline_subparsers (tyenv, gscope, pblock_map, vtymap) param_names (pars_map:pars_map) =
   FOLDL (\ res_opt (state_name, stmt).
          case res_opt of
-         | SOME_msg (pars_map', decl_upds, b_func_map_upds) =>
-          (case petr4_inline_subparser_calls ctxt state_name stmt of
-           | SOME_msg (stmt', states, decl_upds', b_func_map_upds') =>
-            SOME_msg (pars_map'++((state_name, stmt')::states), decl_upds++decl_upds', b_func_map_upds++b_func_map_upds')
-           | NONE_msg msg => NONE_msg msg)
-         | NONE_msg msg => NONE_msg msg) (SOME_msg ([], [], [])) pars_map
+         | SOME_msg (pars_map', decl_upds, b_func_map_upds, free_names) =>
+          if p4_stmt_exists_e (p4_is_subparser_call pblock_map vtymap) stmt \/ EXISTS (\x. MEM x param_names) (p4_stmt_decls stmt)
+          then
+           let (i, hoisted, stmt') = p4_hoist_state_locals state_name 0 stmt in
+           let stmts = p4_stmt_to_list stmt' in
+           if NULL stmts
+           then SOME_msg (pars_map'++[(state_name, stmt)], decl_upds, b_func_map_upds, free_names)
+           else
+            (case petr4_split_subparser_calls (tyenv, gscope, pblock_map, vtymap) state_name (FRONT stmts) (LAST stmts) of
+             | SOME_msg (head, states, decl_upds', b_func_map_upds', free_names') =>
+              SOME_msg (pars_map'++((state_name, head)::states), decl_upds++hoisted++decl_upds', b_func_map_upds++b_func_map_upds', free_names++free_names')
+             | NONE_msg msg => NONE_msg msg)
+          else SOME_msg (pars_map'++[(state_name, stmt)], decl_upds, b_func_map_upds, free_names)
+         | NONE_msg msg => NONE_msg msg) (SOME_msg ([], [], [], [])) pars_map
 End
 
-Definition p4_is_subparser_call_def:
- p4_is_subparser_call vtymap e =
-  case e of
-  | e_call (funn_ext inst fname) args =>
-   (fname = "apply" /\
-    (case ALOOKUP vtymap (varn_name inst) of
-     | SOME (p_tau_blk blk_type) => T
-     | _ => F))
-  | _ => F
-End
 
 Definition petr4_parse_parser_def:
  petr4_parse_parser (tyenv, enummap:enummap, vtymap, ftymap, blftymap, fmap:func_map, bltymap, gscope, pblock_map, extfun_list) parser =
@@ -4449,15 +4574,15 @@ Definition petr4_parse_parser_def:
           if petr4_ctor_param_clash decl_list ctor_params
           then NONE_msg ("block variable named like a constructor parameter, while parsing parser "++parser_name)
           else
-          (case petr4_parse_states (tyenv, enummap, vtymap', AUPDATE_LIST ftymap local_ftymap, gscope', extfun_list) [] states of
+          (case petr4_parse_states (tyenv, enummap, vtymap', AUPDATE_LIST ftymap local_ftymap, gscope', pblock_map, extfun_list) [] states of
            | SOME_msg pars_map =>
-            (case petr4_inline_subparsers (gscope', pblock_map, vtymap') pars_map of
-             | SOME_msg (pars_map', decl_upds, b_func_map_upds) =>
-              if EXISTS (\ (state_name, stmt). p4_stmt_exists_e (p4_is_subparser_call vtymap') stmt) pars_map'
-              then NONE_msg ("sub-parser calls after local declarations or inside conditionals are not supported, while parsing parser "++parser_name)
-              else
+            (case petr4_inline_subparsers (tyenv, gscope', pblock_map, vtymap') (MAP (varn_name o FST) pars_params) pars_map of
+             | SOME_msg (pars_map', decl_upds, b_func_map_upds, free_names) =>
+              (case FIND (\x. MEM x ((MAP (varn_name o FST) pars_params)++petr4_value_ctor_params ctor_params++MAP FST decl_list)) free_names of
+               | SOME (varn_name x) => NONE_msg ("global extern object "++(x++(" used in a sub-parser is shadowed by a variable or parameter of parser "++parser_name)))
+               | _ =>
                (* An instance applied in several states gives identical duplicates *)
-               SOME_msg (AUPDATE_LIST tyenv ((parser_name, p_tau_blk parser_name)::(MAP (\ (c, p_tau). (parser_name++(ctor_sep++c), p_tau)) ctor_params)), enummap, ftymap, AUPDATE blftymap (parser_name, local_ftymap), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pbl_type_parser, pars_params, (b_func_map++(nub b_func_map_upds)++[(parser_name, (stmt_seq inits (stmt_trans (e_v (v_str "start"))), []))]), decl_list++(nub decl_upds), pars_map', tbl_map), param_taus)))
+               SOME_msg (AUPDATE_LIST tyenv ((parser_name, p_tau_blk parser_name)::(MAP (\ (c, p_tau). (parser_name++(ctor_sep++c), p_tau)) ctor_params)), enummap, ftymap, AUPDATE blftymap (parser_name, local_ftymap), fmap, bltymap, gscope, AUPDATE pblock_map (parser_name, ((pbl_type_parser, pars_params, (b_func_map++(nub b_func_map_upds)++[(parser_name, (stmt_seq inits (stmt_trans (e_v (v_str "start"))), []))]), decl_list++(nub decl_upds), pars_map', tbl_map), param_taus))))
              | NONE_msg inline_msg => NONE_msg ("Could not inline sub-parser: "++inline_msg++" while parsing parser "++parser_name))
            | NONE_msg states_msg => NONE_msg ("Could not parse states: "++states_msg++" while parsing parser "++parser_name))
          | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing parser "++parser_name))
@@ -4504,14 +4629,22 @@ Definition petr4_merge_upds_def:
         ) (SOME []) upds
 End
 
+(* The block must not declare its taboo names: inlined variables, the global extern objects
+ * that inlined code uses, and (as varn_star) the global functions that it calls *)
 Definition check_taboos_def:
- check_taboos gscope decl_list ctrl_params taboo_list control_name f =
+ check_taboos gscope decl_list ctrl_params value_ctor_params fun_names taboo_list control_name f =
   let decl_list' = (MAP FST decl_list) in
-  let ctrl_params' = (MAP (varn_name o FST) ctrl_params) in
-  let gscope' = (MAP FST gscope) in
+  let ctrl_params' = (MAP (varn_name o FST) ctrl_params)++value_ctor_params in
+  let gscope' = MAP FST (FILTER (\ (x, (v, lval_opt)). case v of v_ext_ref i => F | _ => T) gscope) in
   (* We also check for the apply result placeholder variable name among
    * declarations and among parameters *)
   let taboo_list' = ((^apply_result_placeholder_varn)::taboo_list) in
+  case FIND (\fname. MEM (varn_star (funn_name fname)) taboo_list) fun_names of
+  | SOME fname => NONE_msg ("global function "++(fname++(" called in a nested block is shadowed by a local function of block "++control_name)))
+  | NONE =>
+  (case FIND (\x. p4_is_global_ext gscope x /\ (MEM x decl_list' \/ MEM x ctrl_params')) taboo_list of
+   | SOME (varn_name x) => NONE_msg ("global extern object "++(x++(" used in a nested block is shadowed by a variable or parameter of block "++control_name)))
+   | _ =>
   if (EVERY (\ el. ~(MEM el decl_list')) taboo_list')
   then
    (if (EVERY (\ el. ~(MEM el ctrl_params')) taboo_list')
@@ -4520,7 +4653,7 @@ Definition check_taboos_def:
       then f
       else NONE_msg (("Taboo variable from block: "++control_name)++" found among global variables"))
     else NONE_msg ("Taboo variable found among block parameters in block: "++control_name))
-  else NONE_msg ("Taboo variable found among block variables in block: "++control_name)
+  else NONE_msg ("Taboo variable found among block variables in block: "++control_name))
 End
 
 (* The control type and the rest of a name c.rest of an inlined instance or directly invoked type c *)
@@ -4599,8 +4732,12 @@ Definition petr4_parse_control_def:
               (case p4_repeated_direct_invocation tyenv pblock_map vtymap' tbl_map_upds decl_list_upds of
                | SOME ty => NONE_msg ("control type "++(ty++(" with tables or extern objects is invoked directly more than once, while parsing control "++control_name)))
                | NONE =>
+              (* A local function called by an earlier one shadows the global function it calls *)
+              (case FIND (\ (fname, v). IS_SOME (ALOOKUP fmap fname) /\ p4_calls_before fname b_func_map) b_func_map of
+               | SOME (fname, v) => NONE_msg ("global function "++(fname++(" is called where a later local function of the same name shadows it, while parsing control "++control_name)))
+               | NONE =>
               (* All elements of decl_list_upds are taboo, but not all taboo variables are in decl_list_upds *)
-              check_taboos gscope decl_list ctrl_params taboo_list control_name 
+              check_taboos gscope decl_list ctrl_params (petr4_value_ctor_params ctor_params) (MAP FST b_func_map) taboo_list control_name
 (
               let b_func_map' = (b_func_map++[(control_name, (stmt_seq inits res_apply, []))]) in
               (* TODO: Try new names instead of returning errors *)
@@ -4616,7 +4753,7 @@ Definition petr4_parse_control_def:
                    | NONE => NONE_msg ("Duplicate variable (parameter) name in nested control block while parsing control "++control_name))
                  | NONE => NONE_msg ("Duplicate table name in nested control block while parsing control "++control_name))
                | NONE => NONE_msg ("Local function in nested control block has same name as (and is different from) local function in parent block; encountered while parsing control "++control_name))
-))
+)))
              | NONE_msg apply_msg => NONE_msg ("Could not parse apply: "++apply_msg++" while parsing control "++control_name))
            | NONE_msg locals_msg => NONE_msg ("Could not parse locals: "++locals_msg++" while parsing control "++control_name))
            | NONE_msg ctor_msg => NONE_msg ("Could not parse constructor parameters: "++ctor_msg++" while parsing control "++control_name)))
@@ -5056,23 +5193,28 @@ Definition p4_qualify_tbls_def:
    MAP (\ (pbl_name, tbl_entries). (pbl_name, MAP (\ (tbl_name, upds). (p4_prefix_tbl pbl_name tbl_name, upds)) tbl_entries)) tbl_entries_map)
 End
 
-Definition p4_calls_fun_def:
- p4_calls_fun fname body = p4_stmt_exists_e (\ e. case e of e_call (funn_name f') el => f' = fname | _ => F) body
+(* The global functions reached from the calls called, where block-local functions shadow global ones *)
+Definition p4_reachable_global_funs_def:
+ p4_reachable_global_funs (fmap:func_map) (b_func_map:b_func_map) called =
+  let global = FILTER (\f. IS_SOME (ALOOKUP fmap f) /\ ~IS_SOME (ALOOKUP b_func_map f)) in
+  FUNPOW (\fs. nub (fs++global (FLAT (MAP (\f. case ALOOKUP fmap f of SOME (body, args) => p4_stmt_called_funs body | NONE => []) fs))))
+         (LENGTH fmap) (nub (global called))
 End
 
-Definition p4_calls_before_def:
- (p4_calls_before fname ([]:b_func_map) = F) /\
- (p4_calls_before fname ((f, (body, args))::t) = if f = fname then F else (p4_calls_fun fname body \/ p4_calls_before fname t))
-End
-
-(* A block-local function shadowing a global one called outside its scope (b_func_map is in reverse order) *)
+(* A block-local function shadowing a global one that a global function reached from the block calls *)
 Definition p4_shadowed_global_fun_def:
  p4_shadowed_global_fun (fmap:func_map) (pblock_map:(string # (pblock_extra # tau list)) list) ab_list =
-  FIND (\ (fname, b_func_map). IS_SOME (ALOOKUP fmap fname) /\
-                                (EXISTS (\ (f, (body, args)). p4_calls_fun fname body) fmap \/
-                                 p4_calls_before fname (REVERSE b_func_map) \/
-                                 EXISTS (\ (f, (body, args)). MEM #"." f /\ p4_calls_fun fname body) b_func_map))
-       (FLAT (MAP (\ (pbl_name, ((pbl_type, params, b_func_map, decl_list, pars_map, tbl_map), taus)). MAP (\ (fname, v). (fname, b_func_map)) b_func_map)
+  FIND (\ (fname, reached). IS_SOME (ALOOKUP fmap fname) /\
+                            EXISTS (\f. case ALOOKUP fmap f of SOME (body, args) => p4_calls_fun fname body | NONE => F) reached)
+       (FLAT (MAP (\ (pbl_name, ((pbl_type, params, b_func_map, decl_list, pars_map, tbl_map), taus)).
+                   if EXISTS (\ (fname, v). IS_SOME (ALOOKUP fmap fname)) b_func_map
+                   then
+                    let called = FLAT (MAP (\ (f, (body, args)). p4_stmt_called_funs body) b_func_map)++
+                                 FLAT (MAP (\ (state, stmt). p4_stmt_called_funs stmt) pars_map)++
+                                 FLAT (MAP (\ (tbl, (mk_l, action_names, (def_action, e_l))). def_action::action_names) tbl_map) in
+                    let reached = p4_reachable_global_funs fmap b_func_map called in
+                    MAP (\ (fname, v). (fname, reached)) b_func_map
+                   else [])
                   (FILTER (\ (pbl_name, pbl). IS_SOME $ p4_get_pbl ab_list pbl_name) pblock_map)))
 End
 
@@ -5085,7 +5227,7 @@ Definition clean_result_def:
   case res_msg of
   | SOME_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map, tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap, top_inits) =>
    (case p4_shadowed_global_fun fmap pblock_map ab_list of
-    | SOME (fname, b_func_map) =>
+    | SOME (fname, reached) =>
      let (pblock_map', pblock_action_names_map) = p4_clean_pblock_map pblock_map ab_list in
      NONE_dbg (tyenv, enummap, vtymap, ftymap, blftymap, fmap, bltymap, ptymap, gscope, pblock_map', tbl_entries_map, arch_pkg_opt, ab_list, action_list, extfun_list, ttymap, pblock_action_names_map, top_inits) ("global function "++(fname++" is called where a block-local function of the same name shadows it"))
     | NONE =>

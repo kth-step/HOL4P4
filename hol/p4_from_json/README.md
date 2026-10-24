@@ -29,6 +29,26 @@ All shell-level steps of the import are subcommands of `p4_from_json.sh`, which 
 
 In order to accommodate P4 programs in the syntax of HOL4P4, a bit of desugaring must be done.
 
+### Generated names
+
+P4 identifiers consist of letters, digits and `_`. Every name the import generates, except the reserved `gen_apply_result`, contains `.`, `$` or `#`, so it differs from every name in the program, and the forms below differ from each other:
+
+| Name | Meaning |
+|---|---|
+| `c.x` | variable, action or table `x` of the instance `c` inlined into its parent, or of the type `c` invoked directly (`c.d.x` for nested instances); tables are also qualified by their block (`MyIngress.c.t`) |
+| `s.sub.x` | state `x` of the sub-parser instance `sub` applied in state `s` |
+| `s.sub$accept`, `s.sub$reject` | the states that its `accept` and `reject` lead to |
+| `set_no_match$` | the target state of a select without default case |
+| `from_table$`, `hit$` | the extra parameters of every action |
+| `dontcare$k` | the variable for the don't-care argument at position `k` of a call |
+| `x$shadow` | a local variable `x` of an apply block, renamed because a later table key uses the outer `x` |
+| `fresh$` | the variable of a havoc block (`{ fresh$; v = fresh$; }`) |
+| `$s.i.x` | the variable `x` declared in block `i` of parser state `s`, moved to the parser; the only names that start with `$` |
+| `c#k` | in the type maps only: constructor parameter `k` of block type or instance `c`, or type parameter `k` of extern instance `c`; `#` keeps it apart from the variable `c.k` |
+| `gen_apply_result` | a reserved global variable (programs that declare it are rejected) |
+
+Inlining prefixes the generated variables of the inlined block like its other variables (`c.dontcare$1`, `c.$s.i.x`), so the names of different instances differ in the prefix; only global extern objects and `gen_apply_result` keep their names.
+
 ### Extern object instantiations
 
 Extern objects are instantiated once, at import time, and persist across packets. Every instantiation in the program, block-local or top-level, is numbered and replaced by an assignment of the extern object reference to its variable: at the start of the block body for a block-local one, in the initial global scope for a top-level one. The import tool runs the constructor of each object once, in order, while building the initial architectural state, with the random oracle left free: contents the architecture model leaves undefined are oracle draws, as for uninitialised variables, and advance the oracle index. The first argument of the architecture's input function is the number of extern objects that persist across packets, the architecture's own fixed objects, if any, followed by these; the input function discards every extern object allocated above them, so anything a constructor allocates during a packet lives for that packet only.
@@ -39,19 +59,19 @@ Every call of an extern function or extern object method must match an entry of 
 
 The type parameters of an extern object are bound to the type arguments of each instance, so that an integer literal passed for a parameter of type `T` of `register<bit<8>>(256) r` (as in `r.write(0, 42)`) gets width 8.
 
-A don't-care argument `_` of a call statement becomes a fresh variable `dontcare$i` of the parameter's type, declared in a block around the call (`_` inside an expression is rejected). When the parameter's type is a type parameter of the method or function, the call must have exactly one type argument, which is taken as its type (`p.extract<H>(_)`).
+A don't-care argument `_` of a call statement becomes a fresh variable `dontcare$k` of the parameter's type, declared in a block around the call (`_` inside an expression is rejected). When the parameter's type is a type parameter of the method or function, the call must have exactly one type argument, which is taken as its type (`p.extract<H>(_)`).
 
 `verify_checksum(c, data, hdr.h.f, algo)` with `hdr.h` a header becomes `verify_checksum(c && hdr.h.isValid(), data, hdr.h.f, algo)`, since BMv2 skips the check when the header holding the checksum field is invalid.
 
 ### Function names
 
-The semantics resolves a call by name in the block's local functions before the global ones, also when the caller is a global function. The import therefore rejects a program in which a block-local action has the name of a global function that some global function calls.
+The semantics resolves a call by name in the block's local functions before the global ones, also when the caller is a global function. The import therefore rejects a program in which a block-local action has the name of a global function that is called by a global function reached from the block (through the calls in the block's code and tables and in the global functions they reach), by an earlier action of the block, or by the code of an inlined block (see the taboo list below).
 
 ### Nested control blocks
 
 The most significant program transformation concerns inlining of nested blocks. Nested control blocks work in the following manner (for nested parsers, see below):
 
-When instantiated blocks are applied (called), the apply block (body) of the nested block is inlined in the parent block, with all variables, actions and tables prefixed with the instance name and a period (`c1.x`), which cannot clash with a P4 identifier. The copy-in copy-out mechanism of block parameters is handled as follows:
+When instantiated blocks are applied (called), the apply block (body) of the nested block is inlined in the parent block, with all variables, actions and tables prefixed with the instance name and a period (`c1.x`). The copy-in copy-out mechanism of block parameters is handled as follows:
 
 Copy-in:
 * If the parameter is `out`, then the (prefixed) parameter is havoc-ed: it is assigned a variable declared without initialiser in a fresh block, which takes an unspecified value from the random oracle (headers start invalid)
@@ -73,11 +93,11 @@ Also, this method does not permit nested blocks from using a return statement to
 
 Control-typed constructor parameters (`control C2(inout bit<16> x)(my_control_type c)`, instantiated as `C2(c1) c2`) are supported as follows: `c.apply(...)` in the body of `C2` becomes a placeholder, replaced when `c2` is applied by the inlined apply of `c1` under the prefix `c1`, so blocks given the same instance share its tables and extern objects. A block can hand its parameter on to a nested instance (`Mid(c) m` in `C2`): the placeholder then stays until `c2` is applied. The arguments of such an apply must be variables, not literals. Constructor arguments that are instantiations (`C2(C1())`) are rejected. Constructor parameters of other types are bound per instance: for a nested instance `c1`, the parameter `k` becomes the parent block variable `c1.k`, assigned the argument at the start of the parent block; for a block in the package (`MyIngress(8w5)`), it becomes a block variable assigned at the start of the block (such a block may then occur only once in the package). Constructor parameters of parser or extern type are rejected.
 
-The new programmable block-variables resulting from the above procedure will be added to a "taboo list" - if these are encountered among the programmable block-variables of the parent block or in any variable declaration before the inlined block, the import tool will halt with an error.
+The new programmable block-variables resulting from the above procedure will be added to a "taboo list" - if these are encountered among the programmable block-variables of the parent block or in any variable declaration before the inlined block, the import tool will halt with an error. The taboo list also holds the global extern objects that the inlined code uses and the global functions and actions that it calls, which keep their names when inlined: a parameter, constructor parameter, variable or local action of the parent block with the same name would capture them, so the import halts with an error instead.
 
 ### Nested parser blocks
 
-A sub-parser application `sub.apply(...)` in a parser state `s` splits the state at the call. The first part ends with the copy-in (as for nested controls), the havoc of the sub-parser's variables, their initialisers and a transition to `s.sub.start`. The states of the sub-parser are added with the prefix `s.sub.`, and their variables and parameters with the prefix `sub.` as for controls; extern-typed parameters such as `packet_in` are replaced by the argument, which must be a variable. Their transitions to `accept` and `reject` go to the new states `s.sub$accept`, which performs the copy-out and continues with the rest of `s`, and `s.sub$reject`, which performs the copy-out and rejects. Since a sub-parser also copies out when an extract or `verify` fails, every statement of the sub-parser with an extern call is preceded by the copy-out (this is not observable otherwise). Further calls in the rest of the state are split in the same way, so one instance applied in several states gets one copy of its states per call site. Sub-parser calls after a local declaration in the state or inside a conditional, and sub-parsers with extern objects, are rejected.
+A sub-parser application `sub.apply(...)` in a parser state `s` splits the state at the call. The first part ends with the copy-in (as for nested controls), the havoc of the sub-parser's variables, their initialisers and a transition to `s.sub.start`. The states of the sub-parser are added with the prefix `s.sub.`, and their variables and parameters with the prefix `sub.` as for controls; extern-typed parameters such as `packet_in` are replaced by the argument, which must be a variable. Their transitions to `accept` and `reject` go to the new states `s.sub$accept`, which performs the copy-out and continues with the rest of `s`, and `s.sub$reject`, which performs the copy-out and rejects. Since a sub-parser also copies out when an extract or `verify` fails, every statement of the sub-parser with an extern call is preceded by the copy-out (this is not observable otherwise). Further calls in the rest of the state are split in the same way, so one instance applied in several states gets one copy of its states per call site. The arguments are typed by the sub-parser's parameters, so they may be literals or don't-care arguments `_` (a variable `dontcare$k`, as for other calls). A direct invocation `Sub.apply(...)` of a parser type is inlined in the same way under the prefix `Sub`. Before the split, the variables declared in the blocks of the state are moved to parser variables named `$s.i.x` (variable `x` of block `i` of `s`), set where they were declared, since their scope may cross the call. A state that declares a variable named like a parameter of its parser is treated the same way, so that the copy-out, which reads the parameters, is not shadowed. Sub-parsers with extern objects, and global extern objects used by a sub-parser and shadowed by a parameter or variable of the parser, are rejected; petr4 0.1.3 does not accept conditionals in parser states.
 
 ### Table names
 
@@ -89,13 +109,13 @@ Members of an enumeration without an underlying type are 32-bit values numbered 
 
 ### Select expressions
 
-Select expressions with no default case will get a new default case that maps to the state `set_no_match$`, which contains only a `verify(false, error.NoMatch)` statement (the `$` keeps it apart from the program's states). The `set_no_match$` state will only appear in programs with default-less select expressions, once per parser. The members of `error` are numbered in declaration order after the seven errors of `core.p4`, which are numbered 0 to 6 as the core externs and architectures expect (`NoError` 0, `PacketTooShort` 1, `NoMatch` 2).
+Select expressions with no default case will get a new default case that maps to the state `set_no_match$`, which contains only a `verify(false, error.NoMatch)` statement. The `set_no_match$` state will only appear in programs with default-less select expressions, once per parser. The members of `error` are numbered in declaration order after the seven errors of `core.p4`, which are numbered 0 to 6 as the core externs and architectures expect (`NoError` 0, `PacketTooShort` 1, `NoMatch` 2).
 
 ### Table application in expressions
 
 To accommodate table application in expressions and their returned structs, the following can be done:
 
-* All actions are given two additional in-directed parameters called "from_table$" and "hit$" (the `$` keeps them apart from P4 identifiers).
+* All actions are given two additional in-directed parameters called "from_table$" and "hit$".
 * An assignment is prepended to the body of all actions, which contain a conditional statement (on "from_table$") with a then-case with an assignment to "gen_apply_result", which is a global variable (the import tool disallows P4 programs to have global variables, programmable-block variables, declared variables and action arguments called "gen_apply_result").
 * Actions resulting from table application pass true to "from_table$", other usages pass false. Default actions of tables pass false as argument to "hit$". Actions corresponding to table entries pass true. Action calls in the regular P4 code, including calls from other actions, pass false to both, so `action_run` is the action the table chose.
 * Whenever a table application is encountered by the import tool inside an expression `e` in a statement `stmt`, the following is done:
@@ -118,11 +138,11 @@ The arguments of default actions and of constant entries are folded to values at
 
 ### Other rejected forms
 
-The import also rejects default parameter values, `==` and `!=` on structs, headers and tuples, a parser or control type with tables, extern objects or constructor parameters passed twice to the package (its instances would share them), a constructor parameter of a nested instance named like a global extern object, a block variable named like a constructor parameter, `verify` outside parsers, serializable enum members whose value does not fit the type, and a control type with tables or extern objects invoked directly (`C.apply(...)`) more than once in a control, whose invocations would share them. Integer constant expressions are folded exactly (negative intermediates included) and then take the expected width; comparisons of integer constants fold to booleans. Bitwise operators on two integer constants, and a shift of an integer constant by a non-constant amount, are rejected. Constants may use unary operators and struct initialisers.
+The import also rejects default parameter values, `==` and `!=` on structs, headers and tuples, a parser or control type with tables, extern objects or constructor parameters passed twice to the package (its instances would share them), a block variable named like a constructor parameter, `verify` outside parsers, serializable enum members whose value does not fit the type, and a control type with tables or extern objects invoked directly (`C.apply(...)`) more than once in a control, whose invocations would share them. Integer constant expressions are folded exactly (negative intermediates included) and then take the expected width; comparisons of integer constants fold to booleans. Bitwise operators are not defined on two integer constants (spec 8.8, and petr4 rejects them), and a shift of an integer constant by a non-constant amount is rejected. Constants may use unary operators and struct initialisers.
 
 ### Compile-time constants
 
-Widths and slice bounds are folded exactly at import: `int` arithmetic is exact, a `bit<W>` operand or width-prefixed literal wraps modulo 2^W (`bit<(4w15 + 4w2)>` is `bit<1>`), and global `bit<W>` constants may occur in slice bounds (`x[HI:0]`) and in the widths of fields, typedefs, variables, constants and casts (`bit<(W)>`), but not of parameters; a negative result is rejected. A width-prefixed literal that overflows its width wraps (`8w300` is `44`). `minSizeInBits()` and `minSizeInBytes()` fold to the size of the receiver's type. Constants of type `int` are not supported.
+Widths and slice bounds are folded exactly at import: `int` arithmetic is exact, a `bit<W>` operand or width-prefixed literal wraps modulo 2^W (`bit<(4w15 + 4w2)>` is `bit<1>`), `&`, `|`, `^` and `~` fold on `bit<W>` operands, and global `bit<W>` constants may occur in slice bounds (`x[HI:0]`) and in the widths of fields, typedefs, variables, constants and casts (`bit<(W)>`), but not of parameters; a negative result is rejected. A width-prefixed literal that overflows its width wraps (`8w300` is `44`). `minSizeInBits()` and `minSizeInBytes()` fold to the size of the receiver's type. Constants of type `int` are not supported.
 
 ### Struct initialisers
 
