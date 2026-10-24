@@ -95,6 +95,9 @@ Whether enough bits remain for a method is decided from the path condition
 that nor its negation follows, the symbolic execution branches on it, and the path on which
 the packet is too short (`PacketTooShort`) is explored as well. The final stage of the
 postcondition prover decides the arithmetic on packet lengths with `numSimps.ARITH_ss`.
+A varbit extract (`extract_varbit`) needs a concrete size, otherwise the executor stops with an
+error; it takes the fixed fields of the header plus that many bits, and its other errors
+(`ParserInvalidArgument`, `HeaderTooShort`) follow by evaluation.
 
 ## Contracts
 
