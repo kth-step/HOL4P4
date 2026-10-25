@@ -40,6 +40,7 @@ val debug_frames_from_step :
 val the_final_state : thm -> term
 val the_final_state_hyp_imp : thm -> term * term
 val the_final_state_hyp_imp_n : thm -> term * term * term
+val mk_ctx_def : term -> thm
 val p4_eval_test_tac : hol_type -> tactic
 
 val eval_step_fuel : hol_type -> term -> term -> int -> thm
