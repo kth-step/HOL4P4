@@ -15,6 +15,14 @@ Definition add_ctrl_gen_def:
   | NONE => NONE
 End
 
+Definition add_ctrl_list_gen_def:
+ (add_ctrl_list_gen astate [] = SOME astate) /\
+ (add_ctrl_list_gen astate ((table_name, keys, action_name, args)::t) =
+  case add_ctrl_gen astate table_name keys action_name args of
+  | SOME astate' => add_ctrl_list_gen astate' t
+  | NONE => NONE)
+End
+
 Definition ebpf_add_ctrl_def:
  ebpf_add_ctrl (astate:ebpf_ascope astate) =
   add_ctrl_gen astate

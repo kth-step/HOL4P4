@@ -249,8 +249,8 @@ Definition vss_apply_table_f_def:
   then
    ctrl_check_ttl e_l
   else
-   (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-   apply_table_f_gen (\mk_list. T) (x, e_l, mk_list, (x', e_l'), ascope)
+   (* Longest prefix wins in tables with only lpm and exact keys, otherwise smallest priority *)
+   apply_table_f_gen (\mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list) (x, e_l, mk_list, (x', e_l'), ascope)
 End
 
 Definition vss_get_oracle_index_def:
