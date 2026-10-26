@@ -57,19 +57,15 @@ Type v1model_ascope = “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v)
 (* TODO: Remove unused arguments from these? *)
 
 Definition v1model_ascope_lookup_def:
- v1model_ascope_lookup (ascope:v1model_ascope) ext_ref = 
-  let ext_obj_map = FST $ SND ascope in
-   ALOOKUP ext_obj_map ext_ref
+ v1model_ascope_lookup = ascope_lookup_gen:v1model_ascope -> num -> v1model_sum_v_ext option
 End
 
 Definition v1model_ascope_update_def:
- v1model_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+ v1model_ascope_update = ascope_update_gen:v1model_ascope -> num -> v1model_sum_v_ext -> v1model_ascope
 End
 
 Definition v1model_ascope_update_v_map_def:
- v1model_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+ v1model_ascope_update_v_map = ascope_update_v_map_gen:v1model_ascope -> string -> v -> v1model_ascope
 End
 
 Definition v1model_packet_in_extract_def:
@@ -163,15 +159,6 @@ End
 (********)
 (* hash *)
 
-Definition v1model_hash_bits_def:
- v1model_hash_bits v =
-  case v of
-  | v_bit (bl, n) => SOME bl
-  | v_struct x_v_l => header_entries2v x_v_l
-  | v_header validity x_v_l => if validity then header_entries2v x_v_l else SOME []
-  | _ => NONE
-End
-
 (* HashAlgorithm members in declaration order; the custom CRCs are the unconfigured crc32/crc16 of bmv2 *)
 Definition v1model_hash_det_def:
  v1model_hash_det (algo:num) bl =
@@ -211,7 +198,7 @@ Definition v1model_hash_def:
         | SOME (v_bit (bl_max, n_max)) =>
          (case lookup_lval scope_list (lval_varname (varn_name "data")) of
           | SOME data =>
-           (case v1model_hash_bits data of
+           (case data_bits data of
             | SOME bl =>
              (case v1model_hash_inner (v2n bl_algo) width oracle_index random_oracle bl of
               | SOME (h, oracle_index') =>
@@ -242,7 +229,7 @@ Definition v1model_verify_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case v1model_hash_bits data of
+         (case data_bits data of
           | SOME bl_data =>
            (case v1model_hash_det (v2n bl) bl_data of
             | SOME h =>
@@ -287,7 +274,7 @@ Definition v1model_update_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case v1model_hash_bits data of
+         (case data_bits data of
           | SOME bl_data =>
            (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
             | SOME $ v_bit (bl', n') =>
@@ -698,56 +685,12 @@ Definition v1model_input_f_def:
     SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index):v1model_ascope))
 End
 
-(* TODO: Generalise and move to core? Duplicated in all three architectures... *)
-Definition v1model_reduce_nonout_def:
- (v1model_reduce_nonout ([], elist, v_map) =
-  SOME []
- ) /\
- (v1model_reduce_nonout (d::dlist, e::elist, v_map) =
-  if is_d_out d
-  then oCONS (e, v1model_reduce_nonout (dlist, elist, v_map))
-  else
-   (case e of
-    | (e_var (varn_name x)) =>
-     (case ALOOKUP v_map x of
-      | SOME v =>
-       (* NOTE: Only externs can be passed as directionless arguments here *)
-       oCONS (e_v v, v1model_reduce_nonout (dlist, elist, v_map))
-      | _ => NONE)
-    | _ => NONE)) /\
- (v1model_reduce_nonout (_, _, v_map) = NONE)
-End
-
-(* TODO: Since the same thing should be initialised
- *       for all known architectures, maybe it should be made a
- *       architecture-generic (core) function? *)
-(* TODO: Don't reduce all arguments at once? *)
 Definition v1model_copyin_pbl_def:
- v1model_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, random_oracle) =
-  case v1model_reduce_nonout (dlist, elist, v_map) of
-  | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
-  | NONE => NONE
+ v1model_copyin_pbl = copyin_pbl_gen:v1model_ascope copyin_pbl
 End
 
-(* Note that this re-uses the copyout function intended for P4 functions *)
 Definition v1model_copyout_pbl_def:
- v1model_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, dlist, xlist, (status:status)) =
-  case copyout_pbl_gen xlist dlist g_scope_list v_map of
-  | SOME [v_map_scope] =>
-   (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):v1model_ascope)
-    | NONE => NONE)
-  | _ => NONE
-End
-
-(* TODO: Make generic *)
-Definition v1model_lookup_obj_def:
- v1model_lookup_obj ext_obj_map v_map k =
-  case ALOOKUP v_map k of
-  | SOME (v_ext_ref i) =>
-   ALOOKUP ext_obj_map i
-  | _ => NONE
+ v1model_copyout_pbl = copyout_pbl_gen:v1model_ascope copyout_pbl
 End
 
 (* Transfers the value of parsedHdr to hdr and the parserError value to standard_metadata,
@@ -799,9 +742,9 @@ End
 (* A little clumsy with the double v2n, but that makes things easier *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-  (case v1model_lookup_obj ext_obj_map v_map "b" of
+  (case lookup_obj ext_obj_map v_map "b" of
    | SOME (INL (core_v_ext_packet bl)) =>
-    (case v1model_lookup_obj ext_obj_map v_map "b_temp" of
+    (case lookup_obj ext_obj_map v_map "b_temp" of
      | SOME (INL (core_v_ext_packet bl')) =>
       (case ALOOKUP v_map "standard_metadata" of
        | SOME (v_struct struct) =>
@@ -818,41 +761,16 @@ End
  * with other keys being exact if one LPM key is present.
  * Note that table priority is runtime-dependent, with only partial P4 language
  * support. *)
-val v1model_apply_table_f_def =
- if CONTROL_PLANE_API = 0
- then xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-    (* TODO: Note that this function could do other stuff here depending on table name.
-     *       Ideally, one could make a general, not hard-coded, solution for this *)
-    case ALOOKUP ctrl x of
-     | SOME table =>
-      if (MEM mk_lpm mk_list)
-      then
-       (* Largest priority wins (like for P4Runtime API - should be equivalent to TDI
-        * for tables that contain at most one LPM key, with others exact) *)
-       SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-      else
-       (* Smallest priority wins (like for TDI) *)
-       SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
-     | NONE => NONE’
- else xDefine "v1model_apply_table_f"
-  ‘v1model_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-    (* TODO: Note that this function could do other stuff here depending on table name.
-     *       Ideally, one could make a general, not hard-coded, solution for this *)
-    case ALOOKUP ctrl x of
-     | SOME table =>
-      (* Largest priority wins *)
-      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-     | NONE => NONE’;
-
-(* TODO: Generalise the below as needed *)
+(* API 0: largest priority wins with an LPM key (P4Runtime), smallest otherwise (TDI); API 1: largest *)
+val v1model_largest_wins = if CONTROL_PLANE_API = 0 then “\mk_list:mk_list. MEM mk_lpm mk_list” else “\mk_list:mk_list. T”;
+Definition v1model_apply_table_f_def:
+ v1model_apply_table_f = apply_table_f_gen ^v1model_largest_wins:v1model_ascope apply_table_f
+End
 
 Definition v1model_get_oracle_index_def:
- v1model_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-  oracle_index
+ v1model_get_oracle_index = get_oracle_index_gen:v1model_ascope get_oracle_index
 End
 
 Definition v1model_set_oracle_index_def:
- v1model_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
-  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):v1model_ascope
+ v1model_set_oracle_index = set_oracle_index_gen:v1model_ascope set_oracle_index
 End

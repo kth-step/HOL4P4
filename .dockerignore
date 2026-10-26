@@ -1,0 +1,25 @@
+# Keep only what a fresh clone has; install.sh clones petr4 and fetches the tests itself
+.git
+petr4
+scripts/HOL
+hol/p4_from_json/p4include
+hol/p4_from_json/user_tests
+hol/p4_from_json/validation_tests/*.p4
+hol/p4_from_json/validation_tests/*.stf
+hol/p4_from_json/validation_tests/*.json
+hol/p4_from_json/validation_tests/*.sml
+hol/p4_from_json/validation_tests/*.sig
+**/*-heap
+**/.hol
+**/*.log
+**/*~
+**/#*#
+**/*.aux
+**/*.bcf
+**/*.out
+**/*.run.xml
+**/*.synctex.gz
+**/*.bbl
+**/*.blg
+**/*.fls
+**/*.fdb_latexmk

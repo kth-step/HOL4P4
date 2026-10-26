@@ -119,7 +119,7 @@ packet 0 FFFFFFFF FFFFFFFE 00
 expect 0 FFFFFFFF FFFFFFFE 00
 ```
 
-Here, `packet` signifies the incoming packet and `expect` the outgoing one, with the first 0 after each of these commands being the port number. You may use * for wildcard bits in both input and output. Adapt as needed for your program, copy the `Holmakefile` from `hol/p4_from_json/validation_tests/` to `hol/p4_from_json/user_tests`, and then run
+Here, `packet` signifies the incoming packet and `expect` the outgoing one, with the first 0 after each of these commands being the port number. You may use * for wildcard bits in both input and output. As in p4c's STF runner, an expected packet only has to be a prefix of the output packet, unless it ends with `$`. Adapt as needed for your program, copy the `Holmakefile` from `hol/p4_from_json/validation_tests/` to `hol/p4_from_json/user_tests`, and then run
 
 ```
 ./p4_from_json.sh export user_tests

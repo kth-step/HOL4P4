@@ -45,47 +45,17 @@ End
 Definition size_in_bits_def:
  (size_in_bits (v_bool b) = SOME 1) /\
  (size_in_bits (v_bit (bl, n)) = SOME n) /\
- (size_in_bits (v_header valid_bit []) = SOME 0) /\
- (size_in_bits (v_struct []) = SOME 0) /\
- (size_in_bits (v_header valid_bit (h::t)) =
-  case SND h of
-  | (v_bit (bl, num)) =>
-   (case size_in_bits (v_header valid_bit t) of
+ (size_in_bits (v_struct x_v_l) = fields_size_in_bits x_v_l) /\
+ (size_in_bits (v_header valid_bit x_v_l) = fields_size_in_bits x_v_l) /\
+ (size_in_bits _ = NONE) /\
+ (fields_size_in_bits [] = SOME 0) /\
+ (fields_size_in_bits ((x:x, v)::t) =
+  case size_in_bits v of
+  | SOME num =>
+   (case fields_size_in_bits t of
     | SOME num' => SOME (num + num')
-    | NONE => NONE
-   )
-  | (v_bool _) =>
-   (case size_in_bits (v_header valid_bit t) of
-    | SOME num' => SOME (1 + num')
-    | NONE => NONE
-   )
-  | (v_struct fields) =>
-   (case size_in_bits (v_header valid_bit t) of
-    | SOME num' =>
-     (case size_in_bits (v_struct fields) of
-      | SOME num'' =>
-       SOME (num'' + num')
-      | NONE => NONE
-     )
-    | NONE => NONE
-   )
-  | _ => NONE
- ) /\
- (size_in_bits (v_struct (h::t)) =
-  case SND h of
-  | (v_bit (bl, num)) => 
-   (case size_in_bits (v_struct t) of
-    | SOME num' => SOME (num + num')
-    | NONE => NONE
-   )
-  | (v_bool _) =>
-   (case size_in_bits (v_struct t) of
-    | SOME num' => SOME (1 + num')
-    | NONE => NONE
-   )
-  | _ => NONE
- ) /\
- (size_in_bits _ = NONE)
+    | NONE => NONE)
+  | NONE => NONE)
 End
 
 (* TODO: Perform this on list only? *)
@@ -180,6 +150,14 @@ Definition set_fields_def:
        set_fields t (acc++[(x, v_struct acc')]) (DROP n packet_in)
       | NONE => NONE)
     | NONE => NONE)
+  | (x, (v_header validity x_v_l)) =>
+   (case size_in_bits (v_header validity x_v_l) of
+    | SOME n =>
+     (case set_fields x_v_l [] (TAKE n packet_in) of
+      | SOME acc' =>
+       set_fields t (acc++[(x, v_header T acc')]) (DROP n packet_in)
+      | NONE => NONE)
+    | NONE => NONE)
   | _ => NONE)
 End
 
@@ -235,7 +213,7 @@ Definition packet_in_extract_gen_def:
             | NONE => NONE)
           | NONE =>
            (* NOTE: Specific serialisation of errors is assumed here - "PacketTooShort" -> 1 *)
-           SOME (ascope_update_v_map (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet [])):(core_v_ext, 'b) sum)) "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
+           SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 1), 32)), scope_list, status_trans "reject"))
         | NONE => NONE)
        | _ => NONE)
     | NONE => NONE)
@@ -309,34 +287,25 @@ Proof
 simp[packet_in_take_def]
 QED
 
-Theorem set_fields_struct_TAKE:
+Theorem set_fields_TAKE:
 !x_v_l size acc bl m.
- size_in_bits (v_struct x_v_l) = SOME size /\ size <= m ==>
+ fields_size_in_bits x_v_l = SOME size /\ size <= m ==>
  set_fields x_v_l acc (TAKE m bl) = set_fields x_v_l acc bl
 Proof
-Induct_on ‘x_v_l’ >> rpt strip_tac >> (
- simp[set_fields_def]
-) >>
-PairCases_on ‘h’ >>
-Cases_on ‘h1’ >> (
- gvs[size_in_bits_def, set_fields_def, set_bit_def, set_bool_def, AllCaseEqs()] >>
- asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [listTheory.HD_TAKE, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
-)
-QED
-
-Theorem set_fields_header_TAKE:
-!b x_v_l size acc bl m.
- size_in_bits (v_header b x_v_l) = SOME size /\ size <= m ==>
- set_fields x_v_l acc (TAKE m bl) = set_fields x_v_l acc bl
-Proof
-gen_tac >>
 Induct_on ‘x_v_l’ >> rpt strip_tac >- (
  simp[set_fields_def]
 ) >>
 PairCases_on ‘h’ >>
-Cases_on ‘h1’ >> (
+Cases_on ‘h1’ >- (
  gvs[size_in_bits_def, AllCaseEqs()] >>
- asm_simp_tac (srw_ss() ++ numSimps.ARITH_ss) [set_fields_def, set_bit_def, set_bool_def, listTheory.HD_TAKE, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, set_bool_def, listTheory.HD_TAKE, listTheory.DROP_TAKE]
+) >- (
+ PairCases_on ‘p’ >>
+ gvs[size_in_bits_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, set_bit_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
+) >> (
+ gvs[size_in_bits_def, AllCaseEqs()] >>
+ asm_simp_tac (srw_ss()++numSimps.ARITH_ss) [set_fields_def, size_in_bits_def, listTheory.DROP_TAKE, rich_listTheory.TAKE_TAKE_T]
 )
 QED
 
@@ -346,8 +315,8 @@ Theorem set_header_TAKE:
  set_header x_v_l (TAKE size bl) = set_header x_v_l bl
 Proof
 rpt strip_tac >>
-simp[set_header_def] >>
-drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_header_TAKE >>
+gvs[size_in_bits_def, set_header_def] >>
+drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_TAKE >>
 simp[]
 QED
 
@@ -360,8 +329,7 @@ Cases_on ‘v’ >> (
  rpt strip_tac >>
  TRY (rename1 ‘v_bit bvn’ >> Cases_on ‘bvn’) >>
  gvs[size_in_bits_def, set_v_def, set_bit_def, set_bool_def, set_struct_def, set_header_def, listTheory.HD_TAKE, rich_listTheory.TAKE_TAKE_T] >>
- TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_struct_TAKE >> simp[]) >>
- TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_header_TAKE >> simp[])
+ TRY (drule_then (qspecl_then [‘[]’, ‘bl’, ‘size’] mp_tac) set_fields_TAKE >> simp[])
 )
 QED
 
@@ -370,46 +338,45 @@ QED
 (* packet_out methods *)
 (**********************)
 
-Definition flatten_v_l_def:
- (flatten_v_l [] = SOME []) /\
- (flatten_v_l (h::t) =
-  case h of
-  | v_struct [] =>
-   (case flatten_v_l t of
-    | SOME l => SOME l
+Definition header_fields_bits_def:
+ (header_fields_bits [] = SOME []) /\
+ (header_fields_bits (h::t) =
+  case header_field_bits h of
+  | SOME bl =>
+   (case header_fields_bits t of
+    | SOME bl' => SOME (bl++bl')
     | NONE => NONE)
-  | v_struct (h'::t') =>
-   (case flatten_v_l [SND h'] of
-    | SOME l =>
-     (case flatten_v_l ((v_struct t')::t) of
-      | SOME l' => SOME (l++l')
-      | NONE => NONE)
+  | NONE => NONE
+ ) /\
+ (header_field_bits (x:x, v) =
+  case v of
+  | v_bit (bl, n) => SOME bl
+  | v_bool b => SOME [b]
+  | v_struct x_v_l => header_fields_bits x_v_l
+  | _ => NONE
+ )
+End
+
+(* Emitting a struct emits its valid headers; other member types are not allowed *)
+Definition struct_members_bits_def:
+ (struct_members_bits [] = SOME []) /\
+ (struct_members_bits (h::t) =
+  case struct_member_bits h of
+  | SOME bl =>
+   (case struct_members_bits t of
+    | SOME bl' => SOME (bl++bl')
     | NONE => NONE)
-  | v_header validity [] =>
-   (case flatten_v_l t of
-    | SOME l => SOME l
-    | NONE => NONE)
-  | v_header validity (h'::t') =>
-   (case flatten_v_l [SND h'] of
-    | SOME l =>
-     (case flatten_v_l ((v_struct t')::t) of
-      | SOME l' => SOME (l++l')
-      | NONE => NONE)
-    | NONE => NONE)
-  | v_bit (bl, n) =>
-   (case flatten_v_l t of
-    | SOME l => SOME (bl++l)
-    | NONE => NONE)
-  | v_bool b =>
-   (case flatten_v_l t of
-    | SOME l => SOME (b::l)
-    | NONE => NONE)
+  | NONE => NONE
+ ) /\
+ (struct_member_bits (x:x, v) =
+  case v of
+  | v_header validity x_v_l => if validity then header_fields_bits x_v_l else SOME []
+  | v_struct x_v_l => struct_members_bits x_v_l
   | _ => NONE
  )
 End
 
 (* TODO: Should also support emission from: header stack and header union *)
-(* Note: Nested headers are not allowed, so this is only checked at top level *)
 Definition packet_out_emit_gen_def:
  (packet_out_emit_gen (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -419,12 +386,12 @@ Definition packet_out_emit_gen_def:
      (case lookup_lval scope_list (lval_varname (varn_name "data")) of
       | SOME (v_header F x_v_l) => SOME (ascope, scope_list, status_returnv v_bot)
       | SOME (v_header T x_v_l) =>
-       (case flatten_v_l (MAP SND x_v_l) of
+       (case header_fields_bits x_v_l of
         | SOME bl =>
          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
-       (case flatten_v_l (MAP SND x_v_l) of
+       (case struct_members_bits x_v_l of
         | SOME bl =>
          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)
@@ -439,19 +406,21 @@ End
 (* Checksum *)
 (************)
 
+(* Bits of checksum and hash data *)
 Definition header_entries2v_def:
  (header_entries2v [] = SOME []) /\
- (header_entries2v (h::t) =
-  case header_entry2v h of
+ (header_entries2v ((x:x, v)::t) =
+  case data_bits v of
   | SOME bl =>
   (case header_entries2v t of
    | SOME bl2 => SOME (bl++bl2)
    | NONE => NONE)
   | NONE => NONE
  ) /\
- (header_entry2v (x:x, v) =
+ (data_bits v =
   case v of
   | (v_bit (bl, n)) => SOME bl
+  | (v_bool b) => SOME [b]
   | (v_struct x_v_l) => header_entries2v x_v_l
   (* Invalid headers contribute no bits, as in bmv2 *)
   | (v_header validity x_v_l) => if validity then header_entries2v x_v_l else SOME []
@@ -477,17 +446,11 @@ End
 Definition get_checksum_incr_def:
  (get_checksum_incr scope_list ext_data_name =
    (case lookup_lval scope_list ext_data_name of
-    | SOME (v_bit (bl, n)) =>
-     if n MOD 16 = 0 then SOME (v2w16s' bl) else NONE
-    | SOME (v_header vbit f_list) =>
-     (case header_entries2v f_list of
+    | SOME v =>
+     (case data_bits v of
       | SOME bl => v2w16s bl
       | NONE => NONE)
-    | SOME (v_struct f_list) =>
-     (case header_entries2v f_list of
-      | SOME bl => v2w16s bl
-      | NONE => NONE)
-    | _ => NONE)
+    | NONE => NONE)
  )
 End
 
@@ -522,13 +485,7 @@ Definition add_ones_complement_def:
 End
 
 Definition sub_ones_complement_def:
- sub_ones_complement (x, y) =
-   let
-    (result,carry_out,overflow) = add_with_carry(x, word_1comp y,F)
-   in
-    if carry_out
-    then result + 1w
-    else word_1comp result
+ sub_ones_complement (x, y) = add_ones_complement (x, word_1comp y)
 End
 
 Definition compute_checksum16_def:
@@ -555,6 +512,22 @@ End
 (*****************)
 (* Architectural *)
 (*****************)
+
+Definition ascope_lookup_gen_def:
+ ascope_lookup_gen ascope ext_ref =
+  let ext_obj_map = FST $ SND ascope in
+   ALOOKUP ext_obj_map ext_ref
+End
+
+Definition ascope_update_gen_def:
+ ascope_update_gen (counter, ext_obj_map, v_map, ctrl, oracle_index:num) ext_ref v_ext =
+  (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+End
+
+Definition ascope_update_v_map_gen_def:
+ ascope_update_v_map_gen (counter, ext_obj_map, v_map, ctrl, oracle_index:num) str (v:v) =
+  (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+End
 
 (* Keeps the n persistent extern objects, discards the rest *)
 Definition reset_ext_obj_map_gen_def:
@@ -588,10 +561,61 @@ Definition scope_to_vmap_def:
  )
 End
 
+(* Looks up the non-out arguments of a programmable block in v_map before copy-in *)
+Definition reduce_nonout_def:
+ (reduce_nonout ([], elist, v_map) = SOME []) /\
+ (reduce_nonout (d::dlist, e::elist, v_map) =
+  if is_d_out d
+  then oCONS (e, reduce_nonout (dlist, elist, v_map))
+  else
+   (case e of
+    | (e_var (varn_name x)) =>
+     (case ALOOKUP v_map x of
+      | SOME v =>
+       (* NOTE: Only externs can be passed as directionless arguments here *)
+       oCONS (e_v v, reduce_nonout (dlist, elist, v_map))
+      | _ => NONE)
+    | _ => NONE)) /\
+ (reduce_nonout (_, _, v_map) = NONE)
+End
+
+(* TODO: Don't reduce all arguments at once? *)
+Definition copyin_pbl_gen_def:
+ copyin_pbl_gen (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index), random_oracle) =
+  case reduce_nonout (dlist, elist, v_map) of
+  | SOME elist' =>
+   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
+  | NONE => NONE
+End
+
+(* Re-uses the copy-out of P4 functions *)
 Definition copyout_pbl_gen_def:
- copyout_pbl_gen xlist dlist g_scope_list v_map =
-  let v_map_scope = v_map_to_scope v_map in
-   update_return_frame xlist dlist [v_map_scope] g_scope_list
+ copyout_pbl_gen (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index), dlist, xlist, (status:status)) =
+  case update_return_frame xlist dlist [v_map_to_scope v_map] g_scope_list of
+  | SOME [v_map_scope] =>
+   (case scope_to_vmap v_map_scope of
+    | SOME v_map' => SOME (counter, ext_obj_map, v_map', ctrl, oracle_index)
+    | NONE => NONE)
+  | _ => NONE
+End
+
+Definition get_oracle_index_gen_def:
+ get_oracle_index_gen (counter, ext_obj_map, v_map, ctrl, oracle_index:num) =
+  oracle_index
+End
+
+Definition set_oracle_index_gen_def:
+ set_oracle_index_gen i_opt (counter, ext_obj_map, v_map, ctrl, oracle_index:num) =
+  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i)
+End
+
+(* Looks up the extern object a v_map entry refers to *)
+Definition lookup_obj_def:
+ lookup_obj ext_obj_map v_map k =
+  case ALOOKUP v_map k of
+  | SOME (v_ext_ref i) =>
+   ALOOKUP ext_obj_map i
+  | _ => NONE
 End
 
 (* A separate definition so that symbolic execution can choose to not evaluate it
@@ -603,70 +627,6 @@ End
 (************************************)
 (* Miscellaneous common definitions *)
 (************************************)
-
-(*
-(* For use in table matching *)
-Definition AFIND_PRED_def:
- AFIND_PRED l k =
-  case FIND (\ (set, _). set k) l of
-  | SOME (_, act_args) => SOME act_args
-  | NONE => NONE
-End
-*)
-(*
-(* TODO: Do all this sorting once and for all before the program starts,
- * then make it the responsibility of the control plane to update the
- * table with the right format
- *
- * Current solution is crazy stupid hack with same signatures as before *)
-
-(* New table matching algorithm tailored for symbolic execution:
-   1. Sort by priority: insert every entry in new list as soon as
-      entry of higher priority is encountered, before that entry.
-      Flip depending on which priority implementation is being modeled.
-   2. Just iterate through the result without bothering to keep track about priority.
-*)
-
-Definition insert_def:
- (insert f e [] = [e]) /\
- (insert f ((k,prio),v) (((k',prio'),v')::t) =
-  if f prio prio'
-  then (((k,prio),v)::(((k',prio'),v')::t))
-  else (((k',prio'),v')::(insert f ((k,prio),v) t)))
-End
-
-(* TODO: None never wins, but should not even exist in this list *)
-Definition insert_largest_prio_def:
- insert_largest_prio e l = insert (\ p:num p'. p > p') e l
-End
-
-Definition insert_smallest_prio_def:
- insert_smallest_prio e l = insert (\ p:num p'. p < p') e l
-End
-
-(* TODO: dumb sorting algorithm? *)
-Definition sort_table_def:
- (sort_table f acc [] = acc) /\
- (sort_table f acc (h::t) =
-  sort_table f (f h acc) t)
-End
-
-(* Simplest possible "Inner kernel" of matching that is meant
- * to be rewritten using path condition *)
-Definition FOLDL_MATCH_symb_exec_def:
- (FOLDL_MATCH_symb_exec e_l res [] = res) /\
- (FOLDL_MATCH_symb_exec e_l res_act (((k,p),v)::t) =
-  if k e_l
-  then FOLDL_MATCH_symb_exec e_l v t
-  else FOLDL_MATCH_symb_exec e_l res_act t)
-End
-
-Definition FOLDL_MATCH_def:
- FOLDL_MATCH e_l (res:(string # e list) # (num option)) entries =
-  let entries' = sort_table insert_largest_prio [] entries in
-   (FOLDL_MATCH_symb_exec e_l ((\ ((a,b),c). (a,b)) res) entries', NONE:num option)
-End
-*)
 
 (* TODO: Are match_kinds needed at all in the dynamic semantics? *)
 Definition FOLDL_MATCH_def:
@@ -685,22 +645,6 @@ Definition FOLDL_MATCH_def:
   else FOLDL_MATCH e_l (res_act, res_prio_opt) t)
 End
 
-(*
-Definition update_prios_def:
- (update_prios acc [] = []) /\
- (update_prios acc (((k,prio),v)::t) =
-  let prio' = if prio = (0:num) then acc else prio in
-   (((k,prio'),v)::(update_prios (acc+1) t)))
-End
-
-Definition FOLDL_MATCH_alt_def:
- FOLDL_MATCH_alt e_l (res:(string # e list) # (num option)) n entries =
-  let entries' = update_prios n entries in
-  let entries'' = sort_table insert_smallest_prio [] entries' in
-   (FOLDL_MATCH_symb_exec e_l ((\ ((a,b),c). (a,b)) res) entries'', NONE:num option)
-End
-*)
-
 (* Alternative version, which uses smallest priority *)
 Definition FOLDL_MATCH_alt_def:
  (FOLDL_MATCH_alt e_l res acc [] = res) /\
@@ -709,13 +653,24 @@ Definition FOLDL_MATCH_alt_def:
   then
    (* TODO: Smallest priority wins (like for TDI) is hard-coded,
     *       other than priority zero. *)
+   let prio' = if (prio = 0) then acc else prio in
    case res_prio_opt of
    | SOME res_prio =>
-    let prio' = if (prio = 0) then acc else prio in
     if (prio' < res_prio)
     then
      FOLDL_MATCH_alt e_l (v, SOME prio') (acc+1) t
     else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t
-   | NONE => FOLDL_MATCH_alt e_l (v, SOME prio) (acc+1) t
+   | NONE => FOLDL_MATCH_alt e_l (v, SOME prio') (acc+1) t
   else FOLDL_MATCH_alt e_l (res_act, res_prio_opt) (acc+1) t)
+End
+
+(* largest_wins mk_list picks FOLDL_MATCH (largest priority wins) over FOLDL_MATCH_alt *)
+Definition apply_table_f_gen_def:
+ apply_table_f_gen largest_wins (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index:num)) =
+  case ALOOKUP ctrl x of
+  | SOME table =>
+   if largest_wins mk_list
+   then SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
+   else SOME (FST $ FOLDL_MATCH_alt e_l ((x', e_l'), NONE) (1:num) table)
+  | NONE => NONE
 End

@@ -1,10 +1,12 @@
 *-heap
 .hol/
 
+## Logs (LaTeX and the import tool)
+*.log
+
 ## LaTeX stuff
 *.aux
 *.bcf
-*.log
 *.out
 *.run.xml
 *.synctex.gz

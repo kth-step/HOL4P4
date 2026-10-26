@@ -18,19 +18,15 @@ Type vss_ascope = “:(num # ((num, vss_sum_v_ext) alist) # ((string, v) alist) 
 (**********************************************************)
 
 Definition vss_ascope_lookup_def:
- vss_ascope_lookup (ascope:vss_ascope) ext_ref = 
-  let ext_obj_map = FST $ SND ascope in
-   ALOOKUP ext_obj_map ext_ref
+ vss_ascope_lookup = ascope_lookup_gen:vss_ascope -> num -> vss_sum_v_ext option
 End
 
 Definition vss_ascope_update_def:
- vss_ascope_update ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) ext_ref v_ext =
-   (counter, AUPDATE ext_obj_map (ext_ref, v_ext), v_map, ctrl, oracle_index)
+ vss_ascope_update = ascope_update_gen:vss_ascope -> num -> vss_sum_v_ext -> vss_ascope
 End
 
 Definition vss_ascope_update_v_map_def:
- vss_ascope_update_v_map ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) str v =
-   (counter, ext_obj_map, AUPDATE v_map (str, v), ctrl, oracle_index)
+ vss_ascope_update_v_map = ascope_update_v_map_gen:vss_ascope -> string -> v -> vss_ascope
 End
 
 Definition vss_packet_in_extract:
@@ -177,48 +173,12 @@ Definition vss_input_f_def:
    | _ => NONE)
 End
 
-(* The point of this function is to look up in-directed variables in v_map before passing the result
- * to copyin *)
-Definition vss_reduce_nonout_def:
- (vss_reduce_nonout ([], elist, v_map) =
-  SOME []
- ) /\
- (vss_reduce_nonout (d::dlist, e::elist, v_map) =
-  if is_d_out d
-  then oCONS (e, vss_reduce_nonout (dlist, elist, v_map))
-  else
-   (case e of
-    | (e_var (varn_name x)) =>
-     (case ALOOKUP v_map x of
-      | SOME v =>
-       (* NOTE: Only externs can be passed as directionless arguments here *)
-       oCONS (e_v v, vss_reduce_nonout (dlist, elist, v_map))
-      | _ => NONE)
-    | _ => NONE)) /\
- (vss_reduce_nonout (_, _, v_map) = NONE)
-End
-
-(* TODO: Since the same thing should be initialised
- *       for all known architectures, maybe it should be made a
- *       architecture-generic (core) function? *)
-(* TODO: Don't reduce all arguments at once? *)
 Definition vss_copyin_pbl_def:
- vss_copyin_pbl (xlist, dlist, elist, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, random_oracle) =
-  case vss_reduce_nonout (dlist, elist, v_map) of
-  | SOME elist' =>
-   copyin xlist dlist elist' [v_map_to_scope v_map] [ [] ] oracle_index random_oracle
-  | NONE => NONE
+ vss_copyin_pbl = copyin_pbl_gen:vss_ascope copyin_pbl
 End
 
-(* TODO: Does anything need to be looked up for this function? *)
 Definition vss_copyout_pbl_def:
- vss_copyout_pbl (g_scope_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, dlist, xlist, (status:status)) =
-  case copyout_pbl_gen xlist dlist g_scope_list v_map of
-  | SOME [v_map_scope] =>
-   (case scope_to_vmap v_map_scope of
-    | SOME v_map' => SOME ((counter, ext_obj_map, v_map', ctrl, oracle_index):vss_ascope)
-    | NONE => NONE)
-  | _ => NONE
+ vss_copyout_pbl = copyout_pbl_gen:vss_ascope copyout_pbl
 End
 
 Definition vss_parser_runtime_def:
@@ -239,23 +199,15 @@ Definition vss_pre_deparser_def:
    | _ => NONE)
 End
 
-Definition vss_lookup_obj_def:
- vss_lookup_obj ext_obj_map v_map k =
-  case ALOOKUP v_map k of
-  | SOME (v_ext_ref i) =>
-   ALOOKUP ext_obj_map i
-  | _ => NONE
-End
-
 (* Add new header + data + Ethernet CRC as a tuple with new output port to output list *)
 (* Add data + Ethernet CRC *)
 (* TODO: Outsource obtaining the output port to an external function? *)
 (* NOTE: "b" renamed to "b_out" *)
 Definition vss_output_f_def:
  vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  (case vss_lookup_obj ext_obj_map v_map "b_out" of
+  (case lookup_obj ext_obj_map v_map "b_out" of
    | SOME (INL (core_v_ext_packet headers)) =>
-    (case vss_lookup_obj ext_obj_map v_map "data_crc" of
+    (case lookup_obj ext_obj_map v_map "data_crc" of
      | SOME (INL (core_v_ext_packet data_crc)) =>
       (case ALOOKUP v_map "outCtrl" of
        | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
@@ -290,28 +242,21 @@ Definition ctrl_check_ttl:
 End
 
 Definition vss_apply_table_f_def:
- vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+ vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), ascope:vss_ascope) =
   (* TODO: Note that this function could do other stuff here depending on table name.
    *       Ideally, one could make a general, not hard-coded, solution for this *)
   if x = "check_ttl"
   then
    ctrl_check_ttl e_l
   else
-   (case ALOOKUP ctrl x of
-    | SOME table =>
-     (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
-      SOME (FST $ FOLDL_MATCH e_l ((x', e_l'), NONE) table)
-    | NONE => NONE)
+   (* TODO: Largest priority wins (like for P4Runtime) is hard-coded *)
+   apply_table_f_gen (\mk_list. T) (x, e_l, mk_list, (x', e_l'), ascope)
 End
 
-(* TODO: Generalise the below as needed *)
-
 Definition vss_get_oracle_index_def:
- vss_get_oracle_index ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  oracle_index
+ vss_get_oracle_index = get_oracle_index_gen:vss_ascope get_oracle_index
 End
 
 Definition vss_set_oracle_index_def:
- vss_set_oracle_index i_opt ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  (counter, ext_obj_map, v_map, ctrl, case i_opt of NONE => oracle_index | SOME i => i):vss_ascope
+ vss_set_oracle_index = set_oracle_index_gen:vss_ascope set_oracle_index
 End
