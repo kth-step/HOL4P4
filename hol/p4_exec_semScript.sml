@@ -319,9 +319,15 @@ Definition e_exec_def:
      then
       (case unred_arg_index (MAP SND x_d_l) e_l of
        | SOME i =>
-        (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, oracle_index, random_oracle) g_scope_list scope_list (EL i e_l) of
-         | SOME (e', (frame_list, i_opt)) => SOME (e_call funn (LUPDATE e' i e_l), (frame_list, i_opt))
-         | NONE => NONE)
+        if is_d_out (EL i (MAP SND x_d_l))
+        then
+         (case save_arg g_scope_list scope_list (EL i e_l) of
+          | SOME e' => SOME (e_call funn (LUPDATE e' i e_l), ([], NONE))
+          | NONE => NONE)
+        else
+         (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, oracle_index, random_oracle) g_scope_list scope_list (EL i e_l) of
+          | SOME (e', (frame_list, i_opt)) => SOME (e_call funn (LUPDATE e' i e_l), (frame_list, i_opt))
+          | NONE => NONE)
        | NONE =>
         (case copyin (MAP FST x_d_l) (MAP SND x_d_l) e_l g_scope_list scope_list oracle_index random_oracle of
          | SOME (scope, i_opt) => 
@@ -427,6 +433,10 @@ Definition e_exec_def:
       | SOME (e1', (frame_list, i_opt)) => SOME (e_slice e1' e2 e3, (frame_list, i_opt))
       | NONE => NONE))
    else NONE)
+  /\
+ (******************)
+ (* Saved argument *)
+ (e_exec ectx g_scope_list scope_list (e_saved e v) = SOME (e_v v, ([], NONE)))
   /\
  (e_exec _ _ _ _ = NONE)
 Termination

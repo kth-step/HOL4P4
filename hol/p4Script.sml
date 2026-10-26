@@ -124,6 +124,7 @@ e =  (* expression *)
  | e_select of e => (s_list#x) list => x (* select *)
  | e_struct of (x#e) list (* struct *)
  | e_header of boolv => (x#e) list (* header *)
+ | e_saved of e => v (* out- or inout-directed argument with its value saved *)
 `;
 
 val _ = Hol_datatype ` 
@@ -1450,7 +1451,13 @@ val get_lval_of_e_def = Define `
    case get_lval_of_e e of
    | SOME lval => SOME (lval_slice lval ev1 ev2)
    | NONE => NONE) /\
+  (get_lval_of_e (e_saved e v) = get_lval_of_e e) /\
   (get_lval_of_e _ = NONE)
+`;
+
+val is_e_saved_def = Define `
+  (is_e_saved (e_saved e v) = T) /\
+  (is_e_saved _ = F)
 `;
 
 val is_e_lval_def = Define `
@@ -1478,12 +1485,12 @@ val unred_mem_index_def = Define `
 (* Checks if function arguments have been appropriately reduced. *)
 val is_arg_red_def = Define `
   is_arg_red d e =
-   ((~(is_d_out d) ==> is_const e) /\ (is_d_out d ==> is_e_lval e))
+   ((~(is_d_out d) ==> is_const e) /\ (is_d_out d ==> is_e_saved e))
 `;
 
 (* Obtains the minimum index where an unreduced argument is found:
  * for non-out-directed arguments, if it's not a constant, for
- * out-directed arguments, if it's not a lval *)
+ * out-directed arguments, if its value has not been saved *)
 val find_unred_arg_def = Define `
   find_unred_arg dlist elist = 
     (INDEX_FIND 0 (\(d, e). ~(is_arg_red d e)) (ZIP (dlist, elist)))
@@ -1606,6 +1613,25 @@ rpt strip_tac >> (
 )
 End
 
+(* Saves the current value of an out- or inout-directed argument *)
+val save_arg_def = Define `
+  save_arg gsl ss e =
+   case get_lval_of_e e of
+   | SOME lval =>
+    (case lookup_lval (ss++gsl) lval of
+     | SOME v => SOME (e_saved e v)
+     | NONE => NONE)
+   | NONE => NONE
+`;
+
+(* Arguments of programmable blocks are not saved, so their value is looked up *)
+val arg_lval_v_def = Define `
+  arg_lval_v ss lval e =
+   case e of
+   | e_saved e' v => SOME v
+   | _ => lookup_lval ss lval
+`;
+
 (* Given a direction, an expression (should be a lval), and a scope stack,
  * creates the proper tuple to be be assigned in the fresh scope created by a function call *)
 val one_arg_val_for_newscope_def = Define `
@@ -1614,7 +1640,7 @@ val one_arg_val_for_newscope_def = Define `
   then
    (case get_lval_of_e e of
     | SOME lval =>
-     (case lookup_lval ss lval of
+     (case arg_lval_v ss lval e of
       | SOME v =>
        if is_d_in d
        then SOME ((v, i), SOME lval)
@@ -2143,10 +2169,12 @@ Inductive e_sem:
  ==> 
 ( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,x_,d_) . e_) e_x_d_list))) (e_var (varn_star funn))  (  ([   ( funn  ,   ( ([(stmt)]) )   ,   ( ([(scope')]) )  )   ])   ,  i_opt )  )))
 
-[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (e_red_res:e_red_res) (i:i) (e:e) (e':e) .
+[e_call_args:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (e_red_res:e_red_res) (i:i) (d:d) (e:e) (e':e) .
 (clause_name "e_call_args") /\
 (( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
 ( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
+( ( d  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )  ) ) /\
+( (~is_d_out  d ) ) /\
 ( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
 ( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list e e' e_red_res )) /\
 ( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
@@ -2457,6 +2485,23 @@ Inductive e_sem:
 (clause_name "e_bin_or2")
  ==> 
 ( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_bool  F )) binop_bin_or e) e  ([], (NONE:num option))  )))
+
+[e_call_save:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (i:i) (d:d) (e:e) (e':e) .
+(clause_name "e_call_save") /\
+(( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
+( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
+( ( d  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )  ) ) /\
+( (is_d_out  d ) ) /\
+( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
+( (save_arg  g_scope_list   scope_list   e  = SOME  e' ) ) /\
+( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
+ ==> 
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)))  ([], (NONE:num option))  )))
+
+[e_saved_v:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (v:v) .
+(clause_name "e_saved_v")
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_saved e v) (e_v v)  ([], (NONE:num option))  )))
 End
 (** definitions *)
 
@@ -3282,6 +3327,13 @@ Inductive e_typ:
 (( ? b tp. ( e_typ  t_scopes_tup   T_e   e  tp b /\ ? n . ( tp = t_tau (tau_bit n) \/ tp = t_tau (tau_bool ) ) ) ))
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_cast cast_bool e) (t_tau tau_bool)  F  )))
+
+[e_typ_saved:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (v:v) (t:t) .
+(clause_name "e_typ_saved") /\
+(( ( e_typ t_scopes_tup T_e e t  T  )) /\
+( ( v_typ v t  F  )))
+ ==> 
+( ( e_typ t_scopes_tup T_e (e_saved e v) t  T  )))
 End
 (** definitions *)
 

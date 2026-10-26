@@ -1603,7 +1603,7 @@ Triviality unred_arg_index_details:
 ! dl el i .
  unred_arg_index dl el = SOME i ⇒
           ((EL i dl = d_in ∨ EL i dl = d_none) ∧ ¬is_const (EL i el)) ∨
-          ((EL i dl = d_inout ∨ EL i dl = d_out) ∧ ¬is_e_lval (EL i el))
+          ((EL i dl = d_inout ∨ EL i dl = d_out) ∧ ¬is_e_saved (EL i el))
 Proof
 Induct_on `dl` >>
 Induct_on `el` >>
@@ -1668,7 +1668,7 @@ Theorem unred_arg_index_result:
 ! dl el i .
 unred_arg_index dl el = SOME i ⇒
        ¬is_d_out (EL i dl) ∧ ¬is_const (EL i el) ∨
-       is_d_out (EL i dl) ∧ ¬is_e_lval (EL i el)
+       is_d_out (EL i dl) ∧ ¬is_e_saved (EL i el)
 Proof       
 
 NTAC 4 STRIP_TAC >> 
@@ -1782,6 +1782,14 @@ gvs[] >>
 Cases_on `get_lval_of_e e` >>
 gvs[]
 
+)
+
+>~ [`is_e_lval (e_saved e v)`] >-
+(
+OPEN_EXP_TYP_TAC ``(e_saved e v)`` >>
+fs[] >>
+`is_e_lval e` by RES_TAC >>
+FULL_SIMP_TAC list_ss [is_e_lval_def, get_lval_of_e_def]
 ) >>
 
 
@@ -2036,7 +2044,7 @@ End
 Definition wf_arg_def:
 wf_arg d x e ss =
  ((~is_d_out d ==> ?v. v_of_e e = SOME v) /\
-  (is_d_out d  ==> ?lval v. get_lval_of_e e = SOME lval /\ lookup_lval ss lval = SOME v))
+  (is_d_out d  ==> ?lval v. get_lval_of_e e = SOME lval /\ arg_lval_v ss lval e = SOME v))
 End
 
 
@@ -2787,7 +2795,7 @@ Cases_on `is_d_out d` >>
 fs[is_d_out_def] >| [
  (* is out *)
  Cases_on `get_lval_of_e e` >> fs[] >>
- Cases_on `lookup_lval ss x'` >> fs[]
+ Cases_on ‘arg_lval_v ss x' e’ >> fs[]
  ,
  Cases_on `v_of_e e` >> fs[]
 ]
@@ -3576,13 +3584,20 @@ QED
 
 
 
-Triviality out_dir_lookup_typed:
+(* wf_arg for an argument whose value is looked up *)
+Definition wf_arg_lookup_def:
+wf_arg_lookup d x e ss =
+ ((~is_d_out d ==> ?v. v_of_e e = SOME v) /\
+  (is_d_out d  ==> ?lval v. get_lval_of_e e = SOME lval /\ lookup_lval ss lval = SOME v))
+End
+
+Triviality out_dir_lookup_typed_lookup:
 ! e tau lval T_e gscope t_g scopest t_sl b d (x:string).
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
 star_not_in_sl scopest /\
 get_lval_of_e e = SOME lval /\
-wf_arg d x e (scopest ⧺ gscope) /\
+wf_arg_lookup d x e (scopest ⧺ gscope) /\
 (is_d_out d ) /\
 e_typ (t_g,t_sl) T_e e (t_tau tau) b ==>
 (? v . lookup_lval (scopest ⧺ gscope) lval = SOME v /\
@@ -3591,7 +3606,7 @@ Proof
 (* First prove that b is always true *)
 
 
-fs[wf_arg_def, is_d_out_def] >> 
+fs[wf_arg_lookup_def, is_d_out_def] >> 
 Induct >>
 rpt strip_tac >>
 fs[get_lval_of_e_def] >>
@@ -3713,7 +3728,45 @@ gvs[] >| [
 
  fs[Once v_typ_cases] >>
  gvs[slice_def, bs_width_def, bitv_bitslice_def, vec_to_const_def]
+ ,
+
+ (* saved *)
+ OPEN_EXP_TYP_TAC ``(e_saved e v)`` >> fs[] >>
+ qpat_x_assum ‘!tau' T_e'. _’ (qspecl_then [‘tau’, ‘T_e’, ‘gscope’, ‘t_g’, ‘scopest’, ‘t_sl’, ‘T’, ‘d’] mp_tac) >>
+ impl_tac >- (
+  gvs[]
+ ) >>
+ strip_tac >>
+ gvs[]
 ]
+QED
+
+Triviality out_dir_lookup_typed:
+! e tau lval T_e gscope t_g scopest t_sl b d (x:string).
+type_scopes_list gscope t_g /\
+type_scopes_list scopest t_sl /\
+star_not_in_sl scopest /\
+get_lval_of_e e = SOME lval /\
+wf_arg d x e (scopest ⧺ gscope) /\
+(is_d_out d ) /\
+e_typ (t_g,t_sl) T_e e (t_tau tau) b ==>
+(? v . arg_lval_v (scopest ⧺ gscope) lval e = SOME v /\
+v_typ v (t_tau tau) F)
+Proof
+rpt strip_tac >>
+Cases_on ‘?e' v'. e = e_saved e' v'’ >- (
+ gvs[arg_lval_v_def] >>
+ OPEN_EXP_TYP_TAC ``(e_saved e' v')`` >>
+ gvs[]
+) >>
+‘arg_lval_v (scopest ⧺ gscope) lval e = lookup_lval (scopest ⧺ gscope) lval’ by (
+ Cases_on ‘e’ >>
+ gvs[arg_lval_v_def]
+) >>
+gvs[] >>
+irule out_dir_lookup_typed_lookup >>
+gvs[wf_arg_lookup_def, wf_arg_def] >>
+metis_tac[]
 QED
 
 
@@ -4319,7 +4372,13 @@ gvs[get_lval_of_e_def, is_e_lval_def] >| [
  Q.PAT_X_ASSUM `e_typ (gtsl,tsl) T_e (e_slice e e' e'') (t_tau t) T`
    ( STRIP_ASSUME_TAC o SIMP_RULE (srw_ss()) [Once e_typ_cases] ) >>
  gvs[] >>
-  METIS_TAC[]    
+  METIS_TAC[]
+ ,
+
+ Q.PAT_X_ASSUM `e_typ (gtsl,tsl) T_e (e_saved e v) (t_tau t) T`
+   ( STRIP_ASSUME_TAC o SIMP_RULE (srw_ss()) [Once e_typ_cases] ) >>
+ gvs[] >>
+ METIS_TAC[]
   ]
 QED
 
@@ -5148,26 +5207,90 @@ rpt strip_tac >| [
        gvs[MAP_SND_4_2]        
 	  ) >>
 
-     (* if the arg is unred, then either out and not lval, or in and not const *)
+     (* the arg is in-directed and not a constant, since out-directed ones are saved *)
      gvs[] >>
-     IMP_RES_TAC unred_arg_index_result >| [
-       (* in and not const *)
-       IMP_RES_TAC dir_list_lemma1 >>
-       gvs[ELIM_UNCURRY]
-       ,
-       (* out and lval *)
-       subgoal  `(EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)) ==>
-       is_e_lval (EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)) ` >-
-       ( RES_TAC >>
-         IMP_RES_TAC e_lval_tlval ) >>
-
-       subgoal` is_d_out (EL i (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)) ⇒
-                          EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)` >-
-       ( fs[out_is_lval_def] >>
-         RES_TAC ) >>
-       gvs[]
-     ]
+     IMP_RES_TAC unred_arg_index_result >>
+     IMP_RES_TAC dir_list_lemma1 >>
+     gvs[ELIM_UNCURRY]
    ]
+   ,
+
+   (* reduction (call f el -> call f el') saving an out- or inout-directed argument *)
+   rw[] >>
+   fs[clause_name_def] >>
+   rw[] >>
+   SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+   fs[clause_name_def] >>
+   rw[] >>
+   subgoal `i < LENGTH e_e'_x_d_list` >- (
+    IMP_RES_TAC unred_arg_index_in_range >>
+    METIS_TAC[LENGTH_MAP] ) >>
+   OPEN_EXP_TYP_TAC `` (e_call f (MAP (λ(e_,e'_,x_,d_). e_) e_e'_x_d_list))`` >>
+   fs[] >>
+   gvs[] >>
+   subgoal `i < LENGTH e_tau_x_d_b_list` >- (
+    IMP_RES_TAC unred_arg_index_in_range >>
+    METIS_TAC[LENGTH_MAP] ) >>
+   (* the arguments keep their types, the saved one stays an l-value *)
+   Q.EXISTS_TAC `
+   ZIP ( LUPDATE e'' i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
+         ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list),
+         ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). x_) e_tau_x_d_b_list) ,
+        ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list) ,
+     (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list))))) ` >>
+   rw[map_distrub_penta] >>
+   IMP_RES_TAC lemma_MAP8 >>
+   fs[] >- (
+    FULL_SIMP_TAC std_ss [map_rw5_3]
+   ) >>
+   (* the direction lists are the same *)
+   subgoal ` (MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list) =
+             (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` >- (
+    ‘WT_c
+          (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+           get_oracle_index,set_oracle_index,random_oracle) order
+          t_scope_list_g delta_g delta_b delta_x delta_t Prs_n’ by (
+     metis_tac[WT_c_ec]
+    ) >>
+    ASSUME_TAC dir_fun_delta_same >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
+      `(MAP (λ(e_,e'_,x_,d_). (x_,d_)) (e_e'_x_d_list : (e # e # string # d) list)) `,
+      `(MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
+      `tau'`, `f`, `func_map`, `b_func_map`, `ext_map`,
+      `delta_g`, `delta_b`, `delta_x`, `apply_table_f`,
+      `order`, `t_scope_list_g`, `pars_map`, `tbl_map`, ‘get_oracle_index’, ‘set_oracle_index’, ‘random_oracle’, ‘delta_t’, ‘Prs_n’])) >>
+    gvs[] >>
+    IMP_RES_TAC map_simp_1 >>
+    gvs[MAP_MAP_txd] >>
+    gvs[MAP_FST_3_2] >>
+    gvs[MAP_SND_4_2]
+   ) >>
+   Cases_on ‘i = i'’ >>
+   fs[EL_LUPDATE] >>
+   gvs[] >>
+   qpat_x_assum ‘save_arg _ _ _ = _’ (fn thm => assume_tac (SIMP_RULE (srw_ss()) [save_arg_def, AllCaseEqs()] thm)) >>
+   gvs[] >>
+   (* an out-directed argument is typed as an l-value *)
+   subgoal ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)’ >- (
+    fs[out_is_lval_def] >>
+    qpat_x_assum ‘!i'. _’ (qspec_then ‘i’ mp_tac) >>
+    gvs[]
+   ) >>
+   SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+   fs[clause_name_def] >>
+   conj_tac >- (
+    qpat_x_assum ‘!i. i < LENGTH e_tau_x_d_b_list ==> _’ (qspec_then ‘i’ mp_tac) >>
+    gvs[]
+   ) >>
+   (* the saved value has the type of the l-value *)
+   qspecl_then [‘EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)’, ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list)’, ‘lval’, ‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘gscope’, ‘t_scope_list_g’, ‘scopest’, ‘t_scope_list’, ‘T’, ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)’, ‘""’] mp_tac out_dir_lookup_typed_lookup >>
+   impl_tac >- (
+    gvs[wf_arg_lookup_def] >>
+    qpat_x_assum ‘!i. i < LENGTH e_tau_x_d_b_list ==> _’ (qspec_then ‘i’ mp_tac) >>
+    gvs[]
+   ) >>
+   strip_tac >>
+   gvs[]
  ]
  ,
 
@@ -5836,6 +5959,20 @@ rpt strip_tac >| [
  metis_tac[]
 ]
 
+
+,
+
+(*****************)
+(* saved argument *)
+(*****************)
+fs[sr_exp_def] >>
+rpt strip_tac >>
+OPEN_EXP_RED_TAC ``(e_saved e v)`` >>
+gvs[] >>
+OPEN_EXP_TYP_TAC ``(e_saved e v)`` >>
+gvs[] >>
+qexists_tac ‘F’ >>
+simp[Once e_typ_cases, clause_name_def]
 
 ,
 
