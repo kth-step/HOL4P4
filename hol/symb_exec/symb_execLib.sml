@@ -14,6 +14,14 @@ datatype path_tree = empty | node of int * thm * (path_tree list);
 
 val ERR = mk_HOL_ERR "symb_exec"
 
+(* |- !a. disj_list [a] <=> a *)
+val disj_list_sing_thm =
+ let
+  val a = mk_var ("a", bool)
+ in
+  GEN a (REWRITE_CONV [disj_list_def] (mk_disj_list [a]))
+ end;
+
 fun dbg_print debug_flag string =
  if debug_flag
  then print string
@@ -117,6 +125,12 @@ fun update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_th
   val _ = dbg_print debug_flag
    (String.concat ["\n\nUpdating path tree...\n\n"])
 
+  (* Cases ruled out by the path condition leave fewer paths: the largest index is fresh for all *)
+  val fv_indices' =
+   if length fv_indices = length new_path_conds
+   then fv_indices
+   else List.tabulate (length new_path_conds, K (foldl Int.max 0 fv_indices))
+
   (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
    * a new node to the tree, just replace data in the existing one *)
   val (npaths', new_path_elems) =
@@ -138,7 +152,7 @@ fun update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_th
 			      * path on next encounter *)
 			     true)])))
     (npaths, [])
-    (zip fv_indices (zip (map (ASSUME o convert_exists_path_cond) new_path_conds) new_branch_cond_tms))
+    (zip fv_indices' (zip (map (ASSUME o convert_exists_path_cond) new_path_conds) new_branch_cond_tms))
 
   (* The new path tree nodes are mostly placeholders until further branches take place,
    * but they do already store the path ID (first element) *)
@@ -225,7 +239,17 @@ fun symb_branch debug_flag disj_thm path_cond =
    then NONE
    else
     let
-     val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+     (* A single case left after pruning becomes a one-element case list *)
+     val path_disj_thm5' =
+      let
+       val path_disj_tm5 = concl path_disj_thm5
+      in
+       if is_imp_only path_disj_tm5 andalso not (is_disj_list $ snd $ dest_imp_only path_disj_tm5)
+       then
+        CONV_RULE (RAND_CONV (REWR_CONV (SYM $ SPEC (snd $ dest_imp_only path_disj_tm5) disj_list_sing_thm))) path_disj_thm5
+       else path_disj_thm5
+      end
+     val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5'
      val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
 
      val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
