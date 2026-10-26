@@ -8,14 +8,35 @@ on:
   pull_request:
     branches: [ '**' ]
 
-# The push and pull_request runs of one branch share a group
+permissions:
+  contents: read
+  pull-requests: read
+
+# Superseded runs of a branch are cancelled; push and pull_request runs never share a group
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
+  pr:
+    name: Open pull request
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq length)
+          echo "exists=$([ "$n" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build
+    needs: pr
+    # A push to a branch with an open pull request is built by the pull_request run of that commit
+    if: ${{ !cancelled() && (github.event_name != 'push' || needs.pr.outputs.exists != 'true') }}
     runs-on: ubuntu-latest
 
     strategy:
