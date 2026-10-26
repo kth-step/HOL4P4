@@ -220,6 +220,9 @@ fun next_arg_is_unsaved_out (func_map, b_func_map, ext_fun_map) e =
  end
 ;
 
+fun is_short_circuit_binop binop =
+ term_eq binop binop_bin_and_tm orelse term_eq binop binop_bin_or_tm
+;
 
 fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
  if is_e_v e orelse is_e_saved e
@@ -278,7 +281,8 @@ fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
   in
    if is_e_v e'
    then
-    if is_e_v e''
+    (* A short-circuit operator reduces at the binop node *)
+    if is_e_v e'' orelse is_short_circuit_binop binop
     then SOME (fn e => e)
     else
      (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e'' of
@@ -1122,7 +1126,7 @@ fun dbg_print_e_red (func_map, b_func_map, ext_fun_map) e =
   in
    if is_e_v e'
    then
-    if is_e_v e''
+    if is_e_v e'' orelse is_short_circuit_binop binop
     then print (String.concat ["\nReducing binary operation...\n\n"])
     else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e''
    else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e'
@@ -1330,7 +1334,7 @@ fun p4_e_is_shortcuttable e =
    | _ => e_shortcut)
  else if is_e_binop e
  then
-  (case p4_e_is_shortcuttable $ #2 $ dest_e_binop e of
+  (case p4_e_is_shortcuttable $ #1 $ dest_e_binop e of
      e_no_shortcut e' => e_no_shortcut e'
    | e_shortcut => e_shortcut
    | e_fully_reduced =>
@@ -1378,36 +1382,42 @@ datatype stmt_shortcut_data =
  | stmt_no_shortcut_stmt of term;
 
 (* Base cases for p4_is_shortcuttable *)
+(* Big steps reduce call arguments only for a call at the top of an assignment or condition *)
 fun p4_is_shortcuttable' stmt =
  if is_stmt_ass stmt
  then
-  (case p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | _ => stmt_shortcut)
+  let
+   val e = snd $ dest_stmt_ass stmt
+  in
+   (case p4_e_is_shortcuttable e of
+      e_no_shortcut e' => if is_e_call e then stmt_no_shortcut_e e' else stmt_no_shortcut_stmt stmt
+    | _ => stmt_shortcut)
+  end
  else if is_stmt_ret stmt
  then
   (case p4_e_is_shortcuttable $ dest_stmt_ret stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+     e_shortcut => stmt_shortcut
+   | _ => stmt_no_shortcut_stmt stmt)
  else if is_stmt_trans stmt
  then
   (case p4_e_is_shortcuttable $ dest_stmt_trans stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+     e_shortcut => stmt_shortcut
+   | _ => stmt_no_shortcut_stmt stmt)
  else if is_stmt_app stmt
  then
   (case p4_e_l_is_shortcuttable $ (fst o dest_list) $ snd $ dest_stmt_app stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+     e_shortcut => stmt_shortcut
+   | _ => stmt_no_shortcut_stmt stmt)
  else if is_stmt_cond stmt
  then
-  (case p4_e_is_shortcuttable $ #1 $ dest_stmt_cond stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+  let
+   val e = #1 $ dest_stmt_cond stmt
+  in
+   (case p4_e_is_shortcuttable e of
+      e_no_shortcut e' => if is_e_call e then stmt_no_shortcut_e e' else stmt_no_shortcut_stmt stmt
+    | e_fully_reduced => stmt_no_shortcut_stmt stmt
+    | _ => stmt_shortcut)
+  end
  else stmt_no_shortcut_stmt stmt
 ;
 
@@ -1499,7 +1509,7 @@ fun contains_e_call e =
   contains_e_call $ snd $ dest_e_unop e
  else if is_e_binop e
  then
-  if contains_e_call $ #2 $ dest_e_binop e
+  if contains_e_call $ #1 $ dest_e_binop e
   then true
   else contains_e_call $ #3 $ dest_e_binop e
  (* TODO: Fix concat and slicing *)
