@@ -224,6 +224,22 @@ fun is_short_circuit_binop binop =
  term_eq binop binop_bin_and_tm orelse term_eq binop binop_bin_or_tm
 ;
 
+val e_v_bool_T_tm = mk_e_v (mk_v_bool T);
+val e_v_bool_F_tm = mk_e_v (mk_v_bool F);
+
+(* A short-circuit operation whose first operand is not a literal T or F *)
+fun is_unresolved_short_circuit e =
+ is_e_binop e andalso
+ (let
+   val (e', binop, _) = dest_e_binop e
+  in
+   is_short_circuit_binop binop andalso
+   not (term_eq e' e_v_bool_T_tm orelse term_eq e' e_v_bool_F_tm)
+  end)
+;
+
+fun has_unresolved_short_circuit tm = can (find_term is_unresolved_short_circuit) tm;
+
 fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
  if is_e_v e orelse is_e_saved e
  then NONE
@@ -556,6 +572,22 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
  end
 ;
 
+(* The first operand of the next redex if that is an unresolved short-circuit operation *)
+fun astate_get_short_circuit_operand (func_map, b_func_map, ext_fun_map) astate =
+ case astate_get_next_e (func_map, b_func_map, ext_fun_map) astate of
+   SOME e =>
+  if has_unresolved_short_circuit e
+  then
+   (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
+      SOME e' =>
+     if is_unresolved_short_circuit e'
+     then SOME (#1 $ dest_e_binop e')
+     else NONE
+    | NONE => NONE)
+  else NONE
+ | NONE => NONE
+;
+
 (* This simplifies a key until only the match_all application can be reduced next *)
 val key_conv = rhs o concl o (SIMP_CONV std_ss [MAP, THE_DEF, BETA_THM, ZIP, v_of_e_def]);
 
@@ -710,8 +742,14 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
 
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
 
+  (* A short-circuit operation is branched on its first operand like a condition *)
+  val branch_data =
+   case astate_get_short_circuit_operand (get_f_maps (astate, rhs $ snd $ strip_forall $ concl ctx_def)) astate of
+     SOME e => conditional e
+   | NONE => astate_get_branch_data astate
+
   val res =
-   (case astate_get_branch_data astate of
+   (case branch_data of
     (* Branch point: conditional statement *)
     conditional branch_cond =>
    if is_e_v branch_cond andalso not $ null $ free_vars branch_cond
@@ -1475,12 +1513,40 @@ fun get_next_stmt stmt =
  else stmt
 ;
 
+(* Whether a big step from stmt can reach an unresolved short circuit *)
+fun bigstep_meets_unresolved_short_circuit stmt =
+ if is_stmt_seq stmt
+ then
+  let
+   val (stmt1, stmt2) = dest_stmt_seq stmt
+  in
+   bigstep_meets_unresolved_short_circuit stmt1 orelse
+   ((is_stmt_empty stmt1 orelse
+     (is_stmt_ass stmt1 andalso not (is_e_call $ snd $ dest_stmt_ass stmt1)) orelse
+     is_stmt_seq stmt1) andalso
+    bigstep_meets_unresolved_short_circuit stmt2)
+  end
+ else if is_stmt_ass stmt
+ then has_unresolved_short_circuit $ snd $ dest_stmt_ass stmt
+ else if is_stmt_cond stmt
+ then has_unresolved_short_circuit $ #1 $ dest_stmt_cond stmt
+ else if is_stmt_ret stmt
+ then has_unresolved_short_circuit $ dest_stmt_ret stmt
+ else if is_stmt_trans stmt
+ then has_unresolved_short_circuit $ dest_stmt_trans stmt
+ else if is_stmt_app stmt
+ then has_unresolved_short_circuit $ snd $ dest_stmt_app stmt
+ else false
+;
+
 (* TODO: This leaves open the possibility of nested stmt_seq, but the import tool should
  * not enable that - throw exception if this is found to be the case? *)
 fun p4_is_shortcuttable (funn, stmt) func_map =
  if p4_funn_name_not_in_func_map funn func_map
  then
-  if is_stmt_seq stmt
+  if bigstep_meets_unresolved_short_circuit stmt
+  then res_no_shortcut_stmt stmt
+  else if is_stmt_seq stmt
   then
    let
     val stmt' = get_next_stmt stmt
