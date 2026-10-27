@@ -1323,7 +1323,7 @@ val path_cond = ASSUME “336 <= LENGTH ^p /\
                         ^basic_wf_spd_tbl_tm”
 val n_max = 300;
 val debug_flag = true;
-val p4_is_finished_alt_opt = NONE;
+val end_point = “p4_finished:v1model_ascope astate -> bool”;
 
 
 (* Defining the postcondition *)
@@ -1366,7 +1366,7 @@ Single thread yields
   Finished rewriting step theorems to contract format in 0s, trying to unify contracts...
   Finished unification of all contracts in 170s." (19m, 11s)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),
                               " ms\n"]);

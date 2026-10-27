@@ -64,6 +64,9 @@ will decrement `nthreads_ref` and return `true`, otherwise `false`.
 `work_fun:unit -> unit` and an integer `n`, forking `n` threads each computing `work_fun`,
 up to the limit `nthreads_max`.
 
+The concurrent version is still flaky since HOL4 is not perfectly thread safe.
+Stick to the sequential `p4_symb_exec_prove_contract` unless you have a thread-safe HOL4 version.
+
 ## "Big-step" shortcuts
 
 When the next statement is inside a local function, the P4 symbolic executor collapses
@@ -92,6 +95,75 @@ Whether enough bits remain for a method is decided from the path condition
 that nor its negation follows, the symbolic execution branches on it, and the path on which
 the packet is too short (`PacketTooShort`) is explored as well. The final stage of the
 postcondition prover decides the arithmetic on packet lengths with `numSimps.ARITH_ss`.
+
+## Contracts
+
+A contract is a theorem `p4_contract_at P ctx E Q` (`p4_symb_execScript.sml`): from every
+state satisfying the precondition `P`, some number of steps of `arch_multi_exec ctx` reaches
+a state that satisfies both the end point `E` and the postcondition `Q`. `P`, `E` and `Q` are
+predicates on architectural states, and the definition does not constrain them further.
+
+`p4_symb_exec_prove_contract` proves such a theorem by symbolic execution from the state term
+`init_astate` under the path condition it is given. It runs every path until its state
+satisfies `E`, proves `E` and `Q` for each final state, and combines the paths into the
+contract. Since its step theorems speak only about `init_astate`, the tool forms the
+precondition itself, as `\s. path_cond /\ s = init_astate`; the free variables of `init_astate`
+and of the path condition stay universally quantified in the theorem. `E` is an argument of
+`p4_symb_exec_prove_contract`, which fails with an error if a path has not reached `E` within
+`n_max` steps (a branch also costs one step of fuel).
+
+The end point decides what the contract says:
+
+* `p4_finished` (block index 0 and no input left) is the end of the run. A finished state has
+  no next step when block 0 is the input block and the input function fails on an empty input
+  list, as in all three architectures (`p4_finished_arch_exec`). By `p4_contract_at_final`
+  the contract then states that the run terminates and that every final state satisfies `Q`.
+  Use this end point for properties of the output, including negative ones such as "never
+  forwards to port 1".
+* `\s. p4_block_next s k` stops when block `k` is about to start, for splitting a proof in two
+  with `p4_combine_contracts` (see `tests/decomposeScript.sml`). Such a contract only says that
+  `Q` holds at some point where block `k` is next.
+* `\s. T` says that `Q` holds after some number of steps, possibly zero
+  (`p4_contract'_contract_at`); with it the executor stops each path after its first step.
+
+## Decomposition
+
+A proof can be split at the start of a block `k`. `get_v1model_wellformed_defs ctx init_astate k`
+defines the predicate `p4_v1model_parser_wellformed`, which holds of a state when block `k` is
+next, no packets are left, and the table entries and extern objects are those of `init_astate`,
+except that the packet objects hold the rest of the packet and each register holds an arbitrary
+array `reg_i` with `wellformed_register_array w reg_i`; the header, metadata and apply-result bits
+and the oracle index are arbitrary. A variable of the context, such as the random oracle, that
+still occurs in the extern objects or the table entries is a parameter of the predicate.
+
+The steps, as in `tests/decompose_registerScript.sml`: a contract from `init_astate` to the end
+point `\s. p4_block_next s k` with the predicate in its postcondition, which the simpset
+`p4_wellformed_ss def` proves; a contract from `get_intermediate_state postcond def` under the
+path condition `get_intermediate_path_cond postcond def`, the register conjuncts; and
+`p4_combine_contracts c1 c2 def`. What the first part writes to a register is not carried to the
+second.
+
+## Control plane
+
+A contract covers one run from the initial state, and the control plane does not change
+during the run:
+
+* Table entries are the `ctrl` component of the initial state. Nothing in the semantics
+  changes them, so every packet of the run sees the same entries. They can be symbolic,
+  e.g. `t2_ctrl` in `tests/table_unknownScript.sml`, constrained by
+  `v1model_tbl_is_well_formed` in the precondition; the contract then holds for every entry
+  list that satisfies the precondition, but for one list per run.
+* Default actions come from the program (the table map of each block in the context), not
+  from `ctrl`. On a miss the semantics calls that action with the arguments written in the
+  program (`NoAction` when the program declares no default). A controller may change a
+  non-`const` default action at run time (P4_16 spec 14.2.1.3); contracts do not cover that.
+
+`v1model_tbl_is_well_formed` constrains each entry: its action is one of the table's actions,
+called with both leading flags (called from a table, hit) true and values of the action's
+parameter types as arguments. The empty table satisfies it (`v1model_tbl_is_well_formed_NIL`),
+and before running, the executor checks that every conjunct of the path condition about table
+entries holds when the symbolic entry lists are empty, so that these conjuncts cannot make the
+precondition unsatisfiable.
 
 ## Tests and examples
 

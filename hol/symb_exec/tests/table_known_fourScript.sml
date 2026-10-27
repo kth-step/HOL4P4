@@ -241,4 +241,5 @@ val step_thm = step_thm2;
 
 *)
 
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond NONE n_max postcond postcond_rewr_thms postcond_simpset;
+val end_point = “p4_finished:v1model_ascope astate -> bool”
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (symb_exec5_ftymap, symb_exec5_blftymap, symb_exec5_pblock_action_names_map) ["t"] path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;

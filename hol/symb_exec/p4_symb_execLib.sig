@@ -23,13 +23,13 @@ val p4_symb_exec:
 val p4_symb_exec_prove_contract:
    bool ->
    hol_type ->
-     defn_data -> (term * term * term) -> string list -> thm list -> term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> simpLib.simpset -> thm
+     defn_data -> (term * term * term) -> string list -> thm list -> term -> term list -> term list -> thm list -> thm -> term -> int -> term -> thm list -> simpLib.simpset -> thm
 
 val p4_symb_exec_prove_contract_conc:
    bool ->
    hol_type ->
      defn_data -> (term * term * term) -> string list -> thm list ->
-       term -> term list -> term list -> thm list -> thm -> (thm -> bool) option -> int -> term -> thm list -> simpLib.simpset -> thm
+       term -> term list -> term list -> thm list -> thm -> term -> int -> term -> thm list -> simpLib.simpset -> thm
 
 val p4_debug_symb_exec:
    hol_type ->
@@ -56,7 +56,11 @@ val p4_debug_symb_exec_frame_lists:
 
 val get_v1model_wellformed_defs : term -> term -> term -> Defn.defn
 
+val get_v1model_wellformed_defs_cond : term -> term -> thm -> term -> Defn.defn
+
 val get_intermediate_state : term -> thm -> term
+
+val get_intermediate_path_cond : term -> thm -> thm
 
 val p4_combine_contracts: thm -> thm -> thm -> thm
 

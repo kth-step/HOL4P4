@@ -244,7 +244,6 @@ val symb_exec_ctx_def = hd $ Defn.eqns_of $ Defn.mk_defn "symb_exec_ctx" (mk_eq(
 val symb_exec6_pblock_map = #2 $ p4Syntax.dest_actx symb_exec6_actx;
 val symb_exec_pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of symb_exec6_pblock_map), symb_exec6_pblock_map))
 val symb_exec6_ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope $ #4 $ p4Syntax.dest_aenv $ #1 $ p4Syntax.dest_astate symb_exec6_astate_symb;
-val symb_exec6_wf_tm = “v1model_ctrl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) (^symb_exec6_ctrl)”
 val symb_exec6_wf_tbl_tm = “v1model_tbl_is_well_formed ^(lhs $ concl symb_exec_ctx_def) ^(lhs $ concl symb_exec_pblock_map_def) ("t2",t2_ctrl)”
 
 
@@ -263,7 +262,7 @@ val stop_consts_rewr = []
 val stop_consts_never = []
 val thms_to_add = []
 val path_cond = ASSUME “48 <= LENGTH ^p /\ EL 7 ^p = T /\ ^symb_exec6_wf_tbl_tm”
-val p4_is_finished_alt_opt = NONE
+val end_point = “p4_finished:v1model_ascope astate -> bool”
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
 val fuel = 1;
@@ -313,7 +312,7 @@ val time_start = Time.now();
 (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

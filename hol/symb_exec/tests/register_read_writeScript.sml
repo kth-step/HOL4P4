@@ -1,6 +1,6 @@
 Theory register_read_write
 Ancestors
-  p4 p4_v1model[qualified]
+  p4 p4_v1model[qualified] p4_symb_exec[qualified]
 Libs
   liteLib p4_symb_execLib
 
@@ -294,7 +294,7 @@ val stop_consts_rewr = [“v1model_register_read_inner”, “v1model_register_w
 val stop_consts_never = [“v1model_register_construct_inner”]
 val thms_to_add = []
 val path_cond = ASSUME “48 <= LENGTH ^p”
-val p4_is_finished_alt_opt = NONE
+val end_point = “p4_finished:v1model_ascope astate -> bool”
 val n_max = 150;
 val postcond = “(\s. T):v1model_ascope astate -> bool”;
 val fuel = 1;
@@ -305,7 +305,7 @@ val time_start = Time.now();
 (*
 val p4_symb_exec_fun = (p4_symb_exec 1)
 *)
-val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset;
+val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset;
 
 val _ = print (String.concat ["Total time consumption: ",
                               (LargeInt.toString $ Time.toMilliseconds ((Time.now()) - time_start)),

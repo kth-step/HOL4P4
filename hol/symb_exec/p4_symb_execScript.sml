@@ -237,48 +237,128 @@ eq_tac >> (
 )
 QED
 
-(* TODO: Annoying that entire ascope is used. You can make more efficient versions that only use ctrl, tailored for individual architectures. *)
-Definition v1model_ctrl_is_well_formed_def:
- v1model_ctrl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) ctrl =
-  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map.
-   ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
-   ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
-    !tbl mk_l actions default_f default_f_args.
-     ALOOKUP tbl_map tbl = SOME (mk_l, (default_f, default_f_args)) ==>
-     ALOOKUP action_names_map tbl = SOME actions ==>
-      !e_l.
-      (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
-      LENGTH e_l = LENGTH mk_l ==>
-      !counter ext_obj_map v_map oracle_index. ?f f_args.
-      v1model_apply_table_f (tbl, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) = SOME (f, f_args) /\
-       (* f is in the list of actions for the table *)
-       MEM f actions /\
-       (* first argument is the Boolean T, signifying that the function call resulted from table application *)
-       (oEL 0 f_args = SOME (e_v (v_bool T))) /\
-       (* first argument is either:
-        * a Boolean, if action name is that of the default action... *)
-       (f = default_f ==> ?b. oEL 1 f_args = SOME (e_v (v_bool b))) /\
-       (* or the Boolean T, if action name is not that of the default action. *)
-       (f <> default_f ==> oEL 1 f_args = SOME (e_v (v_bool T))) /\
-       (* Furthermore, the types of the arguments must agree with those associated with the action
-        * in the relevant ftymap. *)
-       (* Case 1: Block name is found in blftymap, and function name in the local ftymap.
-         * Then, that local function type map applies. *)
-       ((?ftys ret_ty local_ftymap.
-         ALOOKUP blftymap block_name = SOME local_ftymap /\
-         ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
-         v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
-        (* Case 2: Either block name can't be found in blftymap, or function name can't be found in local ftymap.
-         * Then, the global function type map applies. *)
-        (ALOOKUP blftymap block_name = NONE \/
-         (?local_ftymap.
-          ALOOKUP blftymap block_name = SOME local_ftymap /\
-          ALOOKUP local_ftymap (funn_name f) = NONE) /\
-        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
-         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+(* All input has been processed *)
+Definition p4_finished_def:
+ p4_finished (((i, in_out_list, in_out_list', ascope), g_scope_list, arch_frame_list, status):'a astate) <=>
+  (i = 0 /\ in_out_list = [])
 End
 
-(* Old definition, using action list stored in in tbl_map:
+(* From every state satisfying P, a state satisfying both E and Q is reached *)
+Definition p4_contract_at_def:
+ p4_contract_at P ctx E Q <=>
+  !s.
+   P s ==>
+   ?n s'. arch_multi_exec ctx s n = SOME s' /\ E s' /\ Q s'
+End
+
+Theorem p4_contract_at_contract':
+!P ctx E Q.
+p4_contract_at P ctx E Q <=> p4_contract' P ctx (\s. E s /\ Q s)
+Proof
+simp[p4_contract_at_def, p4_contract'_alt_shape]
+QED
+
+Theorem p4_contract'_contract_at:
+!P ctx Q.
+p4_contract' P ctx Q <=> p4_contract_at P ctx (\s. T) Q
+Proof
+simp[p4_contract_at_def, p4_contract'_alt_shape]
+QED
+
+Theorem arch_multi_exec_stuck:
+!actx s n.
+arch_exec actx s = NONE ==>
+arch_multi_exec actx s (SUC n) = NONE
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+gs[p4_exec_semTheory.arch_multi_exec_def]
+QED
+
+Theorem arch_multi_exec_stuck_add:
+!actx s n k s1 s2.
+arch_multi_exec actx s n = SOME s1 ==>
+arch_exec actx s1 = NONE ==>
+arch_multi_exec actx s (n + k) = SOME s2 ==>
+s2 = s1
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+PairCases_on ‘s1’ >>
+qpat_x_assum ‘arch_multi_exec _ _ (n + k) = _’ mp_tac >>
+ONCE_REWRITE_TAC [arithmeticTheory.ADD_COMM] >>
+asm_simp_tac std_ss [p4_exec_semTheory.arch_multi_exec_add] >>
+Cases_on ‘k’ >- (
+ simp[p4_exec_semTheory.arch_multi_exec_def]
+) >>
+simp[arch_multi_exec_stuck]
+QED
+
+Theorem arch_multi_exec_stuck_unique:
+!actx s n m s1 s2.
+arch_multi_exec actx s n = SOME s1 ==>
+arch_exec actx s1 = NONE ==>
+arch_multi_exec actx s m = SOME s2 ==>
+arch_exec actx s2 = NONE ==>
+s1 = s2
+Proof
+rpt strip_tac >>
+Cases_on ‘n <= m’ >- (
+ gs[arithmeticTheory.LESS_EQ_EXISTS] >>
+ imp_res_tac arch_multi_exec_stuck_add >>
+ gs[]
+) >>
+gs[arithmeticTheory.NOT_LESS_EQUAL] >>
+imp_res_tac arithmeticTheory.LESS_IMP_LESS_OR_EQ >>
+gs[arithmeticTheory.LESS_EQ_EXISTS] >>
+imp_res_tac arch_multi_exec_stuck_add >>
+gs[]
+QED
+
+(* If execution stops at the end point, Q holds at every end point reached *)
+Theorem p4_contract_at_final:
+!P ctx E Q.
+(!s. E s ==> arch_exec ctx s = NONE) ==>
+(p4_contract_at P ctx E Q <=>
+ !s.
+  P s ==>
+  (?n s'. arch_multi_exec ctx s n = SOME s' /\ E s') /\
+  (!n s'. arch_multi_exec ctx s n = SOME s' /\ E s' ==> Q s'))
+Proof
+rw[p4_contract_at_def] >>
+eq_tac >- (
+ rpt strip_tac >>
+ res_tac >- (
+  qexistsl_tac [‘n’, ‘s'’] >>
+  simp[]
+ ) >>
+ qspecl_then [‘ctx’, ‘s’, ‘n’, ‘n'’, ‘s'’, ‘s''’] mp_tac arch_multi_exec_stuck_unique >>
+ gs[]
+) >>
+rpt strip_tac >>
+res_tac >>
+qexistsl_tac [‘n’, ‘s'’] >>
+simp[]
+QED
+
+Theorem p4_finished_arch_exec:
+!ab_list pblock_map ffblock_map input_f output_f copyin_pbl copyout_pbl apply_table_f ext_map func_map get_oracle_index set_oracle_index random_oracle s.
+EL 0 ab_list = arch_block_inp ==>
+(!ascope. input_f ([], ascope) = NONE) ==>
+p4_finished s ==>
+arch_exec ((ab_list, pblock_map, ffblock_map, input_f, output_f, copyin_pbl, copyout_pbl, apply_table_f, ext_map, func_map, get_oracle_index, set_oracle_index, random_oracle):'a actx) s = NONE
+Proof
+rpt strip_tac >>
+PairCases_on ‘s’ >>
+gs[p4_finished_def] >>
+Cases_on ‘s5’ >> (
+ Cases_on ‘s6’ >> (
+  gs[p4_exec_semTheory.arch_exec_def]
+ )
+)
+QED
+
+(* Old definition, using action list stored in tbl_map:
 Definition ctrl_is_well_formed_def:
  ctrl_is_well_formed (ftymap, blftymap) (pblock_map:pblock_map, apply_table_f:'a apply_table_f) (ascope:'a) =
   !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map.
@@ -303,46 +383,136 @@ Definition ctrl_is_well_formed_def:
 End
 *)
 
+Definition v1model_tbl_entry_is_well_formed_def:
+ v1model_tbl_entry_is_well_formed (ftymap, blftymap) block_name actions (f, f_args) <=>
+  MEM f actions /\
+  (* The action was called by a table, and the table was hit *)
+  oEL 0 f_args = SOME (e_v (v_bool T)) /\
+  oEL 1 f_args = SOME (e_v (v_bool T)) /\
+  (* The other arguments have the types of the action in the block-local or global ftymap *)
+  ((?ftys ret_ty local_ftymap.
+    ALOOKUP blftymap block_name = SOME local_ftymap /\
+    ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+    v_to_tau_list (DROP 2 f_args) = SOME ftys) \/
+   ((ALOOKUP blftymap block_name = NONE \/
+     ?local_ftymap.
+      ALOOKUP blftymap block_name = SOME local_ftymap /\
+      ALOOKUP local_ftymap (funn_name f) = NONE) /\
+    ?ftys ret_ty.
+     ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
+     v_to_tau_list (DROP 2 f_args) = SOME ftys))
+End
+
+(* Every entry of table tbl_name calls one of the table's actions with well-typed arguments *)
 Definition v1model_tbl_is_well_formed_def:
- v1model_tbl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) (tbl_name, tbl_entries) =
-  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map.
+ v1model_tbl_is_well_formed (ftymap, blftymap, pblock_action_names_map) (pblock_map:pblock_map) (tbl_name, tbl_entries:(((e_list -> bool) # num), string # e_list) alist) =
+  !block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map mk_l default_action actions.
    ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
    ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
-    !mk_l actions default_f default_f_args.
-     ALOOKUP tbl_map tbl_name = SOME (mk_l, (default_f, default_f_args)) ==>
-     ALOOKUP action_names_map tbl_name = SOME actions ==>
-      !e_l.
-      (* TODO: Keep the requirement that LENGTH e_l = LENGTH mk_l here? *)
-      LENGTH e_l = LENGTH mk_l ==>
-      !ctrl. ALOOKUP ctrl tbl_name = SOME tbl_entries ==>
-      !counter ext_obj_map v_map oracle_index. ?f f_args.
-      v1model_apply_table_f (tbl_name, e_l, mk_l, (default_f, default_f_args), (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) = SOME (f, f_args) /\
-       (* f is in the list of actions for the table *)
-       MEM f actions /\
-       (* first argument is the Boolean T, signifying that the function call resulted from table application *)
-       (oEL 0 f_args = SOME (e_v (v_bool T))) /\
-       (* first argument is either:
-        * a Boolean, if action name is that of the default action... *)
-       (f = default_f ==> ?b. oEL 1 f_args = SOME (e_v (v_bool b))) /\
-       (* or the Boolean T, if action name is not that of the default action. *)
-       (f <> default_f ==> oEL 1 f_args = SOME (e_v (v_bool T))) /\
-       (* Furthermore, the types of the arguments must agree with those associated with the action
-        * in the relevant ftymap. *)
-       (* Case 1: Block name is found in blftymap, and function name in the local ftymap.
-         * Then, that local function type map applies. *)
-       ((?ftys ret_ty local_ftymap.
-         ALOOKUP blftymap block_name = SOME local_ftymap /\
-         ALOOKUP local_ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
-         v_to_tau_list (DROP 2 f_args) = SOME (ftys)) \/
-        (* Case 2: Either block name can't be found in blftymap, or function name can't be found in local ftymap.
-         * Then, the global function type map applies. *)
-        (ALOOKUP blftymap block_name = NONE \/
-         (?local_ftymap.
-          ALOOKUP blftymap block_name = SOME local_ftymap /\
-          ALOOKUP local_ftymap (funn_name f) = NONE) /\
-        (?ftys ret_ty. ALOOKUP ftymap (funn_name f) = SOME (ftys, ret_ty:tau) /\
-         v_to_tau_list (DROP 2 f_args) = SOME (ftys))))
+   ALOOKUP tbl_map tbl_name = SOME (mk_l, default_action) ==>
+   ALOOKUP action_names_map tbl_name = SOME actions ==>
+   EVERY (v1model_tbl_entry_is_well_formed (ftymap, blftymap) block_name actions) (MAP SND tbl_entries)
 End
+
+Theorem v1model_tbl_is_well_formed_NIL:
+!ty_ctx pblock_map tbl_name.
+v1model_tbl_is_well_formed ty_ctx pblock_map (tbl_name, [])
+Proof
+rpt strip_tac >>
+PairCases_on ‘ty_ctx’ >>
+simp[v1model_tbl_is_well_formed_def]
+QED
+
+Theorem FOLDL_MATCH_MEM:
+!tbl e_l r.
+MEM (FST (FOLDL_MATCH e_l r tbl)) (FST r::MAP SND tbl)
+Proof
+Induct >- (
+ simp[FOLDL_MATCH_def]
+) >>
+rpt strip_tac >>
+PairCases_on ‘h’ >>
+PairCases_on ‘r’ >>
+simp[FOLDL_MATCH_def] >>
+Cases_on ‘r1’ >> (
+ rw[] >>
+ qmatch_goalsub_abbrev_tac ‘FOLDL_MATCH e_l r' tbl’ >>
+ first_x_assum (qspecl_then [‘e_l’, ‘r'’] mp_tac) >>
+ rw[Abbr ‘r'’] >>
+ simp[]
+)
+QED
+
+Theorem FOLDL_MATCH_alt_MEM:
+!tbl e_l r acc.
+MEM (FST (FOLDL_MATCH_alt e_l r acc tbl)) (FST r::MAP SND tbl)
+Proof
+Induct >- (
+ simp[FOLDL_MATCH_alt_def]
+) >>
+rpt strip_tac >>
+PairCases_on ‘h’ >>
+PairCases_on ‘r’ >>
+simp[FOLDL_MATCH_alt_def] >>
+Cases_on ‘r1’ >> (
+ rw[] >>
+ qmatch_goalsub_abbrev_tac ‘FOLDL_MATCH_alt e_l r' acc' tbl’ >>
+ first_x_assum (qspecl_then [‘e_l’, ‘r'’, ‘acc'’] mp_tac) >>
+ rw[Abbr ‘r'’] >>
+ simp[]
+)
+QED
+
+(* A table lookup returns the default action or an entry's well-formed action *)
+Theorem v1model_tbl_is_well_formed_FOLDL_MATCH:
+!ftymap blftymap pblock_action_names_map pblock_map tbl_name tbl_entries block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map mk_l default_action actions e_l.
+v1model_tbl_is_well_formed (ftymap, blftymap, pblock_action_names_map) pblock_map (tbl_name, tbl_entries) ==>
+ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
+ALOOKUP tbl_map tbl_name = SOME (mk_l, default_action) ==>
+ALOOKUP action_names_map tbl_name = SOME actions ==>
+(FST (FOLDL_MATCH e_l (default_action, NONE) tbl_entries) = default_action \/
+ ?f f_args.
+  FST (FOLDL_MATCH e_l (default_action, NONE) tbl_entries) = (f, f_args) /\
+  v1model_tbl_entry_is_well_formed (ftymap, blftymap) block_name actions (f, f_args))
+Proof
+rpt strip_tac >>
+gs[v1model_tbl_is_well_formed_def] >>
+first_x_assum drule_all >>
+strip_tac >>
+qspecl_then [‘tbl_entries’, ‘e_l’, ‘(default_action, NONE)’] strip_assume_tac FOLDL_MATCH_MEM >>
+gs[] >>
+disj2_tac >>
+gs[listTheory.EVERY_MEM] >>
+res_tac >>
+Cases_on ‘FST (FOLDL_MATCH e_l (default_action,NONE) tbl_entries)’ >>
+gs[]
+QED
+
+Theorem v1model_tbl_is_well_formed_FOLDL_MATCH_alt:
+!ftymap blftymap pblock_action_names_map pblock_map tbl_name tbl_entries block_name pbl_type x_d_list b_func_map decl_list pars_map tbl_map action_names_map mk_l default_action actions e_l acc.
+v1model_tbl_is_well_formed (ftymap, blftymap, pblock_action_names_map) pblock_map (tbl_name, tbl_entries) ==>
+ALOOKUP pblock_map block_name = SOME (pbl_type, x_d_list, b_func_map, decl_list, pars_map, tbl_map) ==>
+ALOOKUP pblock_action_names_map block_name = SOME action_names_map ==>
+ALOOKUP tbl_map tbl_name = SOME (mk_l, default_action) ==>
+ALOOKUP action_names_map tbl_name = SOME actions ==>
+(FST (FOLDL_MATCH_alt e_l (default_action, NONE) acc tbl_entries) = default_action \/
+ ?f f_args.
+  FST (FOLDL_MATCH_alt e_l (default_action, NONE) acc tbl_entries) = (f, f_args) /\
+  v1model_tbl_entry_is_well_formed (ftymap, blftymap) block_name actions (f, f_args))
+Proof
+rpt strip_tac >>
+gs[v1model_tbl_is_well_formed_def] >>
+first_x_assum drule_all >>
+strip_tac >>
+qspecl_then [‘tbl_entries’, ‘e_l’, ‘(default_action, NONE)’, ‘acc’] strip_assume_tac FOLDL_MATCH_alt_MEM >>
+gs[] >>
+disj2_tac >>
+gs[listTheory.EVERY_MEM] >>
+res_tac >>
+Cases_on ‘FST (FOLDL_MATCH_alt e_l (default_action,NONE) acc tbl_entries)’ >>
+gs[]
+QED
 
 Definition wellformed_register_array_def:
 (wellformed_register_array width [] = T) /\
@@ -414,6 +584,23 @@ rw[wellformed_register_array_EVERY, v1model_register_write_inner_def, EVERY_EL, 
 rw[]
 QED
 
+Theorem wellformed_register_array_LUPDATE:
+!w bl n i arr.
+wellformed_register_array w arr /\ n = w /\ LENGTH bl = w ==>
+wellformed_register_array w (LUPDATE (bl, n) i arr)
+Proof
+rw[wellformed_register_array_EVERY, EVERY_EL, EL_LUPDATE] >>
+rw[]
+QED
+
+(* With a symbolic oracle index i, declarations and copy-in compare i with i + n *)
+Theorem num_eq_add_numeral_F:
+!m n. (m = m + NUMERAL (BIT1 n) <=> F) /\ (m = m + NUMERAL (BIT2 n) <=> F)
+Proof
+REWRITE_TAC [arithmeticTheory.NUMERAL_DEF, arithmeticTheory.BIT1, arithmeticTheory.BIT2] >>
+decide_tac
+QED
+
 (*
 Theorem wellformed_register_array_replicate_arb:
 !m n.
@@ -424,7 +611,7 @@ QED
 *)
 
 (*
-(* Use this to easily identify abbreviations: a tuple is is used
+(* Use this to easily identify abbreviations: a tuple is used
  * to easily identifies which abbreviations are currently in play *)
 Definition symb_exec_abbrevs_def:
  (symb_exec_abbrevs stmt_stack_tl_abbrev_opt frame_stack_tl_abbrev_opt ascope_abbrev_opt =

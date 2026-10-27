@@ -14,6 +14,14 @@ datatype path_tree = empty | node of int * thm * (path_tree list);
 
 val ERR = mk_HOL_ERR "symb_exec"
 
+(* |- !a. disj_list [a] <=> a *)
+val disj_list_sing_thm =
+ let
+  val a = mk_var ("a", bool)
+ in
+  GEN a (REWRITE_CONV [disj_list_def] (mk_disj_list [a]))
+ end;
+
 fun dbg_print debug_flag string =
  if debug_flag
  then print string
@@ -117,6 +125,12 @@ fun update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_th
   val _ = dbg_print debug_flag
    (String.concat ["\n\nUpdating path tree...\n\n"])
 
+  (* Cases ruled out by the path condition leave fewer paths: the largest index is fresh for all *)
+  val fv_indices' =
+   if length fv_indices = length new_path_conds
+   then fv_indices
+   else List.tabulate (length new_path_conds, K (foldl Int.max 0 fv_indices))
+
   (* TODO: OPTIMIZE: Check if branch results in just one new path - then we don't need to add
    * a new node to the tree, just replace data in the existing one *)
   val (npaths', new_path_elems) =
@@ -138,7 +152,7 @@ fun update_path_tree debug_flag (npaths, path_tree, new_path_conds, path_disj_th
 			      * path on next encounter *)
 			     true)])))
     (npaths, [])
-    (zip fv_indices (zip (map (ASSUME o convert_exists_path_cond) new_path_conds) new_branch_cond_tms))
+    (zip fv_indices' (zip (map (ASSUME o convert_exists_path_cond) new_path_conds) new_branch_cond_tms))
 
   (* The new path tree nodes are mostly placeholders until further branches take place,
    * but they do already store the path ID (first element) *)
@@ -225,7 +239,17 @@ fun symb_branch debug_flag disj_thm path_cond =
    then NONE
    else
     let
-     val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5
+     (* A single case left after pruning becomes a one-element case list *)
+     val path_disj_thm5' =
+      let
+       val path_disj_tm5 = concl path_disj_thm5
+      in
+       if is_imp_only path_disj_tm5 andalso not (is_disj_list $ snd $ dest_imp_only path_disj_tm5)
+       then
+        CONV_RULE (RAND_CONV (REWR_CONV (SYM $ SPEC (snd $ dest_imp_only path_disj_tm5) disj_list_sing_thm))) path_disj_thm5
+       else path_disj_thm5
+      end
+     val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5'
      val path_disj_thm7 = PURE_REWRITE_RULE [symb_true_def] path_disj_thm6
 
      val new_branch_cond_tms = fst $ dest_list $ snd $ dest_symb_branch_cases $ concl path_disj_thm7
@@ -275,11 +299,12 @@ local
   val SOME (disj_thm, fv_indices) = lang_should_branch (fv_index, step_thm)
  *)
      let
-      val _ = dbg_print debug_flag
+      (* The message is only built when debugging, since printing the terms is costly *)
+      val _ = if debug_flag then dbg_print debug_flag
        (String.concat ["\n\nPerforming symbolic branch...\n\n",
 		       (* "from step_thm:\n", (term_to_string $ concl step_thm), *)
 		       "using disj_thm:\n", (term_to_string $ concl disj_thm),
-		       "\n and path condition \n", (term_to_string $ concl path_cond), "\n\n"])
+		       "\n and path condition \n", (term_to_string $ concl path_cond), "\n\n"]) else ()
      in
       (case symb_branch debug_flag disj_thm path_cond of
 (*
@@ -335,6 +360,9 @@ in
 	     (node (1, TRUTH, [])), [(1, 0, path_cond, lang_init_step_thm, fuel, false)], [])
 end;
 
+(* Raised once the path of an exception in a worker has been printed *)
+exception Reported_on_path of exn;
+
 fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_finished) (register_new_worker_n, get_job, append_jobs, finish_job, update_shared_state) =
  case get_job () of
    SOME (path_id, fv_index, path_cond, step_thm, fuel, nobranch_flag) =>
@@ -360,7 +388,7 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
      lang_regular_step nobranch_flag step_thm
       (* TODO: broadcastInterrupt doesn't seem to work properly *)
       handle Interrupt => ((* broadcastInterrupt(); *) print "Interrupt exception when running lang_regular_step!\n"; raise Interrupt)
-      handle exc => ((* broadcastInterrupt(); *) print "Exception when running lang_regular_step!\n"; raise exc)
+           | exc => ((* broadcastInterrupt(); *) print "Exception when running lang_regular_step!\n"; raise exc)
 
     val _ = dbg_print debug_flag
      (String.concat ["Finished regular symbolic execution step of path ID ",
@@ -381,11 +409,12 @@ fun symb_exec_conc' (debug_flag, lang_regular_step, lang_should_branch, lang_is_
    end
  (* TODO: Silly, but works against silent exceptions *)
  handle Interrupt => ((* broadcastInterrupt(); *) print "Interrupt exception!\n"; raise Interrupt)
- handle exc => ((* broadcastInterrupt(); *)
+      | Reported_on_path exc => raise Reported_on_path exc
+      | exc => ((* broadcastInterrupt(); *)
                 print (String.concat ["Exception raised on path ID ", (Int.toString path_id), "\n",
                        "with ", (Int.toString fuel), " fuel remaining,\n",
                        "free variable index ", (Int.toString fv_index), ",\n",
-                       "and step_thm\n", (term_to_string $ concl step_thm), "\n"]); raise exc))
+                       "and step_thm\n", (term_to_string $ concl step_thm), "\n"]); raise Reported_on_path exc))
  | NONE => ()
 ;
 
@@ -399,13 +428,15 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
   val nthreads_ref = ref 0
   val all_done = conditionVar()
   val mutex_exec = mutex()
+  (* The first exception raised by a worker, re-raised by the main thread *)
+  val worker_exn = ref (NONE:exn option)
 
   fun get_job () =
    protect mutex_exec (fn () =>
     (let
       val queue = (!work_queue)
      in
-      if not (null queue)
+      if not (null queue) andalso not (isSome (!worker_exn))
       then
        let
         val res = (hd queue)
@@ -445,8 +476,16 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
 	 else true))
       else false)) job;
 
+  (* A worker that raises an exception has not decremented nthreads_ref yet *)
+  fun worker_failed (Reported_on_path exn) = worker_failed exn
+    | worker_failed exn =
+   protect mutex_exec (fn () =>
+    ((if isSome (!worker_exn) then () else worker_exn := SOME exn);
+     nthreads_ref := !nthreads_ref - 1;
+     if !nthreads_ref = 0 then signal all_done else ())) ();
+
   fun register_new_worker (work_fun:unit -> unit) =
-   protect mutex_exec (fn () => (if !nthreads_ref < nthreads_max then let val _ = (nthreads_ref := !nthreads_ref + 1); val _ = (fork (work_fun, [EnableBroadcastInterrupt true])) in () end else ())) ();
+   protect mutex_exec (fn () => (if !nthreads_ref < nthreads_max then let val _ = (nthreads_ref := !nthreads_ref + 1); val _ = (fork (fn () => (work_fun () handle exn => worker_failed exn), [EnableBroadcastInterrupt true])) in () end else ())) ();
 
   (* TODO: Slightly inefficient since it always loops through all iterations, but should work.
    * Make register_worker return a success bool also *)
@@ -464,9 +503,11 @@ fun symb_exec_conc (debug_flag, lang_regular_step, lang_init_step_thm, lang_shou
   (* TODO: Hack, enables this thread to shut down *)
   val _ = setAttributes [EnableBroadcastInterrupt true]
  in
-   (wait (all_done, mutex_exec);
-    (* TODO: Safe? *)
-     (!path_tree_ref, !done_list)
+   (* The mutex is held while testing and waiting, so that no signal is lost *)
+   (protect mutex_exec (fn () => while !nthreads_ref > 0 do wait (all_done, mutex_exec)) ();
+    case !worker_exn of
+      SOME exn => raise exn
+    | NONE => (!path_tree_ref, !done_list)
 (*
     print (String.concat ["Result: ",
                    String.concat $ map (fn el => (el^" ")) (map (term_to_string o concl o #3) (!done_list)),

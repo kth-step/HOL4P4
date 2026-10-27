@@ -19,6 +19,10 @@ val ERR = mk_HOL_ERR "p4_symb_exec"
 (* Prefix used by the symbolic execution when inserting free HOL4 variables *)
 val p4_symb_arg_prefix = "a";
 
+(* Decides the oracle index comparisons of runs from a symbolic oracle index *)
+val _ = computeLib.add_thms [num_eq_add_numeral_F] computeLib.the_compset;
+val _ = add_HOL4P4_thms [num_eq_add_numeral_F];
+
 fun get_b_func_map i ab_list pblock_map =
  let
   val arch_block = el ((int_of_term i) + 1) (fst $ dest_list ab_list)
@@ -220,6 +224,25 @@ fun next_arg_is_unsaved_out (func_map, b_func_map, ext_fun_map) e =
  end
 ;
 
+fun is_short_circuit_binop binop =
+ term_eq binop binop_bin_and_tm orelse term_eq binop binop_bin_or_tm
+;
+
+val e_v_bool_T_tm = mk_e_v (mk_v_bool T);
+val e_v_bool_F_tm = mk_e_v (mk_v_bool F);
+
+(* A short-circuit operation whose first operand is not a literal T or F *)
+fun is_unresolved_short_circuit e =
+ is_e_binop e andalso
+ (let
+   val (e', binop, _) = dest_e_binop e
+  in
+   is_short_circuit_binop binop andalso
+   not (term_eq e' e_v_bool_T_tm orelse term_eq e' e_v_bool_F_tm)
+  end)
+;
+
+fun has_unresolved_short_circuit tm = can (find_term is_unresolved_short_circuit) tm;
 
 fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
  if is_e_v e orelse is_e_saved e
@@ -278,7 +301,8 @@ fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
   in
    if is_e_v e'
    then
-    if is_e_v e''
+    (* A short-circuit operator reduces at the binop node *)
+    if is_e_v e'' orelse is_short_circuit_binop binop
     then SOME (fn e => e)
     else
      (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e'' of
@@ -552,6 +576,22 @@ fun astate_get_next_e (func_map, b_func_map, ext_fun_map) astate =
  end
 ;
 
+(* The first operand of the next redex if that is an unresolved short-circuit operation *)
+fun astate_get_short_circuit_operand (func_map, b_func_map, ext_fun_map) astate =
+ case astate_get_next_e (func_map, b_func_map, ext_fun_map) astate of
+   SOME e =>
+  if has_unresolved_short_circuit e
+  then
+   (case get_next_subexp (func_map, b_func_map, ext_fun_map) e of
+      SOME e' =>
+     if is_unresolved_short_circuit e'
+     then SOME (#1 $ dest_e_binop e')
+     else NONE
+    | NONE => NONE)
+  else NONE
+ | NONE => NONE
+;
+
 (* This simplifies a key until only the match_all application can be reduced next *)
 val key_conv = rhs o concl o (SIMP_CONV std_ss [MAP, THE_DEF, BETA_THM, ZIP, v_of_e_def]);
 
@@ -706,8 +746,14 @@ fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions
 
   val (path_tm, astate) = the_final_state_hyp_imp step_thm
 
+  (* A short-circuit operation is branched on its first operand like a condition *)
+  val branch_data =
+   case astate_get_short_circuit_operand (get_f_maps (astate, rhs $ snd $ strip_forall $ concl ctx_def)) astate of
+     SOME e => conditional e
+   | NONE => astate_get_branch_data astate
+
   val res =
-   (case astate_get_branch_data astate of
+   (case branch_data of
     (* Branch point: conditional statement *)
     conditional branch_cond =>
    if is_e_v branch_cond andalso not $ null $ free_vars branch_cond
@@ -869,39 +915,6 @@ basic:
         val fv_indices' = fv_indices@[fv_index]
         val disj_tms'' = disj_tms'@[mk_eq (case_lhs, default_action)]
 
-(* TODO: How to use ctrl_is_well_formed here:
-
-val e = “[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”;
-val (fty_map, b_fty_map) = preprocess_ftymaps (symb_exec6_ftymap, symb_exec6_blftymap)
-
-(* For basic.p4:
-
-val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
-val pblock_action_names_map = basic_pblock_action_names_map
-
-*)
-
-val (_, pblock_map, _, _, _, _, _, _, _, _)= dest_actx $ snd $ dest_eq $ concl $ ctx_def;
-
-val ascope =  #1 $ dest_astate init_astate
-val ctrl =  #4 $ dest_v1model_ascope $ #4 $ dest_ascope pre_ascope
-
-(* Sanity check: *)
-prove(“F”,
-
-ASSUME_TAC wf_assumption >>
-fs[ctrl_is_well_formed_def] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“"ingress"”] thm) >>
-fs[] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“"t2"”] thm) >>
-fs[] >>
-PAT_X_ASSUM “_” (fn thm => ASSUME_TAC $ SPECL [“[e_v (v_bit ([e1; e2; e3; e4; e5; e6; e7; T],8))]”] thm) >>
-fs[p4_v1modelTheory.v1model_apply_table_f_def]
-(* Proof should not work *)
-);
-
-*)
-
         fun v_list_case_tac thm =
 	 let
 	  val list = snd $ dest_comb $ lhs $ concl thm
@@ -925,27 +938,35 @@ fs[p4_v1modelTheory.v1model_apply_table_f_def]
 val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 *)
 
+        val wf_conj =
+         case List.find (fn tm => is_v1model_tbl_is_well_formed tm andalso term_eq (#3 $ dest_v1model_tbl_is_well_formed tm) (mk_pair (tbl_name, tbl))) (strip_conj path_tm) of
+           SOME tm => tm
+         | NONE => raise (ERR "p4_should_branch" ("No v1model_tbl_is_well_formed conjunct for table "^((term_to_string tbl_name)^" in the path condition")))
+        (* The lookup result is the default action or the action of a well-formed entry *)
+        val wf_cases_thm =
+         let
+          val wf_thm = PURE_REWRITE_RULE path_cond_defs (ASSUME wf_conj)
+          val (ty_ctx, wf_pblock_map, _) = dest_v1model_tbl_is_well_formed $ concl wf_thm
+          val (wf_ftymap, wf_blftymap, wf_pblock_action_names_map) = (fn (a, (b, c)) => (a, b, c)) $ (I ## dest_pair) $ dest_pair ty_ctx
+          val inst_tms = [wf_ftymap, wf_blftymap, wf_pblock_action_names_map, wf_pblock_map, tbl_name, tbl, curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map, action_names_map, mk_l, default_action, action_names, e]
+          val cases_thm =
+           if mem_lpm
+           then ISPECL inst_tms v1model_tbl_is_well_formed_FOLDL_MATCH
+           else ISPECL (inst_tms@[term_of_int 1]) v1model_tbl_is_well_formed_FOLDL_MATCH_alt
+          val lookups_thm = funpow 4 (fn thm => MP thm (EQT_ELIM $ HOL4P4_CONV $ fst $ dest_imp_only $ concl thm)) (MP cases_thm wf_thm)
+         in
+          SIMP_RULE (srw_ss()) [] $ HOL4P4_RULE $ PURE_REWRITE_RULE [v1model_tbl_entry_is_well_formed_def] lookups_thm
+         end
+
         val disj_thm = prove (mk_imp (path_tm, mk_disj_list disj_tms''),
 	 strip_tac >>
-(* Remove all well-formedness assumptions on irrelevant tables. *)
-         try $ (qpat_x_assum ‘v1model_tbl_is_well_formed _ _ (^tbl_name,^tbl)’ (fn thm =>
-                              (rpt $ qpat_x_assum ‘_’ (fn thm' => ALL_TAC)) >> assume_tac thm)) >>
+         rpt (pop_assum (K ALL_TAC)) >>
+         assume_tac wf_cases_thm >>
          REWRITE_TAC [disj_list_def] >>
-	 FULL_SIMP_TAC pure_ss (path_cond_defs@[Once v1model_tbl_is_well_formed_def, Once p4_v1modelTheory.v1model_apply_table_f_def, Once p4_coreTheory.apply_table_f_gen_def]) >>
-
-         (* Specialise the well-formedness assumption and simplify it in isolation *)
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [curr_block, pbl_type, params, b_func_map, decl_list, pars_map, tbl_map] thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [action_names_map] thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPECL [mk_l, action_names, default_action_name, default_action_args] thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC e thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SPEC ctrl thm) >>
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ HOL4P4_RULE thm) >>
-         (* TODO: Avoid srw_ss() if possible... *)
-	 qpat_x_assum ‘_’ (fn thm => assume_tac $ SIMP_RULE (srw_ss()) [] thm) >>
+         pop_assum (fn thm => DISJ_CASES_TAC thm) >- (
+          (* Miss: the last disjunct *)
+          ASM_REWRITE_TAC []
+         ) >>
 
 	 (goal_term (fn tm => ABBREV_TAC “goal:bool = ^tm”) >>
 	  qpat_x_assum ‘Abbrev (goal <=> _)’ (fn thm => hide_tac "goal" thm) >>
@@ -954,13 +975,16 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
 
 	  unhide_tac "goal" >>
 	  UNABBREV_TAC "goal") >> (
-           qpat_assum ‘f = _’ (fn thm => let val fname = rhs $ concl thm in
-	   goal_term (fn tm =>
+           (fn (asl, tm) =>
 	    let
-	     val disj_bool_list = (map (fn tm' => if term_eq (fst $ dest_pair $ rhs $ snd $ boolSyntax.strip_exists tm') fname then true else false)) $ boolSyntax.strip_disj tm
+	     (* The action name, from the lookup equation or from f = name if a variable is left *)
+	     val name = fst $ dest_pair $ rhs $ valOf $ List.find (fn a => is_eq a andalso term_eq (lhs a) case_lhs) asl
+	     val fname = if is_var name then rhs $ valOf $ List.find (fn a => is_eq a andalso term_eq (lhs a) name) asl else name
+	     (* A hit never gives the miss disjunct, which is the last one *)
+	     val disj_bool_list = (map (fn tm' => term_eq (fst $ dest_pair $ rhs $ snd $ boolSyntax.strip_exists tm') fname) $ butlast $ boolSyntax.strip_disj tm)@[false]
 	    in
-	     irule (get_disj_thm disj_bool_list)
-	    end) end)
+	     irule (get_disj_thm disj_bool_list) (asl, tm)
+	    end)
           ) >>
           (* Below this point, each resulting action is a separate subgoal. *)
           (
@@ -1032,60 +1056,6 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
      in
       if (ext_obj = "register")
       then approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list ascope
-(*
-       let
-	(* Array size *)
-	val array_size = fst $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "size"))”
-	val targ1_width = snd $ dest_pair $ dest_v_bit $ dest_some $ rhs $ concl $ HOL4P4_CONV “lookup_lval ^scope_list (lval_varname (varn_name "targ1"))”
-
-	(* TODO: V1Model *)
-	val tm1 = “v1model_register_construct_inner ^array_size ^targ1_width”
-
-        val array_size_num = rhs $ concl $ EVAL “v2n ^array_size”
-(*
-	val approx_list_vars = fst $ dest_list $ fixedwidth_freevars_fromindex_ty (p4_symb_arg_prefix, fv_index, int_of_term array_size_num, mk_list_type bool)
-	val rhs_tm = mk_list (map (fn var => mk_pair (var, targ1_width)) approx_list_vars, mk_prod (mk_list_type bool, num))
-*)
-        (* TODO: Hacky... *)
-        val rhs_tm = hd $ fst $ dest_list $ fixedwidth_freevars_fromindex_ty (p4_symb_arg_prefix, fv_index, 1, mk_list_type $ mk_prod (mk_list_type bool, num))
-	val goal_tm = mk_disj_list [boolSyntax.mk_exists (rhs_tm, mk_conj (mk_eq (tm1, rhs_tm), “wellformed_register_array ^targ1_width ^rhs_tm”))]
-(*
-(* Unless you cache, these have to be proved every single time *)
-val list_var = mk_var("list", “:bool list”)
-val list_hyp = mk_eq(mk_length list_var, entry_width)
-val list_exists_thm = prove(mk_forall (list_var, mk_imp (list_hyp, list_mk_exists(fst $ dest_list approx_vars, mk_eq (list_var, approx_vars)))), 
-rpt strip_tac >>
-rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
-);
-*)
-
-(*
-val array_size = rhs $ concl $ EVAL “fixwidth 32 $ n2v 1024”
-
-val targ1_width = “32”
-
-val fv_index = 0
-
-val array = “[([ARB:bool; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32);
-           ([ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB; ARB;
-             ARB; ARB; ARB; ARB; ARB; ARB],32)]”
-*)
-
-	val approx_thm =
-         (* “^goal_tm” *)
-	 prove(goal_tm,
-          SIMP_TAC std_ss [disj_list_def, p4_v1modelTheory.v1model_register_construct_inner_def, wellformed_register_array_replicate_arb]
-	 );
-       in
-	SOME (approx_thm, [fv_index+1])
-       end
-*)
       else NONE
      end
     else if is_funn_ext funn
@@ -1198,7 +1168,7 @@ fun dbg_print_e_red (func_map, b_func_map, ext_fun_map) e =
   in
    if is_e_v e'
    then
-    if is_e_v e''
+    if is_e_v e'' orelse is_short_circuit_binop binop
     then print (String.concat ["\nReducing binary operation...\n\n"])
     else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e''
    else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e'
@@ -1406,7 +1376,7 @@ fun p4_e_is_shortcuttable e =
    | _ => e_shortcut)
  else if is_e_binop e
  then
-  (case p4_e_is_shortcuttable $ #2 $ dest_e_binop e of
+  (case p4_e_is_shortcuttable $ #1 $ dest_e_binop e of
      e_no_shortcut e' => e_no_shortcut e'
    | e_shortcut => e_shortcut
    | e_fully_reduced =>
@@ -1454,36 +1424,42 @@ datatype stmt_shortcut_data =
  | stmt_no_shortcut_stmt of term;
 
 (* Base cases for p4_is_shortcuttable *)
+(* Big steps reduce call arguments only for a call at the top of an assignment or condition *)
 fun p4_is_shortcuttable' stmt =
  if is_stmt_ass stmt
  then
-  (case p4_e_is_shortcuttable $ snd $ dest_stmt_ass stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | _ => stmt_shortcut)
+  let
+   val e = snd $ dest_stmt_ass stmt
+  in
+   (case p4_e_is_shortcuttable e of
+      e_no_shortcut e' => if is_e_call e then stmt_no_shortcut_e e' else stmt_no_shortcut_stmt stmt
+    | _ => stmt_shortcut)
+  end
  else if is_stmt_ret stmt
  then
   (case p4_e_is_shortcuttable $ dest_stmt_ret stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+     e_shortcut => stmt_shortcut
+   | _ => stmt_no_shortcut_stmt stmt)
  else if is_stmt_trans stmt
  then
   (case p4_e_is_shortcuttable $ dest_stmt_trans stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+     e_shortcut => stmt_shortcut
+   | _ => stmt_no_shortcut_stmt stmt)
  else if is_stmt_app stmt
  then
   (case p4_e_l_is_shortcuttable $ (fst o dest_list) $ snd $ dest_stmt_app stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+     e_shortcut => stmt_shortcut
+   | _ => stmt_no_shortcut_stmt stmt)
  else if is_stmt_cond stmt
  then
-  (case p4_e_is_shortcuttable $ #1 $ dest_stmt_cond stmt of
-     e_no_shortcut e => stmt_no_shortcut_e e
-   | e_fully_reduced => stmt_no_shortcut_stmt stmt
-   | _ => stmt_shortcut)
+  let
+   val e = #1 $ dest_stmt_cond stmt
+  in
+   (case p4_e_is_shortcuttable e of
+      e_no_shortcut e' => if is_e_call e then stmt_no_shortcut_e e' else stmt_no_shortcut_stmt stmt
+    | e_fully_reduced => stmt_no_shortcut_stmt stmt
+    | _ => stmt_shortcut)
+  end
  else stmt_no_shortcut_stmt stmt
 ;
 
@@ -1541,12 +1517,40 @@ fun get_next_stmt stmt =
  else stmt
 ;
 
+(* Whether a big step from stmt can reach an unresolved short circuit *)
+fun bigstep_meets_unresolved_short_circuit stmt =
+ if is_stmt_seq stmt
+ then
+  let
+   val (stmt1, stmt2) = dest_stmt_seq stmt
+  in
+   bigstep_meets_unresolved_short_circuit stmt1 orelse
+   ((is_stmt_empty stmt1 orelse
+     (is_stmt_ass stmt1 andalso not (is_e_call $ snd $ dest_stmt_ass stmt1)) orelse
+     is_stmt_seq stmt1) andalso
+    bigstep_meets_unresolved_short_circuit stmt2)
+  end
+ else if is_stmt_ass stmt
+ then has_unresolved_short_circuit $ snd $ dest_stmt_ass stmt
+ else if is_stmt_cond stmt
+ then has_unresolved_short_circuit $ #1 $ dest_stmt_cond stmt
+ else if is_stmt_ret stmt
+ then has_unresolved_short_circuit $ dest_stmt_ret stmt
+ else if is_stmt_trans stmt
+ then has_unresolved_short_circuit $ dest_stmt_trans stmt
+ else if is_stmt_app stmt
+ then has_unresolved_short_circuit $ snd $ dest_stmt_app stmt
+ else false
+;
+
 (* TODO: This leaves open the possibility of nested stmt_seq, but the import tool should
  * not enable that - throw exception if this is found to be the case? *)
 fun p4_is_shortcuttable (funn, stmt) func_map =
  if p4_funn_name_not_in_func_map funn func_map
  then
-  if is_stmt_seq stmt
+  if bigstep_meets_unresolved_short_circuit stmt
+  then res_no_shortcut_stmt stmt
+  else if is_stmt_seq stmt
   then
    let
     val stmt' = get_next_stmt stmt
@@ -1575,7 +1579,7 @@ fun contains_e_call e =
   contains_e_call $ snd $ dest_e_unop e
  else if is_e_binop e
  then
-  if contains_e_call $ #2 $ dest_e_binop e
+  if contains_e_call $ #1 $ dest_e_binop e
   then true
   else contains_e_call $ #3 $ dest_e_binop e
  (* TODO: Fix concat and slicing *)
@@ -1913,16 +1917,67 @@ fun p4_get_bigstep_comp_thms ctx_def =
  end
 ;
 
-fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm use_eval_in_ctxt step_thm =
+(* SIMP_RULE simple_arith_ss reduces arithmetic on numerals (numSimps.REDUCE_ss): when the step
+ * count is the only such term, reducing it alone gives the same theorem *)
+local
+ val unary_reduce_ops = [numSyntax.even_tm, numSyntax.odd_tm, numSyntax.pre_tm, numSyntax.suc_tm, numSyntax.div2_tm]
+ val binary_reduce_ops = [numSyntax.mult_tm, numSyntax.plus_tm, numSyntax.minus_tm, numSyntax.div_tm, numSyntax.mod_tm, numSyntax.exp_tm, numSyntax.less_tm, numSyntax.leq_tm, numSyntax.greater_tm, numSyntax.geq_tm, numSyntax.min_tm, numSyntax.max_tm]
+ (* The same test of the arguments as in REDUCE_ss *)
+ fun reducible t = numSyntax.is_numeral t orelse (numSyntax.is_suc t andalso reducible (rand t))
+ fun is_reduce_redex t =
+  let
+   val (f, args) = strip_comb t
+  in
+   is_const f andalso List.all reducible args andalso
+   (case args of
+      [_] => List.exists (same_const f) unary_reduce_ops
+    | [a, _] => List.exists (same_const f) binary_reduce_ops orelse (same_const f equality andalso type_of a = numSyntax.num)
+    | _ => false)
+  end
+ fun has_reduce_redex tm = can (find_term is_reduce_redex) tm
+in
+fun simple_arith_rule extra_rewr_thms thm =
+ if null extra_rewr_thms
+ then
+  (let
+    val (assl, eqn) = dest_imp $ concl thm
+    val (exec_tm, res) = dest_eq eqn
+    val (actx, s0, _) = dest_arch_multi_exec exec_tm
+   in
+    if List.exists has_reduce_redex [assl, actx, s0, res]
+    then SIMP_RULE simple_arith_ss [] thm
+    else CONV_RULE (RAND_CONV (LAND_CONV (RAND_CONV reduceLib.REDUCE_CONV))) thm
+   end
+   handle HOL_ERR _ => SIMP_RULE simple_arith_ss [] thm
+        | UNCHANGED => SIMP_RULE simple_arith_ss [] thm)
+ else SIMP_RULE simple_arith_ss extra_rewr_thms thm
+end
+
+(* MATCH_MP of arch_multi_exec_comp_n_tl_assl_conj_nomidassl, with the instantiation read off the theorems *)
+fun comp_nomidassl_MP thm1 thm2 =
+ let
+  val (assl, eq1) = dest_imp $ concl thm1
+  val (actx, s0, n) = dest_arch_multi_exec $ lhs eq1
+  val (exec2, res2) = dest_eq $ concl thm2
+  val (_, s1, m) = dest_arch_multi_exec exec2
+  fun parts s = let val (aenv, g_scope_list, arch_frame_list, status) = dest_astate s in [aenv, g_scope_list, arch_frame_list, status] end
+ in
+  MP (ISPECL ([n, m, actx, assl]@(parts s0)@(parts s1)@(parts (dest_some res2))) arch_multi_exec_comp_n_tl_assl_conj_nomidassl) (CONJ thm1 thm2)
+ end
+ handle HOL_ERR _ => MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ thm1 thm2)
+;
+
+fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv, in_local_conv) comp_thm use_eval_in_ctxt step_thm =
  let
   (* DEBUG *)
   val time_start = Time.now();
 
   val (ante, astate, nsteps) = the_final_state_hyp_imp_n step_thm
   (* DEBUG *)
-  val _ = dbg_print debug_flag (String.concat ["\nCommencing regular step from state with path condition: ",
+  (* The message is only built when debugging, since printing the path condition is costly *)
+  val _ = if debug_flag then dbg_print debug_flag (String.concat ["\nCommencing regular step from state with path condition: ",
 				(term_to_string $ ante),
-				"\n"])
+				"\n"]) else ()
 
   (* We can't let evaluation open match_all, or we won't be able to use our path condition,
    * where branch cases for table application are phrased in terms of match_all *)
@@ -1971,48 +2026,6 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigs
      | SOME (funn, stmt) => dbg_print_stmt_red (func_map, b_func_map, ext_fun_map) stmt status
    else ()
   (* TODO: Perform abbreviation/deabbreviation here? *)
-(*
-(* 1. Take the step theorem and disassemble it *)
-val test_thm = step_thm;
-
-val (ante, concl_step) = dest_imp $ concl step_thm
-val (prestate, poststate_opt) = dest_eq concl_step
-val poststate = dest_some poststate_opt
-val (aenv, g_scope_list, arch_frame_list, status) = dest_astate poststate
-
-(* 2. Take the sub-term to abbreviate and pick something to abbreviate it to *)
-val subs_tm = aenv;
-val abc_tm = ``(aenv:v1model_ascope aenv)``;
-val eq_tm = ``^abc_tm = ^subs_tm``
-
-(* 3. Construct a pattern to mark the sub-term to abbreviate in the conclusion of step_thm *)
-val B_tm = ``(B:v1model_ascope aenv)``;
-val pat_tm = “^(mk_imp (ante, mk_eq (prestate, mk_some $ mk_astate(B_tm, g_scope_list, arch_frame_list, status))))”
-
-(* 4. Perform the actual abbreviation *)
-
-val changed_thm = SUBST [B_tm |-> GSYM (ASSUME eq_tm)] pat_tm test_thm
-
-val changed_thm = REWRITE_RULE [GSYM (ASSUME eq_tm)] test_thm;
-
-(* 4. Deabbreviate - requires the stuff from step 2 *)
-
-(* Changing back using instantiation + evaluation: *)
-val changed_back_thm = BETA_RULE (CONV_RULE (RATOR_CONV EVAL) (INST [abc_tm |-> subs_tm] (DISCH_ALL changed_thm)));
-
-(* Changing back using instantiation + modus ponens: *)
-val changed_back_thm = MP (INST [abc_tm |-> subs_tm] (DISCH_ALL changed_thm)) (REFL subs_tm);
-(* Alternative variant: *)
-val changed_back_thm = MP (DISCH_ALL (INST [abc_tm |-> subs_tm] (changed_thm))) (REFL subs_tm);
-
-val changed_back_thm = REWRITE_RULE [gen_rev_thm] (DISCH_ALL (INST [abc_tm |-> subs_tm] (changed_thm)));
-
-*****************************
-
-(* TODO: Is this faster or slower? *)
-SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
-
-*)
  in
   (* TODO: If use_eval_in_ctxt, this should never shortcut apply or select statements, which
    * need to use assumptions in the middle of execution. Fix this when you enable shortcutting
@@ -2024,17 +2037,23 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 
     val block_index = #1 $ dest_aenv aenv
 
+    (* The prebuilt conversion knows ctx_def; rewriting with it is the fallback *)
+    fun prove_in_local tm =
+     EQT_ELIM (in_local_conv tm)
+     handle HOL_ERR _ => EQT_ELIM ((REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv) tm)
+          | UNCHANGED => EQT_ELIM ((REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv) tm)
+
     val (is_local_thm, bigstep_tm) =
      if shortcut_result_eq shortcut res_shortcut
      (* Non-function argument reduction *)
-     then (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     then (prove_in_local $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 (* OLD
      then (HOL4P4_RULE $ REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec (mk_none $ mk_prod (type_of ctx, type_of b_func_map), g_scope_list, arch_frame_list))
 *)
      (* Function argument reduction *)
-     else (EQT_ELIM $ (REWRITE_CONV ([ctx_def, in_local_fun'_def, alistTheory.ALOOKUP_def]) THENC shortcut_conv)$ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
+     else (prove_in_local $ mk_in_local_fun' (lhs $ snd $ strip_forall $ concl ctx_def, block_index, arch_frame_list, nsteps),
            mk_bigstep_arch_exec' (mk_some $ mk_pair (aenv, ctx), g_scope_list, arch_frame_list))
     val bigstep_thm = REWRITE_RULE [GSYM ctx_def] $ shortcut_conv bigstep_tm
 
@@ -2071,7 +2090,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
      else snd bigstep_comp_thms
 
     val res =
-     SIMP_RULE simple_arith_ss []
+     simple_arith_rule []
       (MATCH_MP (MATCH_MP (MATCH_MP shortcut_comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) is_local_thm) bigstep_thm')
 
     (* DEBUG *)
@@ -2147,7 +2166,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
        val time_start2 = Time.now();
 
        val res =
-	SIMP_RULE simple_arith_ss extra_rewr_thms
+	simple_arith_rule extra_rewr_thms
 (* Non-conj version:
 	 (MATCH_MP (MATCH_MP comp_thm (PURE_REWRITE_RULE [GSYM ctx_def] step_thm)) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))
 *)
@@ -2159,7 +2178,7 @@ SUBST_MATCH (GSYM (ASSUME eq_tm)) test_thm
 (* small-big:
 	  (MATCH_MP small_big_exec_comp_conj (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
 *)
-	  (MATCH_MP arch_multi_exec_comp_n_tl_assl_conj_nomidassl (CONJ (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) (PURE_REWRITE_RULE [GSYM ctx_def] step_thm2))))
+	  (comp_nomidassl_MP (PURE_REWRITE_RULE [GSYM ctx_def] step_thm) step_thm2))
 
     (* TEST:
        val res =
@@ -2206,6 +2225,34 @@ fun p4_is_finished n step_thm =
 ;
 
 
+(* Decides whether the state of a step theorem satisfies the end point of a contract *)
+fun p4_end_point_reached restr_tms end_point =
+ if is_const end_point andalso same_const end_point p4_finished_tm
+ then p4_is_finished 0
+ else
+  (fn step_thm =>
+   (Teq $ rhs $ concl $ RESTR_EVAL_CONV restr_tms $ mk_comb (end_point, the_final_state_imp step_thm))
+    handle HOL_ERR _ => false)
+;
+
+(* Raises an error unless the path condition conjuncts about table entries hold when the
+ * symbolic entry lists are empty, so that they cannot make the precondition unsatisfiable *)
+fun check_tbl_wf_satisfiable path_cond_defs path_cond_tm =
+ let
+  val conjs = strip_conj path_cond_tm
+  val wf_conjs = List.filter is_v1model_tbl_is_well_formed conjs
+  val entry_vars = List.filter is_var $ map (snd o dest_pair o #3 o dest_v1model_tbl_is_well_formed) wf_conjs
+  val nil_subst = map (fn var => var |-> mk_nil (dest_list_type $ type_of var)) entry_vars
+  val checked_conjs = List.filter (fn conj => is_v1model_tbl_is_well_formed conj orelse List.exists (fn var => free_in var conj) entry_vars) conjs
+  val conv = QCONV (REWRITE_CONV (path_cond_defs@[v1model_tbl_is_well_formed_def, MAP, EVERY_DEF]) THENC HOL4P4_CONV)
+ in
+  List.app (fn conj =>
+   if Teq $ rhs $ concl $ conv $ subst nil_subst conj
+   then ()
+   else raise (ERR "p4_symb_exec" ("The path condition conjunct "^((term_to_string conj)^" does not hold for empty tables, so the precondition may be unsatisfiable")))) checked_conjs
+ end
+;
+
 (***********************)
 (* Top-level functions *)
 (* The below functions use symb_execLib to prove contracts, or to get intermediate symbolic
@@ -2234,6 +2281,8 @@ val (small_big_exec_tm, mk_small_big_exec, dest_small_big_exec, is_small_big_exe
  * Here, the static ctxt and the dynamic path condition have been merged. *)
 fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt fuel =
  let
+  val _ = check_tbl_wf_satisfiable path_cond_defs (concl path_cond)
+
   (* Evaluation must stop at the inner functions of the packet_in methods *)
   val stop_consts_rewr = add_packet_in_stop_consts stop_consts_rewr
 
@@ -2256,9 +2305,11 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 (* small-big:
   val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_small_big_exec (ctx, astate)))
 *)
-  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add, (fn astate => mk_arch_multi_exec (ctx, astate, 1)))
+  (* Evaluating with the context constant spares converting the whole context at every step *)
+  val norewr_eval_ctxt = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), thms_to_add@[ctx_def], (fn astate => mk_arch_multi_exec (lhs $ snd $ strip_forall $ concl ctx_def, astate, 1)))
   val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts)
-  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm
+  val in_local_conv = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), [ctx_def, in_local_fun'_def], I)
+  val regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv, in_local_conv) comp_thm
   val is_finished =
    if isSome p4_is_finished_alt_opt
    then valOf p4_is_finished_alt_opt
@@ -2267,7 +2318,8 @@ fun p4_symb_exec nthreads_max debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_
 (* DEBUG:
 val bigstep_comp_thms = p4_get_bigstep_comp_thms ctx_def;
 val shortcut_conv = RESTR_HOL4P4_CONV (stop_consts_rewr@stop_consts_never@p4_stop_eval_consts);
-val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv) comp_thm;
+val in_local_conv = p4_get_norewr_eval_ctxt_gen ((stop_consts_rewr@stop_consts_never), [ctx_def, in_local_fun'_def], I);
+val lang_regular_step = p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigstep_comp_thms, shortcut_conv, in_local_conv) comp_thm;
 val lang_init_step_thm = init_step_thm;
 val lang_should_branch = p4_should_branch (fty_map', b_fty_map', pblock_action_names_map) const_actions_tables' path_cond_defs (debug_flag, ctx_def);
 val lang_is_finished = is_finished;
@@ -2602,12 +2654,22 @@ fun get_bits_of_v v =
  else raise (ERR "get_bits_of_v" ("Unsupported v: "^(term_to_string v)))
 ;
 
-fun p4_prove_wellformed_state astate wf_def =
- prove(“^(fst $ dest_comb $ fst $ dest_eq $ snd $ strip_forall $ concl wf_def) ^astate <=> T”,
+fun dest_first_conj tm =
+ let
+  val conjs = strip_conj tm
+ in
+  (hd conjs, tl conjs)
+ end
+;
+
+(* Proves tm <=> T for the predicate of wf_def *)
+fun p4_prove_wellformed_state prove_wf wf_def tm =
+ prove(mk_eq (tm, T),
   REWRITE_TAC [wf_def] >>
-  goal_term (fn tm =>
+  goal_term (fn goal =>
   let
-   val (vars, eqn) = strip_exists tm
+   val (vars, body) = strip_exists goal
+   val (eqn, wf_conjs) = dest_first_conj body
    val (concrete_state, abstract_state) = dest_eq eqn
    val (aenv, g_scope_list, _, _) = dest_astate concrete_state
    val (block_index, io_list, io_list', ascope) = dest_aenv aenv
@@ -2617,7 +2679,8 @@ fun p4_prove_wellformed_state astate wf_def =
    val (_, abstract_ext_obj_map, _, abstract_ctrl, _) = p4_v1modelLib.dest_v1model_ascope $ #4 $ dest_aenv $ #1 $ dest_astate abstract_state
    val abstract_ext_obj_ctrl = mk_pair (abstract_ext_obj_map, abstract_ctrl)
    val ext_obj_ctrl_vars = List.filter (fn v => free_in v abstract_ext_obj_ctrl) vars
-   val ext_obj_ctrl_witnesses = map (subst (fst $ match_term abstract_ext_obj_ctrl (mk_pair (ext_obj_map, ctrl)))) ext_obj_ctrl_vars
+   val ext_obj_ctrl_subst = fst $ match_term abstract_ext_obj_ctrl (mk_pair (ext_obj_map, ctrl))
+   val ext_obj_ctrl_witnesses = map (subst ext_obj_ctrl_subst) ext_obj_ctrl_vars
 
    (* 2. Variables from v_map
     *    * Block parameters of V1Model *)
@@ -2626,15 +2689,31 @@ fun p4_prove_wellformed_state astate wf_def =
    (* 3. Variables from g_scope_list
     *    * Desugaring struct for apply results *)
    val g_scope_list_bits = get_bits_of_v $ fst $ dest_pair $ snd $ dest_pair $ hd $ fst $ dest_list $ hd $ fst $ dest_list g_scope_list
+
+   (* 4. The register contents are well-formed arrays *)
+   val wf_thms = map (prove_wf o subst ext_obj_ctrl_subst) wf_conjs
   in
    (map_every $ exists_tac) ext_obj_ctrl_witnesses >>
    (map_every $ exists_tac) v_map_bits >>
    exists_tac oracle_index >>
-   (map_every $ exists_tac) g_scope_list_bits
+   (map_every $ exists_tac) g_scope_list_bits >>
+   REWRITE_TAC wf_thms
   end
-  ) >>
-  REWRITE_TAC[]
+  )
  )
+;
+
+(* Proves wellformed_register_array w arr, with the simplifier's context *)
+fun p4_prove_wellformed_register_array solver stack tm =
+ let
+  val (w, arr) = dest_wellformed_register_array tm
+  val arr_vars = List.filter (fn v => type_of v = type_of arr) (free_vars arr)
+  val ctxt_thms = List.mapPartial (fn v => SOME (solver stack (mk_wellformed_register_array (w, v))) handle HOL_ERR _ => NONE | UNCHANGED => NONE) arr_vars
+ in
+  case prove_wellformed_register_array ctxt_thms tm of
+    SOME thm => thm
+  | NONE => raise (ERR "p4_prove_wellformed_register_array" ("Could not prove "^(term_to_string tm)))
+ end
 ;
 
 (*
@@ -2645,15 +2724,11 @@ SIMP_TAC (bool_ss++(p4_wellformed_ss wf_def)) []
 *)
 local
 fun wf_conv wf_def =
- let
-  val wf_tm = fst $ dest_comb $ fst $ dest_eq $ snd $ strip_forall $ concl wf_def
- in
-  {conv = K (K (fn tm => p4_prove_wellformed_state (snd $ dest_comb tm) wf_def)),
-   key= SOME ([], mk_comb (wf_tm, mk_var ("astate", “:v1model_ascope astate”))),
-   (* TODO: Better names *)
-   name = "Prove wellformedness (v1model)",
-   trace = 2}
- end
+ {conv = (fn solver => fn stack => p4_prove_wellformed_state (p4_prove_wellformed_register_array solver stack) wf_def),
+  key = SOME ([], lhs $ snd $ strip_forall $ concl wf_def),
+  (* TODO: Better names *)
+  name = "Prove wellformedness (v1model)",
+  trace = 2}
 ;
 
 in
@@ -2688,6 +2763,9 @@ datatype defn_data =
  * path_cond: the initial path condition, which can be thought of as a precondition, stated
  * as a theorem, e.g. ASSUME (b8 = T).
  *
+ * end_point: a predicate on the architectural state, e.g. p4_finished; every path must reach
+ * a state satisfying it, where the postcondition is then proved
+ *
  * n_max: the maximum number of steps the symbolic execution can take per branch.
  *
  * postcond: the postcondition, a term which is a predicate on the architectural state
@@ -2697,9 +2775,19 @@ datatype defn_data =
  * postcond_simpset: additional simpset used when proving the postcondition *)
 (* Note: precondition strengthening is probably not needed, since initial path condition is
  * provided freely *)
-fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max postcond postcond_rewr_thms postcond_simpset =
+fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond end_point n_max postcond postcond_rewr_thms postcond_simpset =
  let
   val stop_consts_rewr' = add_packet_in_stop_consts stop_consts_rewr
+
+  val _ =
+   if is_var end_point
+   then raise (ERR "p4_symb_exec_prove_contract" ("The end point "^((term_to_string end_point)^" is a variable: is its constant in the grammar of the calling script?")))
+   else ()
+  val end_point' = inst (match_type (type_of end_point) (type_of postcond)) end_point
+  val is_finished = p4_end_point_reached (stop_consts_rewr'@stop_consts_never) end_point'
+  (* The postcondition proved on every path: \s. end_point s /\ postcond s *)
+  val state_var = variant (free_vars (mk_pair (end_point', postcond))) (mk_var ("s", type_of init_astate))
+  val postcond' = mk_abs (state_var, mk_conj (mk_comb (end_point', state_var), mk_comb (postcond, state_var)))
 
   (* DEBUG *)
   val time_start = Time.now();
@@ -2719,7 +2807,13 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   (* DEBUG *)
   (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
   val (path_tree, path_cond_step_list) =
-   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr' stop_consts_never thms_to_add path_cond p4_is_finished_alt_opt n_max;
+   p4_symb_exec_fun debug_flag arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr' stop_consts_never thms_to_add path_cond (SOME is_finished) n_max;
+
+  val unfinished_ids = map #1 $ List.filter (not o is_finished o #3) path_cond_step_list
+  val _ =
+   if null unfinished_ids
+   then ()
+   else raise (ERR "p4_symb_exec_prove_contract" (String.concat ["Paths ", String.concatWith ", " (map Int.toString unfinished_ids), " did not reach the end point within ", Int.toString n_max, " steps"]))
 
   (* DEBUG *)
   val time_res = Time.toSeconds ((Time.now()) - time_start)
@@ -2728,7 +2822,7 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
 
   (* Prove postcondition holds for all resulting states in n-step theorems *)
   val id_step_post_thm_list =
-   prove_postconds debug_flag postcond_rewr_thms (stop_consts_rewr'@stop_consts_never) postcond_simpset postcond path_cond_step_list
+   prove_postconds debug_flag (p4_finished_def::postcond_rewr_thms) (stop_consts_rewr'@stop_consts_never) postcond_simpset postcond' path_cond_step_list
 (*
    if debug_flag
    then
@@ -2755,13 +2849,14 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
   val unified_ct_thm = p4_unify_path_tree id_ctthm_list path_tree;
   (* Fix contract format *)
   val ctx_lhs = lhs $ snd $ strip_forall $ concl ctx_def
-  val unified_ct_thm' = prove_contract' unified_ct_thm (path_cond, init_astate, ctx_lhs, postcond);
+  val unified_ct_thm' = prove_contract' unified_ct_thm (path_cond, init_astate, ctx_lhs, postcond');
+  val precond = #1 $ dest_p4_contract' $ concl unified_ct_thm'
 
   (* DEBUG *)
   val _ = dbg_print debug_flag (String.concat ["\nFinished unification of all contracts in ", (LargeInt.toString $ Time.toSeconds ((Time.now()) - time_start)), "s.\n\n"]);
 
  in
-  unified_ct_thm'
+  EQ_MP (SYM $ ISPECL [precond, ctx_lhs, end_point', postcond] p4_contract_at_contract') unified_ct_thm'
  end
 ;
 
@@ -2965,16 +3060,48 @@ val v1model_standard_metadata_name_ty =
       ("parser_error",tau_bit 32); ("priority",tau_bit 3)])”
 ;
 
+val (_, _, dest_lupdate, is_lupdate) = syntax_fns3 "list" "LUPDATE";
+val (_, _, _, is_arch_block_ffbl) = syntax_fns1 "p4" "arch_block_ffbl";
+val (_, mk_v1model_v_ext_register, dest_v1model_v_ext_register, _) = syntax_fns1 "p4_v1model" "v1model_v_ext_register";
+
+(* The contents of a register object INR (v1model_v_ext_register contents) *)
+fun dest_v1model_register_obj v_ext =
+ dest_v1model_v_ext_register $ fst $ sumSyntax.dest_inr v_ext
+;
+
+(* Entry width of register contents *)
+fun register_width pc_conjs contents =
+ if p4_v1modelLib.is_v1model_register_construct_inner contents
+ then SOME (#2 $ p4_v1modelLib.dest_v1model_register_construct_inner contents)
+ else if p4_v1modelLib.is_v1model_register_write_inner contents
+ then register_width pc_conjs (#3 $ p4_v1modelLib.dest_v1model_register_write_inner contents)
+ else if is_lupdate contents
+ then register_width pc_conjs (#3 $ dest_lupdate contents)
+ else if is_var contents
+ then Option.map (fst o dest_wellformed_register_array) (List.find (fn conj => is_wellformed_register_array conj andalso term_eq (snd $ dest_wellformed_register_array conj) contents) pc_conjs)
+ else if is_list contents andalso not (is_nil contents)
+ then (Option.filter numSyntax.is_numeral (snd $ dest_pair $ hd $ fst $ dest_list contents) handle HOL_ERR _ => NONE)
+ else NONE
+;
+
+(* Name of the global variable referring to extern object k, for messages *)
+fun ext_obj_var_name g_scope k =
+ case List.find (fn entry => let val v = fst $ dest_pair $ snd $ dest_pair entry in is_v_ext_ref v andalso term_eq (dest_v_ext_ref v) k end) (fst $ dest_list g_scope) of
+   SOME entry => (" "^(fromHOLstring $ dest_varn_name $ fst $ dest_pair entry) handle HOL_ERR _ => "")
+ | NONE => ""
+;
+
 (* TODO: Make this work for case of remaining input *)
-fun get_v1model_wellformed_defs actx init_astate block_index_stop =
+fun get_v1model_wellformed_defs_gen pc_conjs actx init_astate block_index_stop =
  let
   (* Obtain the function maps for generating star variables *)
-  val (_, _, _, input_f, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
+  val (ab_list, _, _, input_f, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
 
   (* Control plane configuration and persistent extern objects come from the initial state *)
-  val aenv = #1 $ dest_astate init_astate
+  val (aenv, init_g_scope_list, _, _) = dest_astate init_astate
   val ascope = #4 $ dest_aenv aenv
   val (_, ext_obj_map, _, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
+  val init_g_scope = hd $ fst $ dest_list init_g_scope_list
 
   (* TODO: V1Model hack *)
   val (input_f', tparams) = dest_comb input_f
@@ -2982,9 +3109,51 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   val n = int_of_term n_tm
   val (tau1_v, tau2_v) = dest_pair tparams
 
-val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
-  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map) [(^n_tm, INL (core_v_ext_packet ^packet_tail_var)); (^(term_of_int (n+1)), INL (core_v_ext_packet []))]”
+  (* Register contents become variables reg_i with wellformed_register_array w reg_i *)
+  val reg_avoid = free_varsl [ext_obj_map, ctrl, actx]
+  fun abstract_register obj =
+   let
+    val (k, v_ext) = dest_pair obj
+   in
+    case (SOME (dest_v1model_register_obj v_ext) handle HOL_ERR _ => NONE) of
+      NONE => (NONE, obj)
+    | SOME contents =>
+     let
+      val width =
+       case register_width pc_conjs contents of
+         SOME w => w
+       | NONE => raise (ERR "get_v1model_wellformed_defs" ("Cannot find the entry width of register"^(ext_obj_var_name init_g_scope k)^" (extern object "^(term_to_string k)^"), whose contents are "^(term_to_string contents)))
+      val reg_var = variant reg_avoid (mk_var ("reg_"^(Int.toString (int_of_term k)), type_of contents))
+      val left_ty = snd $ sumSyntax.dest_inr v_ext
+     in
+      (SOME (mk_wellformed_register_array (width, reg_var)), mk_pair (k, sumSyntax.mk_inr (mk_v1model_v_ext_register reg_var, left_ty)))
+     end
+   end
+  val (ext_objs, ext_obj_ty) = dest_list ext_obj_map
+  val (wf_conj_opts, ext_objs_abs) = unzip $ map abstract_register ext_objs
+  val wf_conjs = List.mapPartial I wf_conj_opts
+  val ext_obj_map_abs = mk_list (ext_objs_abs, ext_obj_ty)
+
+  (* V1Model: the rest of the packet moves from b to b_temp at the postparser *)
+  val ab_tms = fst $ dest_list ab_list
+  val postparser_index =
+   case List.find (is_arch_block_ffbl o snd) (zip (List.tabulate (length ab_tms, I)) ab_tms) of
+     SOME (i, _) => i
+   | NONE => raise (ERR "get_v1model_wellformed_defs" "No postparser block in the architecture")
+  val block_index_stop_int = int_of_term block_index_stop
+  val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
+  val empty_packet = mk_list ([], bool)
+  val (b_packet, b_temp_packet) =
+   if block_index_stop_int <= postparser_index
+   then (packet_tail_var, empty_packet)
+   else if block_index_stop_int < length ab_tms - 1
+   then (empty_packet, packet_tail_var)
+   else (mk_var ("packet_out", mk_list_type bool), packet_tail_var)
+  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map_abs) [(^n_tm, INL (core_v_ext_packet ^b_packet)); (^(term_of_int (n+1)), INL (core_v_ext_packet ^b_temp_packet))]”
   val ext_obj_ctrl_vars = free_varsl [ext_obj_map', ctrl]
+  (* Context variables, such as the random oracle, become parameters *)
+  val params = List.filter (fn v => free_in v actx) ext_obj_ctrl_vars
+  val ext_obj_ctrl_qvars = List.filter (fn v => not (tmem v params)) ext_obj_ctrl_vars
   val counter' = term_of_int (n+2)
   val tau1 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau1_v”
   val tau2 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau2_v”
@@ -3018,19 +3187,32 @@ val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
                 ("action_run", ^ar_v)],
              NONE:lval option)”
 
-  val g_scope_list' = mk_list ([mk_cons (gen_apply_result_var, var_stars)], scope_ty)
+  (* The other global variables, such as extern references, keep their values *)
+  val g_scope_others = List.filter (fn entry => not (term_eq (fst $ dest_pair entry) (fst $ dest_pair gen_apply_result_var))) (fst $ dest_list init_g_scope)
+  val g_scope' = rhs $ concl $ EVAL “AUPDATE_LIST ^(mk_list (gen_apply_result_var::g_scope_others, type_of gen_apply_result_var)) ^var_stars”
+  val g_scope_list' = mk_list ([g_scope'], scope_ty)
 
   (* TODO: Make this work for ctrl tables that are not constants *)
   (* Note: p4_prove_wellformed_state provides the witnesses in this order *)
-  val def_free_vars = ext_obj_ctrl_vars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  val def_free_vars = ext_obj_ctrl_qvars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  val astate_var = mk_var ("astate", “:v1model_ascope astate”)
+  val state_tm = “((^block_index_stop, [], [], (^counter', ^ext_obj_map', ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running):v1model_ascope astate”
+  val wf_args = params@[astate_var]
+  val wf_var = mk_var ("p4_v1model_parser_wellformed", foldr (fn (arg, ty) => mk_fun_ty (type_of arg) ty) bool wf_args)
  in
   (* TODO: Adjust block index for the block in question, adjust extern map? *)
   Defn.mk_defn "p4_v1model_parser_wellformed"
-   “p4_v1model_parser_wellformed astate <=>
-     ^(list_mk_exists(def_free_vars, 
-     “(astate:v1model_ascope astate) =
-     ((^block_index_stop, [], [], (^counter', ^ext_obj_map', ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+   (mk_eq (list_mk_comb (wf_var, wf_args), list_mk_exists (def_free_vars, list_mk_conj ((mk_eq (astate_var, state_tm))::wf_conjs))))
  end
+;
+
+fun get_v1model_wellformed_defs actx init_astate block_index_stop =
+ get_v1model_wellformed_defs_gen [] actx init_astate block_index_stop
+;
+
+(* Widths of registers with variable contents come from path_cond *)
+fun get_v1model_wellformed_defs_cond actx init_astate path_cond block_index_stop =
+ get_v1model_wellformed_defs_gen (strip_conj $ concl path_cond) actx init_astate block_index_stop
 ;
 
 (* TODO: Move *)
@@ -3039,42 +3221,65 @@ val (p4_v1model_lookup_avar_validity_tm,  mk_p4_v1model_lookup_avar_validity, de
 val (p4_v1model_lookup_avar_tm,  mk_p4_v1model_lookup_avar, dest_p4_v1model_lookup_avar, is_p4_v1model_lookup_avar) =
   syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar";
 
-(* postcond is the postcondition of the contract preceding the intermediate state *)
-fun get_intermediate_state postcond wf_def =
+(* The state equation and the wellformed_register_array conjuncts of wf_def *)
+fun dest_wellformed_def_body wf_def =
+ dest_first_conj $ snd $ strip_exists $ rhs $ snd $ strip_forall $ concl wf_def
+;
+
+(* Substitution from the equations of postcond about looked-up L-values *)
+fun get_intermediate_subst postcond init_astate =
  let
   val (state_var, predicate) = dest_abs postcond
   val conjs = strip_conj predicate
   val usable_conjs = List.filter (fn conj => if is_eq conj then ((fn tm => (is_p4_v1model_lookup_avar tm) orelse (is_p4_v1model_lookup_avar_validity tm)) $ lhs conj) else false) conjs
   val gen_usable_conjs = map (fn conj => mk_abs (state_var, conj)) usable_conjs
 
-  val init_astate = rhs $ snd $ strip_exists $ rhs $ snd $ dest_forall $ concl wf_def
-
   val comb_usable_conjs = map (fn conj => mk_comb (conj, init_astate)) gen_usable_conjs
   (* TODO: EVAL - use HOL4P4_CONV? *)
   val comb_usable_conjs' = map EVAL comb_usable_conjs
   val comb_usable_conjs'' = map (strip_conj o rhs o concl) comb_usable_conjs'
-
-  val subst_eqs = map (fn eqn => if is_eq eqn
-                                 then let val (a,b) = dest_eq eqn in (a |-> b) end
-                                 else if is_neg eqn
-                                      then ((dest_neg eqn) |-> F)
-                                      else (eqn |-> T)) $ flatten comb_usable_conjs''
-  val init_astate' = subst subst_eqs init_astate
  in
-  init_astate'
+  map (fn eqn => if is_eq eqn
+                 then let val (a,b) = dest_eq eqn in (a |-> b) end
+                 else if is_neg eqn
+                      then ((dest_neg eqn) |-> F)
+                      else (eqn |-> T)) $ flatten comb_usable_conjs''
  end
 ;
 
-(* This takes two contracts in p4_contract' formulation, and composes them sequentially.
+(* postcond is the postcondition of the contract preceding the intermediate state *)
+fun get_intermediate_state postcond wf_def =
+ let
+  val init_astate = rhs $ fst $ dest_wellformed_def_body wf_def
+ in
+  subst (get_intermediate_subst postcond init_astate) init_astate
+ end
+;
+
+(* The path condition for the intermediate state: the register contents are well-formed *)
+fun get_intermediate_path_cond postcond wf_def =
+ let
+  val (eqn, wf_conjs) = dest_wellformed_def_body wf_def
+ in
+  if null wf_conjs
+  then ASSUME T
+  else ASSUME (subst (get_intermediate_subst postcond (rhs eqn)) (list_mk_conj wf_conjs))
+ end
+;
+
+(* This takes two contracts in p4_contract_at formulation, and composes them sequentially.
  * wellformed_def is a definition stating the intermediate state is well-formed *)
 (* TODO: This can still be made more efficient *)
 fun p4_combine_contracts contract1 contract2 wellformed_def =
  let
-  val (pre1, ctx1, post1) = dest_p4_contract' $ concl contract1
-  val (pre2, ctx2, post2) = dest_p4_contract' $ concl contract2
+  val (pre1, ctx1, _, post1) = dest_p4_contract_at $ concl contract1
+  val (pre2, ctx2, end2, post2) = dest_p4_contract_at $ concl contract2
 
   val init_state1 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre1
   val init_state2 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre2
+
+  val split_conj_asms =
+   rpt (qpat_x_assum ‘A /\ B’ (fn thm => assume_tac (CONJUNCT1 thm) >> assume_tac (CONJUNCT2 thm)))
 
   val discharge_antecedents =
    rpt (qpat_x_assum ‘A ==> B’ (fn thm =>
@@ -3108,13 +3313,13 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
      k (n1, n2, mid, fin)
     end)
  in
- (* “^(mk_p4_contract' (pre1, ctx2, post2))” *)
-  prove(mk_p4_contract' (pre1, ctx1, post2),
+ (* “^(mk_p4_contract_at (pre1, ctx1, end2, post2))” *)
+  prove(mk_p4_contract_at (pre1, ctx1, end2, post2),
     assume_tac contract1 >>
     (* Somehow massively more efficient than REWRITE_TAC... *)
-    EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [p4_contract'_alt_shape] thm)) >>
+    EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [p4_contract_at_def] thm)) >>
     EVERY_ASSUM (fn thm => PAT_X_ASSUM (concl thm) (fn thm => ASSUME_TAC $ REWRITE_RULE [wellformed_def] thm)) >>
-    SIMP_TAC bool_ss [p4_contract'_alt_shape] >>
+    SIMP_TAC bool_ss [p4_contract_at_def] >>
     rpt strip_tac >>
     (* Simplify the first contract *)
     qpat_x_assum ‘!s. _’ (fn thm => assume_tac (SPEC init_state1 thm)) >>
@@ -3127,9 +3332,11 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
     (* Construction of the intermediate state s'  *)
 
     (* Split up conjoined assumptions *)
-    rpt (qpat_x_assum ‘A /\ B’ (fn thm => assume_tac (CONJUNCT1 thm) >> assume_tac (CONJUNCT2 thm))) >>
+    split_conj_asms >>
     (* Eliminate existentially quantified variables *)
     rpt (qpat_x_assum ‘?vars. _’ (fn thm => CHOOSE_TAC thm)) >>
+    (* Split off the wellformed_register_array conjuncts *)
+    split_conj_asms >>
 
     qpat_x_assum ‘s' = _’ (fn thm => FULL_SIMP_TAC bool_ss [thm]) >>
     (* Use all assumptions on looked-up L-values *)
@@ -3141,7 +3348,7 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
      * the first *)
     with_exec1 (fn (n1, mid) =>
      assume_tac (INST (fst $ match_term init_state2 mid) contract2)) >>
-    FULL_SIMP_TAC std_ss [p4_contract'_alt_shape] >>
+    FULL_SIMP_TAC std_ss [p4_contract_at_def] >>
     discharge_antecedents >>
     FULL_SIMP_TAC std_ss [] >>
 
