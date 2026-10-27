@@ -584,6 +584,23 @@ rw[wellformed_register_array_EVERY, v1model_register_write_inner_def, EVERY_EL, 
 rw[]
 QED
 
+Theorem wellformed_register_array_LUPDATE:
+!w bl n i arr.
+wellformed_register_array w arr /\ n = w /\ LENGTH bl = w ==>
+wellformed_register_array w (LUPDATE (bl, n) i arr)
+Proof
+rw[wellformed_register_array_EVERY, EVERY_EL, EL_LUPDATE] >>
+rw[]
+QED
+
+(* With a symbolic oracle index i, declarations and copy-in compare i with i + n *)
+Theorem num_eq_add_numeral_F:
+!m n. (m = m + NUMERAL (BIT1 n) <=> F) /\ (m = m + NUMERAL (BIT2 n) <=> F)
+Proof
+REWRITE_TAC [arithmeticTheory.NUMERAL_DEF, arithmeticTheory.BIT1, arithmeticTheory.BIT2] >>
+decide_tac
+QED
+
 (*
 Theorem wellformed_register_array_replicate_arb:
 !m n.

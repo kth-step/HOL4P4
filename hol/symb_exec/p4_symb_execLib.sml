@@ -19,6 +19,10 @@ val ERR = mk_HOL_ERR "p4_symb_exec"
 (* Prefix used by the symbolic execution when inserting free HOL4 variables *)
 val p4_symb_arg_prefix = "a";
 
+(* Decides the oracle index comparisons of runs from a symbolic oracle index *)
+val _ = computeLib.add_thms [num_eq_add_numeral_F] computeLib.the_compset;
+val _ = add_HOL4P4_thms [num_eq_add_numeral_F];
+
 fun get_b_func_map i ab_list pblock_map =
  let
   val arch_block = el ((int_of_term i) + 1) (fst $ dest_list ab_list)
@@ -2650,12 +2654,22 @@ fun get_bits_of_v v =
  else raise (ERR "get_bits_of_v" ("Unsupported v: "^(term_to_string v)))
 ;
 
-fun p4_prove_wellformed_state astate wf_def =
- prove(“^(fst $ dest_comb $ fst $ dest_eq $ snd $ strip_forall $ concl wf_def) ^astate <=> T”,
+fun dest_first_conj tm =
+ let
+  val conjs = strip_conj tm
+ in
+  (hd conjs, tl conjs)
+ end
+;
+
+(* Proves tm <=> T for the predicate of wf_def *)
+fun p4_prove_wellformed_state prove_wf wf_def tm =
+ prove(mk_eq (tm, T),
   REWRITE_TAC [wf_def] >>
-  goal_term (fn tm =>
+  goal_term (fn goal =>
   let
-   val (vars, eqn) = strip_exists tm
+   val (vars, body) = strip_exists goal
+   val (eqn, wf_conjs) = dest_first_conj body
    val (concrete_state, abstract_state) = dest_eq eqn
    val (aenv, g_scope_list, _, _) = dest_astate concrete_state
    val (block_index, io_list, io_list', ascope) = dest_aenv aenv
@@ -2665,7 +2679,8 @@ fun p4_prove_wellformed_state astate wf_def =
    val (_, abstract_ext_obj_map, _, abstract_ctrl, _) = p4_v1modelLib.dest_v1model_ascope $ #4 $ dest_aenv $ #1 $ dest_astate abstract_state
    val abstract_ext_obj_ctrl = mk_pair (abstract_ext_obj_map, abstract_ctrl)
    val ext_obj_ctrl_vars = List.filter (fn v => free_in v abstract_ext_obj_ctrl) vars
-   val ext_obj_ctrl_witnesses = map (subst (fst $ match_term abstract_ext_obj_ctrl (mk_pair (ext_obj_map, ctrl)))) ext_obj_ctrl_vars
+   val ext_obj_ctrl_subst = fst $ match_term abstract_ext_obj_ctrl (mk_pair (ext_obj_map, ctrl))
+   val ext_obj_ctrl_witnesses = map (subst ext_obj_ctrl_subst) ext_obj_ctrl_vars
 
    (* 2. Variables from v_map
     *    * Block parameters of V1Model *)
@@ -2674,15 +2689,31 @@ fun p4_prove_wellformed_state astate wf_def =
    (* 3. Variables from g_scope_list
     *    * Desugaring struct for apply results *)
    val g_scope_list_bits = get_bits_of_v $ fst $ dest_pair $ snd $ dest_pair $ hd $ fst $ dest_list $ hd $ fst $ dest_list g_scope_list
+
+   (* 4. The register contents are well-formed arrays *)
+   val wf_thms = map (prove_wf o subst ext_obj_ctrl_subst) wf_conjs
   in
    (map_every $ exists_tac) ext_obj_ctrl_witnesses >>
    (map_every $ exists_tac) v_map_bits >>
    exists_tac oracle_index >>
-   (map_every $ exists_tac) g_scope_list_bits
+   (map_every $ exists_tac) g_scope_list_bits >>
+   REWRITE_TAC wf_thms
   end
-  ) >>
-  REWRITE_TAC[]
+  )
  )
+;
+
+(* Proves wellformed_register_array w arr, with the simplifier's context *)
+fun p4_prove_wellformed_register_array solver stack tm =
+ let
+  val (w, arr) = dest_wellformed_register_array tm
+  val arr_vars = List.filter (fn v => type_of v = type_of arr) (free_vars arr)
+  val ctxt_thms = List.mapPartial (fn v => SOME (solver stack (mk_wellformed_register_array (w, v))) handle HOL_ERR _ => NONE | UNCHANGED => NONE) arr_vars
+ in
+  case prove_wellformed_register_array ctxt_thms tm of
+    SOME thm => thm
+  | NONE => raise (ERR "p4_prove_wellformed_register_array" ("Could not prove "^(term_to_string tm)))
+ end
 ;
 
 (*
@@ -2693,15 +2724,11 @@ SIMP_TAC (bool_ss++(p4_wellformed_ss wf_def)) []
 *)
 local
 fun wf_conv wf_def =
- let
-  val wf_tm = fst $ dest_comb $ fst $ dest_eq $ snd $ strip_forall $ concl wf_def
- in
-  {conv = K (K (fn tm => p4_prove_wellformed_state (snd $ dest_comb tm) wf_def)),
-   key= SOME ([], mk_comb (wf_tm, mk_var ("astate", “:v1model_ascope astate”))),
-   (* TODO: Better names *)
-   name = "Prove wellformedness (v1model)",
-   trace = 2}
- end
+ {conv = (fn solver => fn stack => p4_prove_wellformed_state (p4_prove_wellformed_register_array solver stack) wf_def),
+  key = SOME ([], lhs $ snd $ strip_forall $ concl wf_def),
+  (* TODO: Better names *)
+  name = "Prove wellformedness (v1model)",
+  trace = 2}
 ;
 
 in
@@ -3033,16 +3060,48 @@ val v1model_standard_metadata_name_ty =
       ("parser_error",tau_bit 32); ("priority",tau_bit 3)])”
 ;
 
+val (_, _, dest_lupdate, is_lupdate) = syntax_fns3 "list" "LUPDATE";
+val (_, _, _, is_arch_block_ffbl) = syntax_fns1 "p4" "arch_block_ffbl";
+val (_, mk_v1model_v_ext_register, dest_v1model_v_ext_register, _) = syntax_fns1 "p4_v1model" "v1model_v_ext_register";
+
+(* The contents of a register object INR (v1model_v_ext_register contents) *)
+fun dest_v1model_register_obj v_ext =
+ dest_v1model_v_ext_register $ fst $ sumSyntax.dest_inr v_ext
+;
+
+(* Entry width of register contents *)
+fun register_width pc_conjs contents =
+ if p4_v1modelLib.is_v1model_register_construct_inner contents
+ then SOME (#2 $ p4_v1modelLib.dest_v1model_register_construct_inner contents)
+ else if p4_v1modelLib.is_v1model_register_write_inner contents
+ then register_width pc_conjs (#3 $ p4_v1modelLib.dest_v1model_register_write_inner contents)
+ else if is_lupdate contents
+ then register_width pc_conjs (#3 $ dest_lupdate contents)
+ else if is_var contents
+ then Option.map (fst o dest_wellformed_register_array) (List.find (fn conj => is_wellformed_register_array conj andalso term_eq (snd $ dest_wellformed_register_array conj) contents) pc_conjs)
+ else if is_list contents andalso not (is_nil contents)
+ then (Option.filter numSyntax.is_numeral (snd $ dest_pair $ hd $ fst $ dest_list contents) handle HOL_ERR _ => NONE)
+ else NONE
+;
+
+(* Name of the global variable referring to extern object k, for messages *)
+fun ext_obj_var_name g_scope k =
+ case List.find (fn entry => let val v = fst $ dest_pair $ snd $ dest_pair entry in is_v_ext_ref v andalso term_eq (dest_v_ext_ref v) k end) (fst $ dest_list g_scope) of
+   SOME entry => (" "^(fromHOLstring $ dest_varn_name $ fst $ dest_pair entry) handle HOL_ERR _ => "")
+ | NONE => ""
+;
+
 (* TODO: Make this work for case of remaining input *)
-fun get_v1model_wellformed_defs actx init_astate block_index_stop =
+fun get_v1model_wellformed_defs_gen pc_conjs actx init_astate block_index_stop =
  let
   (* Obtain the function maps for generating star variables *)
-  val (_, _, _, input_f, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
+  val (ab_list, _, _, input_f, _, _, _, _, ext_fun_map, func_map, _, _, _) = dest_actx actx
 
   (* Control plane configuration and persistent extern objects come from the initial state *)
-  val aenv = #1 $ dest_astate init_astate
+  val (aenv, init_g_scope_list, _, _) = dest_astate init_astate
   val ascope = #4 $ dest_aenv aenv
   val (_, ext_obj_map, _, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
+  val init_g_scope = hd $ fst $ dest_list init_g_scope_list
 
   (* TODO: V1Model hack *)
   val (input_f', tparams) = dest_comb input_f
@@ -3050,9 +3109,51 @@ fun get_v1model_wellformed_defs actx init_astate block_index_stop =
   val n = int_of_term n_tm
   val (tau1_v, tau2_v) = dest_pair tparams
 
-val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
-  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map) [(^n_tm, INL (core_v_ext_packet ^packet_tail_var)); (^(term_of_int (n+1)), INL (core_v_ext_packet []))]”
+  (* Register contents become variables reg_i with wellformed_register_array w reg_i *)
+  val reg_avoid = free_varsl [ext_obj_map, ctrl, actx]
+  fun abstract_register obj =
+   let
+    val (k, v_ext) = dest_pair obj
+   in
+    case (SOME (dest_v1model_register_obj v_ext) handle HOL_ERR _ => NONE) of
+      NONE => (NONE, obj)
+    | SOME contents =>
+     let
+      val width =
+       case register_width pc_conjs contents of
+         SOME w => w
+       | NONE => raise (ERR "get_v1model_wellformed_defs" ("Cannot find the entry width of register"^(ext_obj_var_name init_g_scope k)^" (extern object "^(term_to_string k)^"), whose contents are "^(term_to_string contents)))
+      val reg_var = variant reg_avoid (mk_var ("reg_"^(Int.toString (int_of_term k)), type_of contents))
+      val left_ty = snd $ sumSyntax.dest_inr v_ext
+     in
+      (SOME (mk_wellformed_register_array (width, reg_var)), mk_pair (k, sumSyntax.mk_inr (mk_v1model_v_ext_register reg_var, left_ty)))
+     end
+   end
+  val (ext_objs, ext_obj_ty) = dest_list ext_obj_map
+  val (wf_conj_opts, ext_objs_abs) = unzip $ map abstract_register ext_objs
+  val wf_conjs = List.mapPartial I wf_conj_opts
+  val ext_obj_map_abs = mk_list (ext_objs_abs, ext_obj_ty)
+
+  (* V1Model: the rest of the packet moves from b to b_temp at the postparser *)
+  val ab_tms = fst $ dest_list ab_list
+  val postparser_index =
+   case List.find (is_arch_block_ffbl o snd) (zip (List.tabulate (length ab_tms, I)) ab_tms) of
+     SOME (i, _) => i
+   | NONE => raise (ERR "get_v1model_wellformed_defs" "No postparser block in the architecture")
+  val block_index_stop_int = int_of_term block_index_stop
+  val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
+  val empty_packet = mk_list ([], bool)
+  val (b_packet, b_temp_packet) =
+   if block_index_stop_int <= postparser_index
+   then (packet_tail_var, empty_packet)
+   else if block_index_stop_int < length ab_tms - 1
+   then (empty_packet, packet_tail_var)
+   else (mk_var ("packet_out", mk_list_type bool), packet_tail_var)
+  val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map_abs) [(^n_tm, INL (core_v_ext_packet ^b_packet)); (^(term_of_int (n+1)), INL (core_v_ext_packet ^b_temp_packet))]”
   val ext_obj_ctrl_vars = free_varsl [ext_obj_map', ctrl]
+  (* Context variables, such as the random oracle, become parameters *)
+  val params = List.filter (fn v => free_in v actx) ext_obj_ctrl_vars
+  val ext_obj_ctrl_qvars = List.filter (fn v => not (tmem v params)) ext_obj_ctrl_vars
   val counter' = term_of_int (n+2)
   val tau1 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau1_v”
   val tau2 = dest_some $ rhs $ concl $ EVAL “v_to_tau ^tau2_v”
@@ -3086,19 +3187,32 @@ val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
                 ("action_run", ^ar_v)],
              NONE:lval option)”
 
-  val g_scope_list' = mk_list ([mk_cons (gen_apply_result_var, var_stars)], scope_ty)
+  (* The other global variables, such as extern references, keep their values *)
+  val g_scope_others = List.filter (fn entry => not (term_eq (fst $ dest_pair entry) (fst $ dest_pair gen_apply_result_var))) (fst $ dest_list init_g_scope)
+  val g_scope' = rhs $ concl $ EVAL “AUPDATE_LIST ^(mk_list (gen_apply_result_var::g_scope_others, type_of gen_apply_result_var)) ^var_stars”
+  val g_scope_list' = mk_list ([g_scope'], scope_ty)
 
   (* TODO: Make this work for ctrl tables that are not constants *)
   (* Note: p4_prove_wellformed_state provides the witnesses in this order *)
-  val def_free_vars = ext_obj_ctrl_vars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  val def_free_vars = ext_obj_ctrl_qvars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  val astate_var = mk_var ("astate", “:v1model_ascope astate”)
+  val state_tm = “((^block_index_stop, [], [], (^counter', ^ext_obj_map', ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running):v1model_ascope astate”
+  val wf_args = params@[astate_var]
+  val wf_var = mk_var ("p4_v1model_parser_wellformed", foldr (fn (arg, ty) => mk_fun_ty (type_of arg) ty) bool wf_args)
  in
   (* TODO: Adjust block index for the block in question, adjust extern map? *)
   Defn.mk_defn "p4_v1model_parser_wellformed"
-   “p4_v1model_parser_wellformed astate <=>
-     ^(list_mk_exists(def_free_vars, 
-     “(astate:v1model_ascope astate) =
-     ((^block_index_stop, [], [], (^counter', ^ext_obj_map', ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running)”))”
+   (mk_eq (list_mk_comb (wf_var, wf_args), list_mk_exists (def_free_vars, list_mk_conj ((mk_eq (astate_var, state_tm))::wf_conjs))))
  end
+;
+
+fun get_v1model_wellformed_defs actx init_astate block_index_stop =
+ get_v1model_wellformed_defs_gen [] actx init_astate block_index_stop
+;
+
+(* Widths of registers with variable contents come from path_cond *)
+fun get_v1model_wellformed_defs_cond actx init_astate path_cond block_index_stop =
+ get_v1model_wellformed_defs_gen (strip_conj $ concl path_cond) actx init_astate block_index_stop
 ;
 
 (* TODO: Move *)
@@ -3107,29 +3221,49 @@ val (p4_v1model_lookup_avar_validity_tm,  mk_p4_v1model_lookup_avar_validity, de
 val (p4_v1model_lookup_avar_tm,  mk_p4_v1model_lookup_avar, dest_p4_v1model_lookup_avar, is_p4_v1model_lookup_avar) =
   syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar";
 
-(* postcond is the postcondition of the contract preceding the intermediate state *)
-fun get_intermediate_state postcond wf_def =
+(* The state equation and the wellformed_register_array conjuncts of wf_def *)
+fun dest_wellformed_def_body wf_def =
+ dest_first_conj $ snd $ strip_exists $ rhs $ snd $ strip_forall $ concl wf_def
+;
+
+(* Substitution from the equations of postcond about looked-up L-values *)
+fun get_intermediate_subst postcond init_astate =
  let
   val (state_var, predicate) = dest_abs postcond
   val conjs = strip_conj predicate
   val usable_conjs = List.filter (fn conj => if is_eq conj then ((fn tm => (is_p4_v1model_lookup_avar tm) orelse (is_p4_v1model_lookup_avar_validity tm)) $ lhs conj) else false) conjs
   val gen_usable_conjs = map (fn conj => mk_abs (state_var, conj)) usable_conjs
 
-  val init_astate = rhs $ snd $ strip_exists $ rhs $ snd $ dest_forall $ concl wf_def
-
   val comb_usable_conjs = map (fn conj => mk_comb (conj, init_astate)) gen_usable_conjs
   (* TODO: EVAL - use HOL4P4_CONV? *)
   val comb_usable_conjs' = map EVAL comb_usable_conjs
   val comb_usable_conjs'' = map (strip_conj o rhs o concl) comb_usable_conjs'
-
-  val subst_eqs = map (fn eqn => if is_eq eqn
-                                 then let val (a,b) = dest_eq eqn in (a |-> b) end
-                                 else if is_neg eqn
-                                      then ((dest_neg eqn) |-> F)
-                                      else (eqn |-> T)) $ flatten comb_usable_conjs''
-  val init_astate' = subst subst_eqs init_astate
  in
-  init_astate'
+  map (fn eqn => if is_eq eqn
+                 then let val (a,b) = dest_eq eqn in (a |-> b) end
+                 else if is_neg eqn
+                      then ((dest_neg eqn) |-> F)
+                      else (eqn |-> T)) $ flatten comb_usable_conjs''
+ end
+;
+
+(* postcond is the postcondition of the contract preceding the intermediate state *)
+fun get_intermediate_state postcond wf_def =
+ let
+  val init_astate = rhs $ fst $ dest_wellformed_def_body wf_def
+ in
+  subst (get_intermediate_subst postcond init_astate) init_astate
+ end
+;
+
+(* The path condition for the intermediate state: the register contents are well-formed *)
+fun get_intermediate_path_cond postcond wf_def =
+ let
+  val (eqn, wf_conjs) = dest_wellformed_def_body wf_def
+ in
+  if null wf_conjs
+  then ASSUME T
+  else ASSUME (subst (get_intermediate_subst postcond (rhs eqn)) (list_mk_conj wf_conjs))
  end
 ;
 
@@ -3143,6 +3277,9 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
 
   val init_state1 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre1
   val init_state2 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre2
+
+  val split_conj_asms =
+   rpt (qpat_x_assum ‘A /\ B’ (fn thm => assume_tac (CONJUNCT1 thm) >> assume_tac (CONJUNCT2 thm)))
 
   val discharge_antecedents =
    rpt (qpat_x_assum ‘A ==> B’ (fn thm =>
@@ -3195,9 +3332,11 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
     (* Construction of the intermediate state s'  *)
 
     (* Split up conjoined assumptions *)
-    rpt (qpat_x_assum ‘A /\ B’ (fn thm => assume_tac (CONJUNCT1 thm) >> assume_tac (CONJUNCT2 thm))) >>
+    split_conj_asms >>
     (* Eliminate existentially quantified variables *)
     rpt (qpat_x_assum ‘?vars. _’ (fn thm => CHOOSE_TAC thm)) >>
+    (* Split off the wellformed_register_array conjuncts *)
+    split_conj_asms >>
 
     qpat_x_assum ‘s' = _’ (fn thm => FULL_SIMP_TAC bool_ss [thm]) >>
     (* Use all assumptions on looked-up L-values *)

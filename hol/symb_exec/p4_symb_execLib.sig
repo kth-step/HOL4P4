@@ -56,7 +56,11 @@ val p4_debug_symb_exec_frame_lists:
 
 val get_v1model_wellformed_defs : term -> term -> term -> Defn.defn
 
+val get_v1model_wellformed_defs_cond : term -> term -> thm -> term -> Defn.defn
+
 val get_intermediate_state : term -> thm -> term
+
+val get_intermediate_path_cond : term -> thm -> thm
 
 val p4_combine_contracts: thm -> thm -> thm -> thm
 

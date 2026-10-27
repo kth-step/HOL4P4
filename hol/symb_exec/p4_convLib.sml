@@ -224,6 +224,9 @@ in
   in
    computeLib.CBV_CONV hol4p4_compset
   end
+
+ (* Adds rules to the compset of HOL4P4_CONV; call once per theorem *)
+ fun add_HOL4P4_thms thms = computeLib.add_thms thms hol4p4_compset
 end
 
 val HOL4P4_CONV = get_HOL4P4_CONV [];

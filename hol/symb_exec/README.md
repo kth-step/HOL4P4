@@ -126,6 +126,23 @@ The end point decides what the contract says:
 * `\s. T` says that `Q` holds after some number of steps, possibly zero
   (`p4_contract'_contract_at`); with it the executor stops each path after its first step.
 
+## Decomposition
+
+A proof can be split at the start of a block `k`. `get_v1model_wellformed_defs ctx init_astate k`
+defines the predicate `p4_v1model_parser_wellformed`, which holds of a state when block `k` is
+next, no packets are left, and the table entries and extern objects are those of `init_astate`,
+except that the packet objects hold the rest of the packet and each register holds an arbitrary
+array `reg_i` with `wellformed_register_array w reg_i`; the header, metadata and apply-result bits
+and the oracle index are arbitrary. A variable of the context, such as the random oracle, that
+still occurs in the extern objects or the table entries is a parameter of the predicate.
+
+The steps, as in `tests/decompose_registerScript.sml`: a contract from `init_astate` to the end
+point `\s. p4_block_next s k` with the predicate in its postcondition, which the simpset
+`p4_wellformed_ss def` proves; a contract from `get_intermediate_state postcond def` under the
+path condition `get_intermediate_path_cond postcond def`, the register conjuncts; and
+`p4_combine_contracts c1 c2 def`. What the first part writes to a register is not carried to the
+second.
+
 ## Control plane
 
 A contract covers one run from the initial state, and the control plane does not change

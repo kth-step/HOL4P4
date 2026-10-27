@@ -56,6 +56,16 @@ fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list asc
  end
 ;
 
+(* Proves wellformed_register_array w arr, with thms for array variables *)
+fun prove_wellformed_register_array thms tm =
+ let
+  val thm = QCONV (SIMP_CONV (srw_ss()) ([wellformed_register_array_construct_inner, wellformed_register_array_write_inner, wellformed_register_array_LUPDATE, bitstringTheory.length_fixwidth]@thms)) tm
+  val thm' = if Teq $ rhs $ concl thm then thm else QCONV (computeLib.RESTR_EVAL_CONV [v1model_register_construct_inner_tm]) tm
+ in
+  if Teq $ rhs $ concl thm' then SOME (EQT_ELIM thm') else NONE
+ end
+;
+
 fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope = 
  let
   (* 1. Get first entry of register array (for entry width) *)
@@ -85,21 +95,6 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
    rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
   );
 
-  val oracle_index_int = int_of_term oracle_index
-  val w = (int_of_term entry_width)-1
-
-  (* TODO: Move? *)
-  fun provide_oracle_witnesses oracle_index_int 0 =
-     exists_tac (mk_comb (random_oracle_tm, term_of_int oracle_index_int))
-    | provide_oracle_witnesses oracle_index_int w =
-     let
-      val curr_index = oracle_index_int + w
-     in
-      provide_oracle_witnesses oracle_index_int (w-1) >>
-      exists_tac (mk_comb (random_oracle_tm, term_of_int curr_index))
-     end
-  ;
-
   val approx_thm =
    (* “^(mk_imp (mk_wellformed_register_array (entry_width, array), goal_tm))” *)
    prove(mk_imp (mk_wellformed_register_array (entry_width, array), goal_tm),
@@ -109,28 +104,21 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
     SIMP_TAC std_ss [disj_list_def, v1model_register_read_inner_def] >>
     disch_tac >>
     CASE_TAC >- (
-     (* TODO: HOL4P4_TAC or other solution? *)
-     EVAL_TAC >>
-(*
-     ntac (int_of_term entry_width) (exists_tac (mk_arb bool)) >>
-*)
-     provide_oracle_witnesses oracle_index_int w >>
-     REWRITE_TAC []
+     (* The oracle index is taken from the goal, where it may have been simplified *)
+     goal_term (fn tm =>
+      case strip_comb $ lhs $ snd $ strip_exists tm of
+        (_, [n, i, f]) => ACCEPT_TAC (MATCH_MP list_exists_thm (ISPECL [n, i, f] LENGTH_get_oracle_calls))
+      | _ => raise (ERR "approx_v1model_register_read" "unexpected goal for an index out of bounds"))
     ) >>
     Cases_on ‘x’ >>
     imp_res_tac p4_symb_execTheory.wellformed_register_array_oEL >>
     imp_res_tac list_exists_thm >>
     RW_TAC std_ss []
    );
-  (* The antecedent holds for contents from the constructor, also after writes, or may be computable *)
-  val wf_ante_tm = mk_wellformed_register_array (entry_width, array)
-  val wf_ante_thm = QCONV (SIMP_CONV (srw_ss()) [wellformed_register_array_construct_inner, wellformed_register_array_write_inner, bitstringTheory.length_fixwidth]) wf_ante_tm
-  val wf_ante_thm' = if Teq $ rhs $ concl wf_ante_thm then wf_ante_thm else computeLib.RESTR_EVAL_CONV [v1model_register_construct_inner_tm] wf_ante_tm
-
   val approx_thm' =
-   if Teq $ rhs $ concl wf_ante_thm'
-   then MATCH_MP approx_thm (EQT_ELIM wf_ante_thm')
-   else approx_thm
+   case prove_wellformed_register_array [] (mk_wellformed_register_array (entry_width, array)) of
+     SOME wf_thm => MATCH_MP approx_thm wf_thm
+   | NONE => approx_thm
  in
   SOME (approx_thm', [fv_index+(int_of_term entry_width)])
  end
