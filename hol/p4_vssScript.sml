@@ -38,7 +38,7 @@ Definition vss_packet_in_lookahead:
 End
 
 Definition vss_packet_in_advance:
- vss_packet_in_advance = packet_in_advance_gen vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
+ vss_packet_in_advance = packet_in_advance_gen F vss_ascope_lookup vss_ascope_update vss_ascope_update_v_map
 End
 
 Definition vss_packet_out_emit:
@@ -106,6 +106,26 @@ Definition Checksum16_update:
 End
 
 
+(**********)
+(* remove *)
+
+(* Adds the ones' complement of each word: x - y = x + ~y in ones' complement *)
+Definition Checksum16_remove:
+ (Checksum16_remove ((counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_ext_ref i) =>
+   (case ALOOKUP ext_obj_map i of
+    | SOME (INR (vss_v_ext_ipv4_checksum ipv4_checksum)) =>
+     (case get_checksum_incr scope_list (lval_varname (varn_name "data")) of
+      | SOME checksum_incr =>
+       SOME ((counter, AUPDATE ext_obj_map (i, INR (vss_v_ext_ipv4_checksum (ipv4_checksum ++ MAP word_1comp checksum_incr))), v_map, ctrl, oracle_index), scope_list, status_returnv v_bot)
+      | NONE => NONE)
+    | _ => NONE)
+  | _ => NONE
+ )
+End
+
+
 (*******)
 (* get *)
 
@@ -126,22 +146,10 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
-Definition get_optional_bits:
- get_optional_bits header = ((v2n (TAKE 4 (DROP 116 header)))*32) - 160
-End
-
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
-(* NOTE: VSS example starts out at the data link layer (physical layer ignored):
- * https://en.wikipedia.org/wiki/Ethernet_frame#Frame_%E2%80%93_data_link_layer *)
-(* NOTE: VSS example uses only Ethernet II framing:
- * https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II *)
-
-(* The first 14 bytes are always the Eth-II header.
- * The last 4 bytes are always the CRC checksum.
- * In between these is the IPv4 payload. The first 16 bytes
- * of this are mandatory fields. Depending on the IHL header
- * field, 0-46 bytes of option field follows. *)
-(* NOTE: "b" renamed to "b_in" *)
+(* Frames start at the data link layer and exclude the Ethernet CRC, which the arbiter
+ * checks and removes and the demux adds (spec 5.2.1, 5.2.3). The parser gets the whole frame,
+ * and the original frame is kept for the CPU port *)
 (* TODO: Note that this also resets parseError to 0 *)
 Definition vss_input_f_def:
   (vss_input_f n (io_list:in_out_list, ascope:vss_ascope) =
@@ -149,28 +157,16 @@ Definition vss_input_f_def:
    | [] => NONE
    | ((bl,p)::t) =>
     let (counter, ext_obj_map, v_map, ctrl, oracle_index) = reset_ext_obj_map_gen n ascope in
-    let frame_length = LENGTH bl in
-    let optional_bits = get_optional_bits bl in
-    (case oTAKE (272+optional_bits) bl of
-     | SOME header =>
-      (case oDROP (272+optional_bits) bl of
-       | SOME data_crc =>
-        (case ALOOKUP v_map "b_in" of
-         | SOME (v_ext_ref i) =>
-          let ext_obj_map' = AUPDATE ext_obj_map (i, INL (core_v_ext_packet header)) in
-          (case ALOOKUP v_map "data_crc" of
-           | SOME (v_ext_ref i') =>
-            let ext_obj_map'' = AUPDATE ext_obj_map' (i', INL (core_v_ext_packet data_crc)) in
-             (* TODO: Below is a bit of a hack. We should replace all "AUPDATE" with an assign
-              * function for vss_ascope. *)
-             let v_map' = AUPDATE v_map ("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]) in
-             let v_map'' = AUPDATE v_map' ("parseError", v_bit (fixwidth 32 (n2v 0), 32)) in
-              SOME (t, (counter, ext_obj_map'', v_map'', ctrl, oracle_index):vss_ascope)
-           | _ => NONE)
-         | _ => NONE)
-       | NONE => NONE)
-     | NONE => NONE)
-   | _ => NONE)
+    (case (ALOOKUP v_map "b_in", ALOOKUP v_map "b_out", ALOOKUP v_map "payload", ALOOKUP v_map "b_orig") of
+     | (SOME (v_ext_ref i), SOME (v_ext_ref i'), SOME (v_ext_ref i''), SOME (v_ext_ref i''')) =>
+      let ext_obj_map' = AUPDATE_LIST ext_obj_map [(i, INL (core_v_ext_packet bl));
+                                                   (i', INL (core_v_ext_packet []));
+                                                   (i'', INL (core_v_ext_packet []));
+                                                   (i''', INL (core_v_ext_packet bl))] in
+      let v_map' = AUPDATE_LIST v_map [("inCtrl", v_struct [("inputPort", v_bit (w4 (n2w p)))]);
+                                       ("parseError", v_bit (fixwidth 32 (n2v 0), 32))] in
+       SOME (t, (counter, ext_obj_map', v_map', ctrl, oracle_index):vss_ascope)
+     | _ => NONE))
 End
 
 Definition vss_copyin_pbl_def:
@@ -181,12 +177,16 @@ Definition vss_copyout_pbl_def:
  vss_copyout_pbl = copyout_pbl_gen:vss_ascope copyout_pbl
 End
 
+(* Hands the headers to the pipe and the unparsed rest of the frame to the demux *)
 Definition vss_parser_runtime_def:
  vss_parser_runtime (i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  (case ALOOKUP v_map "parsedHeaders" of
-   | SOME (v_struct hdrs) =>
-    let v_map' = AUPDATE v_map ("headers", v_struct hdrs) in
-     SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map', ctrl, oracle_index))
+  (case (ALOOKUP v_map "parsedHeaders", ALOOKUP v_map "b_in", ALOOKUP v_map "payload") of
+   | (SOME (v_struct hdrs), SOME (v_ext_ref j), SOME (v_ext_ref j')) =>
+    (case ALOOKUP ext_obj_map j of
+     | SOME (INL (core_v_ext_packet bl)) =>
+      let ext_obj_map' = AUPDATE_LIST ext_obj_map [(j, INL (core_v_ext_packet [])); (j', INL (core_v_ext_packet bl))] in
+       SOME (i+1, io_list, io_list', (counter, ext_obj_map', AUPDATE v_map ("headers", v_struct hdrs), ctrl, oracle_index))
+     | _ => NONE)
    | _ => NONE)
 End
 
@@ -199,58 +199,45 @@ Definition vss_pre_deparser_def:
    | _ => NONE)
 End
 
-(* Add new header + data + Ethernet CRC as a tuple with new output port to output list *)
-(* Add data + Ethernet CRC *)
-(* TODO: Outsource obtaining the output port to an external function? *)
+(* The demux sends a packet for the recirculation port 13 back to the input, arriving on port 13 *)
+Definition vss_demux_def:
+ vss_demux (i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
+  (case ALOOKUP v_map "outCtrl" of
+   | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
+    if v2n bl = 13
+    then
+     (case (lookup_obj ext_obj_map v_map "b_out", lookup_obj ext_obj_map v_map "payload") of
+      | (SOME (INL (core_v_ext_packet headers)), SOME (INL (core_v_ext_packet payload))) =>
+       SOME (0, (headers++payload, 13)::io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index))
+      | _ => NONE)
+    else SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index))
+   | _ => NONE)
+End
+
+(* Ports 0-7 get the deparsed headers and the payload, the CPU port 14 the original frame;
+ * the drop port 15 and the illegal ports 8-12 drop the packet (spec 5.2.3) *)
+Definition vss_demux_out_def:
+ vss_demux_out port headers payload frame =
+  if port < 8 then [(headers++payload, port)]
+  else if port = 14 then [(frame, port)]
+  else []
+End
+
 (* NOTE: "b" renamed to "b_out" *)
 Definition vss_output_f_def:
  vss_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):vss_ascope) =
-  (case lookup_obj ext_obj_map v_map "b_out" of
-   | SOME (INL (core_v_ext_packet headers)) =>
-    (case lookup_obj ext_obj_map v_map "data_crc" of
-     | SOME (INL (core_v_ext_packet data_crc)) =>
-      (case ALOOKUP v_map "outCtrl" of
-       | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
-        let
-         port_out = v2n bl
-        in
-         if port_out = 15
-         then
-          SOME (in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index))
-         else
-          SOME (in_out_list++[(headers++data_crc, port_out)], (counter, ext_obj_map, v_map, ctrl, oracle_index))
-       | _ => NONE)
+  (case (lookup_obj ext_obj_map v_map "b_out", lookup_obj ext_obj_map v_map "payload", lookup_obj ext_obj_map v_map "b_orig") of
+   | (SOME (INL (core_v_ext_packet headers)), SOME (INL (core_v_ext_packet payload)), SOME (INL (core_v_ext_packet frame))) =>
+    (case ALOOKUP v_map "outCtrl" of
+     | SOME (v_struct [(fldname, v_bit (bl, n))]) =>
+      SOME (in_out_list++(vss_demux_out (v2n bl) headers payload frame), (counter, ext_obj_map, v_map, ctrl, oracle_index))
      | _ => NONE)
    | _ => NONE)
 End
 
-Definition ctrl_check_ttl:
- (ctrl_check_ttl e_l =
-  case e_l of
-  | [e] =>
-   (case e of
-    | e_v v =>
-     (case v of
-      | (v_bit (bl,n)) =>
-       if (v2n bl) > 0
-       then SOME ("NoAction", [])
-       else SOME ("Send_to_cpu", [])
-      | _ => NONE)
-    | _ => NONE)
-  | _ => NONE
- )
-End
-
+(* Longest prefix wins in tables with only lpm and exact keys, otherwise smallest priority *)
 Definition vss_apply_table_f_def:
- vss_apply_table_f (x, e_l, mk_list:mk_list, (x', e_l'), ascope:vss_ascope) =
-  (* TODO: Note that this function could do other stuff here depending on table name.
-   *       Ideally, one could make a general, not hard-coded, solution for this *)
-  if x = "check_ttl"
-  then
-   ctrl_check_ttl e_l
-  else
-   (* Longest prefix wins in tables with only lpm and exact keys, otherwise smallest priority *)
-   apply_table_f_gen (\mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list) (x, e_l, mk_list, (x', e_l'), ascope)
+ vss_apply_table_f = apply_table_f_gen (\mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list):vss_ascope apply_table_f
 End
 
 Definition vss_get_oracle_index_def:

@@ -27,4 +27,7 @@ val (v1model_tbl_is_well_formed_tm, mk_v1model_tbl_is_well_formed, dest_v1model_
 val (wellformed_register_array_tm, mk_wellformed_register_array, dest_wellformed_register_array, is_wellformed_register_array) =
   syntax_fns2 "p4_symb_exec" "wellformed_register_array";
 
+val (p4_assumption_tm, mk_p4_assumption, dest_p4_assumption, is_p4_assumption) =
+  syntax_fns1 "p4_symb_exec" "p4_assumption";
+
 end

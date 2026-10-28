@@ -170,6 +170,7 @@ val basic_actx = ``([arch_block_inp;
   arch_block_pbl "MyIngress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "MyEgress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -1095,8 +1096,9 @@ val basic_actx = ``([arch_block_inp;
                    (e_call (funn_ext "packet_out" "emit")
                       [e_var (varn_name "packet");
                        e_acc (e_var (varn_name "hdr")) "esp"]))))),[])],[],
-   [],[])],[("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 2
+   [],[])],[("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+ v1model_input_f random_oracle 2
    (v_struct
       [("cpu_header",
         v_header F
@@ -1209,7 +1211,7 @@ val basic_actx = ``([arch_block_inp;
             v_bit
               ([F; F; F; F; F; F; F; F; F; F; F; F;
                 F; F; F; F],16))])]),v1model_output_f,
- v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f,
+ v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);

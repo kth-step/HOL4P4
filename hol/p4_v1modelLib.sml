@@ -28,7 +28,13 @@ val v1model_objectless_map =
     ("verify", ([("condition", d_in); ("err", d_in)], v1model_verify));
     ("verify_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_in); ("algo", d_none)], v1model_verify_checksum));
     ("update_checksum", ([("condition", d_in); ("data", d_in); ("checksum", d_inout); ("algo", d_none)], v1model_update_checksum));
-    ("hash", ([("result", d_out); ("algo", d_none); ("base", d_in); ("data", d_in); ("max", d_in)], v1model_hash random_oracle))]``;
+    ("verify_checksum_with_payload", ([("condition", d_in); ("data", d_in); ("checksum", d_in); ("algo", d_none)], v1model_verify_checksum_with_payload));
+    ("update_checksum_with_payload", ([("condition", d_in); ("data", d_in); ("checksum", d_inout); ("algo", d_none)], v1model_update_checksum_with_payload));
+    ("hash", ([("result", d_out); ("algo", d_none); ("base", d_in); ("data", d_in); ("max", d_in)], v1model_hash random_oracle));
+    ("random", ([("result", d_out); ("lo", d_in); ("hi", d_in)], v1model_random random_oracle));
+    ("truncate", ([("length", d_in)], v1model_truncate));
+    ("assert", ([("check", d_in)], v1model_assert));
+    ("assume", ([("check", d_in)], v1model_assume))]``;
 
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
@@ -58,7 +64,8 @@ val v1model_copyout_pbl = ``v1model_copyout_pbl``;
 val v1model_apply_table_f = ``v1model_apply_table_f``;
 
 (* Fixed-function block map *)
-val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser)]``;
+val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser);
+                             ("traffic_manager", ffblock_ff (v1model_traffic_manager random_oracle))]``;
 
 val v1model_register_map =
  ``[("read", ([("this", d_in); ("result", d_out); ("index", d_in)], register_read random_oracle));
@@ -111,6 +118,9 @@ val (v1model_register_write_inner_tm,  mk_v1model_register_write_inner, dest_v1m
 
 val (v1model_update_checksum_inner_tm,  mk_v1model_update_checksum_inner, dest_v1model_update_checksum_inner, is_v1model_update_checksum_inner) =
   syntax_fns1 "p4_v1model" "v1model_update_checksum_inner";
+
+val (v1model_random_inner_tm,  mk_v1model_random_inner, dest_v1model_random_inner, is_v1model_random_inner) =
+  syntax_fns5 "p4_v1model" "v1model_random_inner";
 
 (* Kept folded when the import tool runs the constructors *)
 val v1model_construct_stop_consts = [v1model_register_construct_inner_tm];

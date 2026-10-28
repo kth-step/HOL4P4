@@ -38,7 +38,8 @@ control MyIngress(inout headers hdr, inout metadata meta, inout standard_metadat
         bit<8> x;
         reg.read(x, 0);
         reg.write(0, x + 1);
-        if (hdr.h.a == 0) { sm.egress_spec = 1; } else { sm.egress_spec = 2; }
+        if (hdr.h.a == 0) { hdr.h.b = 1; } else { hdr.h.b = 2; }
+        sm.egress_spec = 1;
     }
 }
 
@@ -46,7 +47,7 @@ control MyEgress(inout headers hdr, inout metadata meta, inout standard_metadata
     apply {
         bit<8> y;
         reg.read(y, 1);
-        if (y == 0) { sm.egress_spec = 1; } else { sm.egress_spec = 2; }
+        if (y == 0) { mark_to_drop(sm); }
     }
 }
 
@@ -140,6 +141,7 @@ val decompose_register_actx = ``([arch_block_inp;
   arch_block_pbl "MyIngress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "MyEgress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
@@ -184,20 +186,28 @@ val decompose_register_actx = ``([arch_block_inp;
                              32));
                        e_binop (e_var (varn_name "x")) binop_add
                          (e_v (v_bit ([F; F; F; F; F; F; F; T],8)))]))
-                (stmt_cond
-                   (e_binop (e_acc (e_acc (e_var (varn_name "hdr")) "h") "a")
-                      binop_eq (e_v (v_bit ([F; F; F; F; F; F; F; F],8))))
-                   (stmt_block []
-                      (stmt_ass
-                         (lval_field (lval_varname (varn_name "sm"))
-                            "egress_spec")
-                         (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9)))))
-                   (stmt_block []
-                      (stmt_ass
-                         (lval_field (lval_varname (varn_name "sm"))
-                            "egress_spec")
-                         (e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))))))))),
-     [])],[],[],[]);
+                (stmt_seq
+                   (stmt_cond
+                      (e_binop
+                         (e_acc (e_acc (e_var (varn_name "hdr")) "h") "a")
+                         binop_eq (e_v (v_bit ([F; F; F; F; F; F; F; F],8))))
+                      (stmt_block []
+                         (stmt_ass
+                            (lval_field
+                               (lval_field (lval_varname (varn_name "hdr"))
+                                  "h") "b")
+                            (e_v (v_bit ([F; F; F; F; F; F; F; T],8)))))
+                      (stmt_block []
+                         (stmt_ass
+                            (lval_field
+                               (lval_field (lval_varname (varn_name "hdr"))
+                                  "h") "b")
+                            (e_v (v_bit ([F; F; F; F; F; F; T; F],8))))))
+                   (stmt_ass
+                      (lval_field (lval_varname (varn_name "sm"))
+                         "egress_spec")
+                      (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9)))))))),[])],
+   [],[],[]);
   ("MyEgress",pbl_type_control,
    [("hdr",d_inout); ("meta",d_inout); ("sm",d_inout)],
    [("MyEgress",
@@ -215,16 +225,10 @@ val decompose_register_actx = ``([arch_block_inp;
                 (e_binop (e_var (varn_name "y")) binop_eq
                    (e_v (v_bit ([F; F; F; F; F; F; F; F],8))))
                 (stmt_block []
-                   (stmt_ass
-                      (lval_field (lval_varname (varn_name "sm"))
-                         "egress_spec")
-                      (e_v (v_bit ([F; F; F; F; F; F; F; F; T],9)))))
-                (stmt_block []
-                   (stmt_ass
-                      (lval_field (lval_varname (varn_name "sm"))
-                         "egress_spec")
-                      (e_v (v_bit ([F; F; F; F; F; F; F; T; F],9)))))))),[])],
-   [],[],[]);
+                   (stmt_ass lval_null
+                      (e_call (funn_ext "" "mark_to_drop")
+                         [e_var (varn_name "sm")]))) stmt_empty))),[])],[],
+   [],[]);
   ("MyComputeChecksum",pbl_type_control,[("hdr",d_inout); ("meta",d_inout)],
    [("MyComputeChecksum",stmt_seq stmt_empty stmt_empty,[])],[],[],[]);
   ("MyDeparser",pbl_type_control,[("packet",d_none); ("hdr",d_in)],
@@ -234,15 +238,16 @@ val decompose_register_actx = ``([arch_block_inp;
           (e_call (funn_ext "packet_out" "emit")
              [e_var (varn_name "packet");
               e_acc (e_var (varn_name "hdr")) "h"])),[])],[],[],[])],
- [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 1
+ [("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+ v1model_input_f random_oracle 1
    (v_struct
       [("h",
         v_header F
           [("a",v_bit ([F; F; F; F; F; F; F; F],8));
            ("b",v_bit ([F; F; F; F; F; F; F; F],8))])],v_struct []),
  v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -341,15 +346,18 @@ val thms_to_add = [];
 val path_cond = ASSUME “LENGTH ^p = 16”;
 val n_max = 200;
 
-(* The cut: block 5 (MyEgress) is about to start *)
-val block_index_stop = “5:num”;
+(* The cut: block 6 (MyEgress) is about to start *)
+val block_index_stop = “6:num”;
 val end_point1 = “(\s. p4_block_next s ^block_index_stop):v1model_ascope astate -> bool”;
 val p4_v1model_parser_wellformed_def = (fn defn => let val _ = Defn.save_defn defn in Defn.fetch_eqns defn end) $ get_v1model_wellformed_defs ctx init_astate block_index_stop;
 
 (* 1. From the initial state to the cut *)
+(* The traffic manager has set egress_port to 1 and egress_spec to 0 *)
 val postcond1 = “(\s. p4_v1model_parser_wellformed s /\
+                      p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_metadata")) "egress_port") s = SOME $ v_bit ([F; F; F; F; F; F; F; F; T],9) /\
+                      p4_v1model_lookup_avar (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") s = SOME $ v_bit (REPLICATE 9 F,9) /\
                       p4_v1model_lookup_avar_validity (lval_field (lval_varname (varn_name "hdr")) "h") s = SOME T):v1model_ascope astate -> bool”;
-val postcond_rewr_thms1 = [p4_symb_execTheory.p4_v1model_lookup_avar_validity_def, p4Theory.lookup_lval_def, p4_coreTheory.v_map_to_scope_def];
+val postcond_rewr_thms1 = [p4_symb_execTheory.p4_v1model_lookup_avar_def, p4_symb_execTheory.p4_v1model_lookup_avar_validity_def, p4Theory.lookup_lval_def, p4_coreTheory.v_map_to_scope_def];
 val postcond_simpset1 = pure_ss++(p4_wellformed_ss p4_v1model_parser_wellformed_def);
 val contract_thm1 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond end_point1 n_max postcond1 postcond_rewr_thms1 postcond_simpset1;
 
@@ -364,8 +372,8 @@ val _ =
 (* The predicate holds for the intermediate state, from its path condition *)
 val _ = EQT_ELIM (SIMP_CONV (bool_ss++p4_wellformed_ss p4_v1model_parser_wellformed_def) [] (mk_imp (concl path_cond2, “p4_v1model_parser_wellformed ^init_astate2”)));
 val end_point = “p4_finished:v1model_ascope astate -> bool”;
-val postcond = “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
-val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def];
+val postcond = “(\s. packet_has_port s 1 \/ packet_dropped s):v1model_ascope astate -> bool”;
+val postcond_rewr_thms = [p4_symb_execTheory.packet_has_port_def, p4_symb_execTheory.packet_dropped_def];
 val contract_thm2 = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate2 stop_consts_rewr stop_consts_never thms_to_add path_cond2 end_point n_max postcond postcond_rewr_thms pure_ss;
 
 (* 3. The combined contract: from the initial state to the end *)

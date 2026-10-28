@@ -260,12 +260,18 @@ Definition lookup_lval_bit32_def:
  )
 End
 
+(* With byte_aligned, an advance by a non-multiple of 8 bits fails, as spec 13.8.4 allows *)
 Definition packet_in_advance_gen_def:
- (packet_in_advance_gen ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+ (packet_in_advance_gen byte_aligned ascope_lookup ascope_update ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
   | SOME (v_ext_ref i) =>
    (case lookup_lval_bit32 scope_list (lval_varname (varn_name "bits")) of
     | SOME n_bits =>
+     if byte_aligned /\ n_bits MOD 8 <> 0
+     then
+      (* NOTE: Serialisation of errors is assumed here - "ParserInvalidArgument" -> 6 *)
+      SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 6), 32)), scope_list, status_trans "reject")
+     else
      (case lookup_ascope_gen ascope_lookup ascope i of
       | SOME ((INL (core_v_ext_packet packet_in_bl)):(core_v_ext, 'b) sum) =>
        (case packet_in_take n_bits packet_in_bl of
@@ -443,12 +449,18 @@ Definition v2w16s_def:
  (v2w16s v = if (LENGTH v) MOD 16 = 0 then SOME (v2w16s' v) else NONE)
 End
 
+(* Zero-pads at the end to a multiple of n bits *)
+Definition pad_bits_def:
+ pad_bits n bl = bl ++ REPLICATE ((n - LENGTH bl MOD n) MOD n) F
+End
+
+(* Data that is not a multiple of 16 bits is zero-padded, as in RFC 1071 *)
 Definition get_checksum_incr_def:
  (get_checksum_incr scope_list ext_data_name =
    (case lookup_lval scope_list ext_data_name of
     | SOME v =>
      (case data_bits v of
-      | SOME bl => v2w16s bl
+      | SOME bl => SOME (v2w16s' (pad_bits 16 bl))
       | NONE => NONE)
     | NONE => NONE)
  )
