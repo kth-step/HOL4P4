@@ -21,7 +21,7 @@ val concur1_actx = ``([arch_block_inp;
   arch_block_pbl "MyComputeChecksum"
     [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "MyDeparser"
-    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_out],
+    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_ffbl "next_copy"; arch_block_out],
  [("MyParser",
    (pbl_type_parser,
     [("packet",d_none); ("hdr",d_out); ("meta",d_inout); ("standard_metadata",d_inout)],
@@ -77,7 +77,8 @@ val concur1_actx = ``([arch_block_inp;
    (pbl_type_control, [("packet",d_none); ("hdr",d_in)],
     [("MyDeparser",stmt_seq stmt_empty stmt_empty,[])], [], [], []))],
  [("postparser",ffblock_ff v1model_postparser);
-  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle (\(i:num) (l:(num # num) list). l)));
+  ("next_copy",ffblock_ff (v1model_next_copy random_oracle))],
  v1model_input_f random_oracle 1 (v_struct [],v_struct []),v1model_output_f,
  v1model_copyin_pbl,v1model_copyout_pbl,v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
@@ -110,7 +111,7 @@ val concur1_astate =
      1, (* Number of extern objects *)
      [(0, INR (v1model_v_ext_register [(fixwidth 16 [], 16)]))],
      (^v1model_init_v_map++["r", v_ext_ref 0]),
-     [("flowlet",[]); ("new_flowlet",[])],
+     ([("flowlet",[]); ("new_flowlet",[])],[]),
      0), (* End of 'a env *)
     [[(varn_name "r", (v_ext_ref 0, NONE))]], (* g_scope_list *)
     arch_frame_list_empty, (* frame_list *)
@@ -124,7 +125,7 @@ val concur1_shared_s =
     (1:num, (* Number of extern objects *)
      [(0:num, INR (v1model_v_ext_register [(fixwidth 16 [], 16)]))]:(num # (core_v_ext + v1model_v_ext)) list,
      (^v1model_init_v_map++["r", v_ext_ref 0]),
-     [("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])],
+     ([("flowlet",[]:(((e list -> bool) # num) # string # e list) list); ("new_flowlet",[])],[]:(num # (num # num) list) list),
      0:num)
    )``;
 
@@ -146,20 +147,20 @@ val concur1_t2_s =
 (* 29 steps to finishing first function *)
  val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 29
 
-(* 57 steps to finishing the entire program *)
- val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 57
+(* 58 steps to finishing the entire program *)
+ val (_, ((i, _, in_out_list', _), _, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 58
 
 First witness from
-  T1: 57 steps
-  T2: 57 steps
+  T1: 58 steps
+  T2: 58 steps
 
 Second witness from
   T1: 29 steps
   T2: 29 steps
-  T1: 28 steps
-  T2: 28 steps
+  T1: 29 steps
+  T2: 29 steps
 
- val (_, ((i, _, in_out_list', _), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 57
+ val (_, ((i, _, in_out_list', _), g_scope_list, arch_frame_list, status)) = debug_arch_from_step "v1model" concur1_actx concur1_astate 58
 *)
 
 val init_conc_state = list_mk_pair[concur1_shared_s, concur1_t1_s, concur1_t2_s];
@@ -168,8 +169,8 @@ val trace1_thm =
  let
   val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 29 1
   val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 29 2
-  val thm3 = get_trace_thread_next_n "v1model" concur1_actx thm2 28 1
-  val thm4 = get_trace_thread_next_n "v1model" concur1_actx thm3 28 2
+  val thm3 = get_trace_thread_next_n "v1model" concur1_actx thm2 29 1
+  val thm4 = get_trace_thread_next_n "v1model" concur1_actx thm3 29 2
  in
   thm4
  end;
@@ -177,10 +178,10 @@ val trace1_thm =
 val trace2_thm =
  let
   (* Call 1: to get_trace_thread_n *)
-  val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 57 1
+  val thm1 = get_trace_thread_n "v1model" concur1_actx init_conc_state 58 1
 
   (* Call 2: Should be to a new to get_trace_thread_next_n that continues from a theorem *)
-  val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 57 2
+  val thm2 = get_trace_thread_next_n "v1model" concur1_actx thm1 58 2
  in
   thm2
  end;
@@ -209,7 +210,7 @@ Theorem concur1_trace_path_interference:
    v1model_ascope_read_ext_obj (v1model_ascope_of_conc_state shared_s'') "r" =
     SOME (INR (v1model_v_ext_register [(fixwidth 16 (n2v 2), 16)])))
 Proof
-EXISTS_TAC “114:num” >>
+EXISTS_TAC “116:num” >>
 EXISTS_TAC t1_s' >>
 EXISTS_TAC t2_s' >>
 EXISTS_TAC shared_s' >>

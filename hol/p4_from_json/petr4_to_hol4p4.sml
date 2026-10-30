@@ -655,8 +655,9 @@ fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (str
    else
     let
      val j' = Int.toString (j - 1)
+     val add_ctrl_list = if is_arch_v1model $ dest_some arch_opt then "v1model_add_ctrl_list" else "add_ctrl_list_gen"
     in
-     String.concat ["(THE (add_ctrl_list_gen ((0, ", term_to_string ins_tm, ", outl", j', ", ascope", j', "), g", j', ", arch_frame_list_empty, status", j', ")\n  [",
+     String.concat ["(THE (", add_ctrl_list, " ((0, ", term_to_string ins_tm, ", outl", j', ", ascope", j', "), g", j', ", arch_frame_list_empty, status", j', ")\n  [",
                     String.concatWith ";\n   " (map stf_add_to_string upds), "]))"]
     end
   val conjs =
@@ -820,6 +821,7 @@ fun v1model_add_ffblocks_to_ab_list ab_list_tm =
                   (el 4 ab_list), (* Egress *)
                   (el 5 ab_list), (* ComputeChecksum *)
                   (el 6 ab_list), (* Deparser *)
+                  ``arch_block_ffbl "next_copy"``,
                   ``arch_block_out``]
  in
   (mk_list (ab_list', ab_list_ty))

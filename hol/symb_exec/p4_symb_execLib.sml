@@ -876,9 +876,12 @@ val apply (tbl_name, e) = apply (“"t2"”, “[e_v (v_bit ([e1; e2; e3; e4; e5
     then
      let
       (* 1. Extract ctrl from ascope *)
-      val ctrl = #4 $ dest_ascope $ #4 $ dest_aenv $ #1 $ dest_astate astate
+      val ascope = #4 $ dest_aenv $ #1 $ dest_astate astate
+      val ctrl = #4 $ dest_ascope ascope
+      (* The tables are the first component of the V1Model ctrl *)
+      val tbls = if type_of ascope = p4_v1modelLib.v1model_arch_ty then mk_fst ctrl else ctrl
       (* 2. Extract key sets from ascope using tbl_name *)
-      val tbl_opt = rhs $ concl $ HOL4P4_CONV $ mk_alookup (ctrl, tbl_name)
+      val tbl_opt = rhs $ concl $ HOL4P4_CONV $ mk_alookup (tbls, tbl_name)
      in
       if is_some tbl_opt
       then

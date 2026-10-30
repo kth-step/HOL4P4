@@ -63,9 +63,17 @@ val v1model_copyout_pbl = ``v1model_copyout_pbl``;
 (* Programmable block output function term *)
 val v1model_apply_table_f = ``v1model_apply_table_f``;
 
-(* Fixed-function block map *)
-val v1model_ffblock_map = ``[("postparser", ffblock_ff v1model_postparser);
-                             ("traffic_manager", ffblock_ff (v1model_traffic_manager random_oracle))]``;
+(* Fixed-function block map, with order_f_tm as the order of multicast copies *)
+local
+ val order_f_var = mk_var ("order_f", ``:num -> (num # num) list -> (num # num) list``)
+ val ffblock_map_tm = ``[("postparser", ffblock_ff v1model_postparser);
+                         ("traffic_manager", ffblock_ff (v1model_traffic_manager random_oracle (order_f:num -> (num # num) list -> (num # num) list)));
+                         ("next_copy", ffblock_ff (v1model_next_copy random_oracle))]``
+in
+fun v1model_ffblock_map_gen order_f_tm = subst [order_f_var |-> order_f_tm] ffblock_map_tm
+end;
+
+val v1model_ffblock_map = v1model_ffblock_map_gen ``\(i:num) (l:(num # num) list). l``;
 
 val v1model_register_map =
  ``[("read", ([("this", d_in); ("result", d_out); ("index", d_in)], register_read random_oracle));

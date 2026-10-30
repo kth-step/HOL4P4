@@ -177,7 +177,7 @@ val basic_actx = ``([arch_block_inp;
   arch_block_pbl "MyComputeChecksum"
     [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "MyDeparser"
-    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_out],
+    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_ffbl "next_copy"; arch_block_out],
  [("MyParser",pbl_type_parser,
    [("packet",d_none); ("hdr",d_out); ("meta",d_inout);
     ("standard_metadata",d_inout)],
@@ -1097,7 +1097,8 @@ val basic_actx = ``([arch_block_inp;
                       [e_var (varn_name "packet");
                        e_acc (e_var (varn_name "hdr")) "esp"]))))),[])],[],
    [],[])],[("postparser",ffblock_ff v1model_postparser);
-  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle (\(i:num) (l:(num # num) list). l)));
+  ("next_copy",ffblock_ff (v1model_next_copy random_oracle))],
  v1model_input_f random_oracle 2
    (v_struct
       [("cpu_header",
@@ -1266,7 +1267,7 @@ val basic_actx = ``([arch_block_inp;
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
 val basic_astate = ``((0,[],[],2,[(0,INR v1model_v_ext_ipsec_crypt); (1,INR (v1model_v_ext_register (v1model_register_construct_inner 1024 32 0 random_oracle)))],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)],32768),
+  ([("spd",spd_tbl); ("forward",forward_tbl); ("sad_decrypt",sad_decrypt_tbl); ("sad_encrypt",sad_encrypt_tbl)],[]),32768),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);

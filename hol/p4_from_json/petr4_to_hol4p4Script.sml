@@ -5430,12 +5430,14 @@ Definition v1model_init_ctrl_def:
  v1model_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map))
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
   in
-   init_ctrl_gen init_tbl_map' tbl_updates
+   case init_ctrl_gen init_tbl_map' tbl_updates of
+   | SOME tables => SOME ((tables, []):v1model_ctrl)
+   | NONE => NONE
 End
 
 

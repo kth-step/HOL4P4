@@ -25,21 +25,25 @@ Datatype:
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
  | v1model_v_ext_register ((bool list # num) list)
+ (* Pending multicast copies: egress block index, v_map snapshot, "b", "b_temp", remaining (port, rid) *)
+ | v1model_v_ext_copies (num # ((string, v) alist) # bool list # bool list # (num # num) list)
  (* From IPSec example *)
  | v1model_v_ext_ipsec_crypt
 End
 Type v1model_sum_v_ext = “:(core_v_ext, v1model_v_ext) sum”
 
-(* The control plane representation:
+(* The control plane representation, the table map and the multicast groups:
 
    (* the table name *)
-   (string, 
+   ((string,
      (* the key of a table entry: first element is a predicate for matching, second is priority *)
     ((e_list -> bool, num),
      (* the action of a table entry: string is action name, e_list is arguments *)
-     string # e_list) alist) alist``)
+     string # e_list) alist) alist,
+    (* the multicast group id (mcast_grp) to its (egress port, egress rid) copies in replication order *)
+    (num, (num # num) list) alist)
 *)
-Type v1model_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
+Type v1model_ctrl = “:((string, (((e_list -> bool) # num), string # e_list) alist) alist) # ((num, (num # num) list) alist)”
 
 (* The architectural state type of the V1Model architecture model *)
 Type v1model_ascope = “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl # num)”
@@ -758,7 +762,7 @@ Definition v1model_input_f_def:
    let counter' = counter + 2 in
    let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("egress_port", 9); ("ingress_global_timestamp", 48)] in
    (* TODO: Currently, no garbage collection in v_map is done *)
-   let v_map' = AUPDATE_LIST (FILTER (\ (k, v). k <> "truncate_length") v_map) [("b", v_ext_ref counter);
+   let v_map' = AUPDATE_LIST (FILTER (\ (k, v). k <> "truncate_length" /\ k <> "copies$") v_map) [("b", v_ext_ref counter);
                                     ("b_temp", v_ext_ref (counter+1));
                                     ("standard_metadata", v_struct (AUPDATE_LIST (^v1model_standard_metadata_zeroed) ([("ingress_port", v_bit (w9 (n2w p))); ("packet_length", v_bit (fixwidth 32 (n2v (LENGTH bl DIV 8)), 32))]++drawn)));
                                     ("parsedHdr", tau1_uninit_v);
@@ -819,11 +823,36 @@ Definition v1model_is_drop_port_def:
   else F
 End
 
-(* Between ingress and egress, as in BMv2 (simple_switch.cpp): multicast is not modelled,
- * egress_spec 511 drops the packet, otherwise egress starts on egress_port := egress_spec
- * with egress_spec 0 (BMv2 writes 512 into the bit<9> field) and the queue fields drawn *)
+Definition remove_first_def:
+ (remove_first x [] = []) /\
+ (remove_first x (h::t) = if x = h then t else h::remove_first x t)
+End
+
+(* Whether the first list is a permutation of the second *)
+Definition is_perm_def:
+ (is_perm [] l = (l = [])) /\
+ (is_perm (h::t) l = (MEM h l /\ is_perm t (remove_first h l)))
+End
+
+(* The (egress port, egress rid) copies of a multicast group, NONE for an unknown group *)
+Definition v1model_mcast_copies_def:
+ v1model_mcast_copies (groups:(num, (num # num) list) alist) mcast_bl = ALOOKUP groups (v2n mcast_bl)
+End
+
+(* Starts egress on a multicast copy to port with rid, as BMv2 does for each copy *)
+Definition v1model_install_copy_def:
+ v1model_install_copy random_oracle oracle_index (v_map:(string, v) alist) (port:num) (rid:num) =
+  (case ALOOKUP v_map "standard_metadata" of
+   | SOME (v_struct fields) =>
+    let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("enq_timestamp", 32); ("enq_qdepth", 19); ("deq_timedelta", 32); ("deq_qdepth", 19); ("egress_global_timestamp", 48)] in
+    let fields' = AUPDATE_LIST fields ([("egress_port", v_bit (fixwidth 9 (n2v port), 9)); ("egress_rid", v_bit (fixwidth 16 (n2v rid), 16)); ("instance_type", v_bit (fixwidth 32 (n2v 5), 32)); ("egress_spec", v_bit (fixwidth 9 (n2v 0), 9))]++drawn) in
+     SOME (AUPDATE v_map ("standard_metadata", v_struct fields'), oracle_index')
+   | _ => NONE)
+End
+
+(* End of ingress as in BMv2 (simple_switch.cpp): multicast before the drop port *)
 Definition v1model_traffic_manager_def:
- v1model_traffic_manager random_oracle ((i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)):v1model_ascope aenv) =
+ v1model_traffic_manager random_oracle order_f ((i, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index)):v1model_ascope aenv) =
   (case ALOOKUP v_map "standard_metadata" of
    | SOME (v_struct fields) =>
     (case ALOOKUP fields "egress_spec" of
@@ -831,20 +860,42 @@ Definition v1model_traffic_manager_def:
       (case ALOOKUP fields "mcast_grp" of
        | SOME (v_bit (mcast_bl, n')) =>
         if v2n mcast_bl <> 0
-        then NONE
+        then
+         (case v1model_mcast_copies groups mcast_bl of
+          | SOME copies =>
+           let copies' = order_f oracle_index copies in
+           if ~is_perm copies' copies
+           then NONE
+           else
+            (case copies' of
+             | [] => SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index))
+             | ((port, rid)::rest) =>
+              (case lookup_obj ext_obj_map v_map "b" of
+               | SOME (INL (core_v_ext_packet b_bl)) =>
+                (case lookup_obj ext_obj_map v_map "b_temp" of
+                 | SOME (INL (core_v_ext_packet b_temp_bl)) =>
+                  let snap = FILTER (\ (k, v). k <> "truncate_length" /\ k <> "copies$") v_map in
+                  (case v1model_install_copy random_oracle (oracle_index + 1) snap port rid of
+                   | SOME (v_map', oracle_index') =>
+                    if rest = []
+                    then SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map', (tables, groups), oracle_index'))
+                    else SOME (i+1, io_list, io_list', (counter + 1, AUPDATE ext_obj_map (counter, INR (v1model_v_ext_copies (i+1, snap, b_bl, b_temp_bl, rest))), AUPDATE v_map' ("copies$", v_ext_ref counter), (tables, groups), oracle_index'))
+                   | NONE => NONE)
+                 | _ => NONE)
+               | _ => NONE))
+          | NONE => SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index)))
         else if v1model_is_drop_port spec_bl
-        then SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index))
+        then SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index))
         else
          let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("enq_timestamp", 32); ("enq_qdepth", 19); ("deq_timedelta", 32); ("deq_qdepth", 19); ("egress_global_timestamp", 48)] in
-         let fields' = AUPDATE_LIST fields ([("egress_port", v_bit (spec_bl, n)); ("egress_spec", v_bit (fixwidth 9 (n2v 0), 9))]++drawn) in
-          SOME (i+1, io_list, io_list', (counter, ext_obj_map, AUPDATE v_map ("standard_metadata", v_struct fields'), ctrl, oracle_index'))
+         let fields' = AUPDATE_LIST fields ([("egress_port", v_bit (spec_bl, n)); ("egress_spec", v_bit (fixwidth 9 (n2v 0), 9)); ("instance_type", v_bit (fixwidth 32 (n2v 0), 32))]++drawn) in
+          SOME (i+1, io_list, io_list', (counter, ext_obj_map, AUPDATE v_map ("standard_metadata", v_struct fields'), (tables, groups), oracle_index'))
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
 End
 
 (* Egress drops the packet with egress_spec 511, otherwise it leaves on egress_port *)
-(* NOTE: "b" renamed to "b_out" *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   (case lookup_obj ext_obj_map v_map "b" of
@@ -865,6 +916,33 @@ Definition v1model_output_f_def:
    | _ => NONE)
 End
 
+(* After the deparser: emits the current multicast copy and starts egress on the next one *)
+Definition v1model_next_copy_def:
+ v1model_next_copy random_oracle ((i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)):v1model_ascope aenv) =
+  (case ALOOKUP v_map "copies$" of
+   | SOME (v_ext_ref k) =>
+    (case ALOOKUP ext_obj_map k of
+     | SOME (INR (v1model_v_ext_copies (egress_i, snap, b_bl, b_temp_bl, ((port, rid)::rest)))) =>
+      (case v1model_output_f (io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)) of
+       | SOME (io_list'', _) =>
+        (case ALOOKUP snap "b" of
+         | SOME (v_ext_ref j) =>
+          (case ALOOKUP snap "b_temp" of
+           | SOME (v_ext_ref j') =>
+            (case v1model_install_copy random_oracle oracle_index snap port rid of
+             | SOME (v_map', oracle_index') =>
+              let ext_obj_map' = AUPDATE_LIST ext_obj_map [(j, INL (core_v_ext_packet b_bl)); (j', INL (core_v_ext_packet b_temp_bl))] in
+              if rest = []
+              then SOME (egress_i, io_list, io_list'', (counter, ext_obj_map', v_map', ctrl, oracle_index'))
+              else SOME (egress_i, io_list, io_list'', (counter, AUPDATE ext_obj_map' (k, INR (v1model_v_ext_copies (egress_i, snap, b_bl, b_temp_bl, rest))), AUPDATE v_map' ("copies$", v_ext_ref k), ctrl, oracle_index'))
+             | NONE => NONE)
+           | _ => NONE)
+         | _ => NONE)
+       | NONE => NONE)
+     | _ => SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)))
+   | _ => SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)))
+End
+
 (* Whether the largest priority (for lpm, the longest prefix) wins *)
 Definition v1model_largest_wins_def:
  (v1model_largest_wins v1model_api_tdi mk_list = (MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list)) /\
@@ -872,7 +950,8 @@ Definition v1model_largest_wins_def:
 End
 
 Definition v1model_apply_table_f_def:
- v1model_apply_table_f api = apply_table_f_gen (v1model_largest_wins api):v1model_ascope apply_table_f
+ v1model_apply_table_f api (x, e_l, mk_list, (x', e_l'), ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope)) =
+  apply_table_f_gen (v1model_largest_wins api) (x, e_l, mk_list, (x', e_l'), (counter, ext_obj_map, v_map, FST ctrl, oracle_index))
 End
 
 Definition v1model_get_oracle_index_def:

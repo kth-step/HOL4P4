@@ -32,6 +32,7 @@ val symb_exec2_actx = ``([arch_block_inp;
      e_var (varn_name "standard_metadata")];
   arch_block_pbl "update" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "deparser" [e_var (varn_name "b"); e_var (varn_name "hdr")];
+  arch_block_ffbl "next_copy";
   arch_block_out],
  [("p",pbl_type_parser,
    [("b",d_none); ("h",d_out); ("m",d_inout); ("sm",d_inout)],
@@ -70,7 +71,8 @@ val symb_exec2_actx = ``([arch_block_inp;
              (lval_field (lval_varname (varn_name "standard_meta"))
                 "egress_spec") (e_v (v_bit ([F; F; F; F; F; F; F; T; F],9))))),
      [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser);
-  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle))],
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle (\(i:num) (l:(num # num) list). l)));
+  ("next_copy",ffblock_ff (v1model_next_copy random_oracle))],
  v1model_input_f random_oracle 0
    (v_struct
       [("h",
@@ -130,7 +132,7 @@ val symb_exec2_actx = ``([arch_block_inp;
 
 val p = “p:bool list”;
 
-val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^p,0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[],0),
+val symb_exec2_astate_symb = rhs $ concl $ EVAL “p4_append_input_list [(^p,0)] ((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],([],[]),0),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);
