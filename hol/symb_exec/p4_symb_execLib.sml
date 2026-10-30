@@ -126,6 +126,11 @@ fun alookup_str alist string =
  end
 ;
 
+(* Whether the HOL4 alist term alist has the ML string string as a key *)
+fun alist_has_str alist string =
+ List.exists (fn kv => stringLib.fromHOLstring (fst $ dest_pair kv) = string) $ fst $ dest_list alist
+;
+
 (* The bits of a bit field of the v1model standard_metadata *)
 fun v1model_get_sm_field v_map fld =
  let
@@ -137,6 +142,7 @@ fun v1model_get_sm_field v_map fld =
 
 val arch_block_out_tm = prim_mk_const {Thy = "p4", Name = "arch_block_out"};
 val v1model_traffic_manager_block_tm = mk_comb (prim_mk_const {Thy = "p4", Name = "arch_block_ffbl"}, fromMLstring "traffic_manager");
+val v1model_next_copy_block_tm = mk_comb (prim_mk_const {Thy = "p4", Name = "arch_block_ffbl"}, fromMLstring "next_copy");
 
 (* Folded only until the path condition rewrites a step after a branch on them *)
 val branch_stop_consts = [prim_mk_const {Thy = "p4_v1model", Name = "v1model_is_drop_port"},
@@ -181,6 +187,9 @@ fun astate_get_branch_data ab_list astate =
     then output $ v1model_get_sm_field v_map "egress_spec"
     else if term_eq block v1model_traffic_manager_block_tm
     then traffic_manager (v1model_get_sm_field v_map "egress_spec", v1model_get_sm_field v_map "mcast_grp")
+    (* next_copy emits a pending multicast copy as the output block does *)
+    else if term_eq block v1model_next_copy_block_tm andalso alist_has_str v_map "copies$"
+    then output $ v1model_get_sm_field v_map "egress_spec"
     else no_branch
    end
   else no_branch
@@ -801,6 +810,102 @@ fun p4_assume_branch path_tm fv_index scope_list =
  end
 ;
 
+val v1model_traffic_manager_tm = prim_mk_const {Thy = "p4_v1model", Name = "v1model_traffic_manager"};
+val v1model_mcast_copies_tm = prim_mk_const {Thy = "p4_v1model", Name = "v1model_mcast_copies"};
+val all_perms_tm = prim_mk_const {Thy = "p4_symb_exec", Name = "all_perms"};
+val v1model_wf_ordering_tm = prim_mk_const {Thy = "p4_symb_exec", Name = "v1model_wf_ordering"};
+
+(* The copy ordering X of the V1Model traffic manager v1model_traffic_manager _ X in actx, if any *)
+fun v1model_ctx_ordering actx =
+ let
+  fun is_tm_ordering tm =
+   case strip_comb tm of
+     (f, [_, _]) => same_const f v1model_traffic_manager_tm
+   | _ => false
+ in
+  SOME (rand $ find_term is_tm_ordering actx)
+  handle HOL_ERR _ => NONE
+ end
+;
+
+(* path_cond with v1model_wf_ordering order_f conjoined, when the ordering in actx is a variable order_f *)
+fun v1model_add_wf_ordering actx path_cond =
+ case v1model_ctx_ordering actx of
+   SOME order_f =>
+  if is_var order_f
+  then ASSUME (mk_conj (concl path_cond, mk_comb (v1model_wf_ordering_tm, order_f)))
+  else path_cond
+ | NONE => path_cond
+;
+
+(* |- t from |- e_1 \/ ... \/ e_n \/ F, where t is a disjunction ending in F with every e_i as a disjunct *)
+fun disj_weaken t thm =
+ let
+  fun intro th tm =
+   let
+    val (l, r) = dest_disj tm
+   in
+    if aconv l (concl th) then DISJ1 th r else DISJ2 l (intro th r)
+   end
+  fun elim th =
+   if Feq $ concl th
+   then CONTR t th
+   else
+    let
+     val (l, r) = dest_disj $ concl th
+    in
+     DISJ_CASES th (intro (ASSUME l) t) (elim (ASSUME r))
+    end
+ in
+  elim thm
+ end
+;
+
+(* |- v1model_wf_ordering order_f ==> disj_list [order_f oracle_index copies = p; ...] over the distinct permutations p *)
+fun v1model_ordering_disj_thm order_f oracle_index copies =
+ let
+  val wf_tm = mk_comb (v1model_wf_ordering_tm, order_f)
+  val mem_thm = MP (SPECL [order_f, oracle_index, copies] v1model_wf_ordering_all_perms) (ASSUME wf_tm)
+  val perms_thm = EVAL (mk_icomb (all_perms_tm, copies))
+  fun distinct [] = []
+    | distinct (h::t) = h::(distinct $ List.filter (fn tm => not $ term_eq h tm) t)
+  val perms = distinct $ fst $ dest_list $ rhs $ concl perms_thm
+  val order_tm = list_mk_comb (order_f, [oracle_index, copies])
+  val goal_tm = mk_disj_list $ map (fn perm => mk_eq (order_tm, perm)) perms
+  val goal_def_thm = PURE_REWRITE_CONV [disj_list_def] goal_tm
+  val mem_thm' = PURE_REWRITE_RULE [perms_thm, listTheory.MEM] mem_thm
+ in
+  DISCH wf_tm $ EQ_MP (SYM goal_def_thm) (disj_weaken (rhs $ concl goal_def_thm) mem_thm')
+ end
+;
+
+(* Branch on the copy ordering of a multicast to group mcast_bl, when the context leaves it free *)
+fun v1model_mcast_branch actx ascope mcast_bl fv_index =
+ let
+  val (_, _, _, ctrl, oracle_index) = p4_v1modelLib.dest_v1model_ascope ascope
+  val copies_opt = rhs $ concl $ HOL4P4_CONV $ list_mk_comb (v1model_mcast_copies_tm, [mk_snd ctrl, mcast_bl])
+ in
+  if is_none copies_opt
+  then NONE
+  else if not (is_some copies_opt andalso is_list (dest_some copies_opt))
+  then raise (ERR "v1model_mcast_branch" ("The copies of the multicast group are not a list: "^(term_to_string copies_opt)))
+  else
+   (case v1model_ctx_ordering actx of
+      SOME order_f =>
+     if is_var order_f
+     then
+      let
+       val disj_thm = v1model_ordering_disj_thm order_f oracle_index (dest_some copies_opt)
+      in
+       SOME (disj_thm, List.tabulate (length $ dest_disj_list $ snd $ dest_imp $ concl disj_thm, K fv_index))
+      end
+     else if null $ free_vars order_f
+     then NONE
+     else raise (ERR "v1model_mcast_branch" ("The copy ordering of the traffic manager is neither a variable nor a closed term: "^(term_to_string order_f)))
+    | NONE => NONE)
+ end
+;
+
 fun p4_should_branch (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs (debug_flag, ctx_def) (fv_index, step_thm) =
  let
   (* DEBUG *)
@@ -1158,14 +1263,20 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
      end
     else NONE
    end
-  (* Branch point: drop decision of the v1model traffic manager *)
+  (* Branch point: drop decision or multicast copy ordering of the v1model traffic manager *)
   | traffic_manager (spec_bl, mcast_bl) =>
-   if not $ Teq $ rhs $ concl $ EVAL (mk_eq (bitstringSyntax.mk_v2n mcast_bl, zero_tm))
-   then raise (ERR "p4_should_branch" ("mcast_grp may be nonzero after ingress: multicast is not modelled, so the traffic manager is stuck. mcast_grp: "^(term_to_string mcast_bl)))
-   else if (not $ null $ free_vars spec_bl orelse HOLset.member (all_atoms spec_bl, mk_arb bool))
-   then SOME (SPEC “v1model_is_drop_port ^spec_bl” disj_list_EXCLUDED_MIDDLE, [fv_index, fv_index])
-   else NONE
-  (* Branch point: emission of packet in final block *)
+   let
+    val mcast_grp = rhs $ concl $ EVAL (bitstringSyntax.mk_v2n mcast_bl)
+   in
+    if not $ is_numeral mcast_grp
+    then raise (ERR "p4_should_branch" "symbolic mcast_grp at the traffic manager is not supported")
+    else if not $ term_eq mcast_grp zero_tm
+    then v1model_mcast_branch (rhs $ snd $ strip_forall $ concl ctx_def) (#4 $ dest_aenv $ #1 $ dest_astate astate) mcast_bl fv_index
+    else if (not $ null $ free_vars spec_bl orelse HOLset.member (all_atoms spec_bl, mk_arb bool))
+    then SOME (SPEC “v1model_is_drop_port ^spec_bl” disj_list_EXCLUDED_MIDDLE, [fv_index, fv_index])
+    else NONE
+   end
+  (* Branch point: emission of a packet in the output block, or of a multicast copy in next_copy *)
   | output port_bl =>
    if (not $ null $ free_vars port_bl orelse HOLset.member (all_atoms port_bl, mk_arb bool))
    then
@@ -2903,6 +3014,9 @@ fun p4_symb_exec_prove_contract_gen p4_symb_exec_fun debug_flag arch_ty ctx_data
    | def_thm ctx_def =>
     (rhs $ snd $ strip_forall $ concl ctx_def, ctx_def)
 
+  (* A free copy ordering of the V1Model traffic manager is assumed to permute the copies *)
+  val path_cond = v1model_add_wf_ordering ctx path_cond
+
   (* Perform symbolic execution until all branches are finished *)
   (* DEBUG *)
   (* val p4_symb_exec_fun = (p4_symb_exec 1); *)
@@ -3001,9 +3115,9 @@ fun p4_debug_symb_exec arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names
      (ctx_tm, hd $ Defn.eqns_of $ Defn.mk_defn ctx_name (mk_eq(mk_var(ctx_name, type_of ctx_tm), ctx_tm)))
     end
    | def_thm ctx_def =>
-    (snd $ strip_forall $ rhs $ concl ctx_def, ctx_def)
+    (rhs $ snd $ strip_forall $ concl ctx_def, ctx_def)
 
-  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add path_cond NONE fuel
+  val (path_tree, state_list) = p4_symb_exec 1 true arch_ty (ctx_def, ctx) (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never thms_to_add (v1model_add_wf_ordering ctx path_cond) NONE fuel
   val state_list_tms = map (fn (path_id, path_cond, step_thm) => (path_id, path_cond, dest_step_thm step_thm)) state_list
  in
   (path_tree, state_list_tms)
@@ -3019,18 +3133,6 @@ fun p4_debug_symb_exec_frame_lists arch_ty ctx_data (fty_map, b_fty_map, pblock_
  end
 ;
 
-
-(* From petr4_to_hol4p4.sml:
-          val ab_list' = [``arch_block_inp``,
-                  (el 1 ab_list), (* Parser *)
-                  ``arch_block_ffbl "postparser"``,
-                  (el 2 ab_list), (* VerifyChecksum *)
-                  (el 3 ab_list), (* Ingress *)
-                  (el 4 ab_list), (* Egress *)
-                  (el 5 ab_list), (* ComputeChecksum *)
-                  (el 6 ab_list), (* Deparser *)
-                  ``arch_block_out``]
-*)
 
 (* "well-formedness" here means that the content of all the parts of the astate are in agreement
  * with those of a valid execution of a V1Model program, with the following additional assumptions:
@@ -3253,13 +3355,18 @@ fun get_v1model_wellformed_defs_gen pc_conjs actx init_astate block_index_stop =
    case List.find (is_arch_block_ffbl o snd) (zip (List.tabulate (length ab_tms, I)) ab_tms) of
      SOME (i, _) => i
    | NONE => raise (ERR "get_v1model_wellformed_defs" "No postparser block in the architecture")
+  (* The deparser, the last programmable block, fills b *)
+  val deparser_index =
+   case List.find (is_arch_block_pbl o snd) (rev $ zip (List.tabulate (length ab_tms, I)) ab_tms) of
+     SOME (i, _) => i
+   | NONE => raise (ERR "get_v1model_wellformed_defs" "No deparser block in the architecture")
   val block_index_stop_int = int_of_term block_index_stop
   val packet_tail_var = mk_var ("packet_tail", mk_list_type bool)
   val empty_packet = mk_list ([], bool)
   val (b_packet, b_temp_packet) =
    if block_index_stop_int <= postparser_index
    then (packet_tail_var, empty_packet)
-   else if block_index_stop_int < length ab_tms - 1
+   else if block_index_stop_int <= deparser_index
    then (empty_packet, packet_tail_var)
    else (mk_var ("packet_out", mk_list_type bool), packet_tail_var)
   val ext_obj_map' = rhs $ concl $ EVAL “AUPDATE_LIST (FILTER (\ (k, v_ext). k < ^n_tm) ^ext_obj_map_abs) [(^n_tm, INL (core_v_ext_packet ^b_packet)); (^(term_of_int (n+1)), INL (core_v_ext_packet ^b_temp_packet))]”
