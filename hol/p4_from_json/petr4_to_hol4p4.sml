@@ -167,6 +167,14 @@ datatype stf_restype =
  | setdefault of string * string * string * term
  (* Table name, key condition on e_l, priority, action name, action arguments *)
  | add of string * term * int * string * term
+ (* Multicast group *)
+ | mc_mgrp_create of int
+ (* Multicast node: rid and its ports in ascending order *)
+ | mc_node_create of int * int list
+ (* Multicast group and node *)
+ | mc_node_associate of int * int
+ (* Multicast group and its new (port, rid) copies, after resolve_mc_nodes *)
+ | mc_associate of int * (int * int) list
  | none;
 
 fun parse_stf_io_line s stf_iotype =
@@ -264,6 +272,25 @@ fun output_astate_add outstream valname arch_opt table_name keys priority action
                   "((\\e_l. ", term_to_string keys, "), ", Int.toString priority, ":num) \"",
                   action_name, "\" ",
                   args, "``;\n\n"]
+  val _ = TextIO.output (outstream, outstring);
+ in
+  ()
+ end
+;
+
+fun stf_copies_to_string copies =
+ "["^(String.concatWith "; " (map (fn (port, rid) => "("^(Int.toString port)^","^(Int.toString rid)^")") copies))^"]"
+;
+
+fun output_astate_mc_upd outstream valname cmd =
+ let
+  val upd =
+   case cmd of
+     mc_mgrp_create g => String.concat ["v1model_mc_mgrp_create ^", valname, "_astate ", Int.toString g]
+   | mc_associate (g, copies) => String.concat ["v1model_mc_associate ^", valname, "_astate ", Int.toString g, " ", stf_copies_to_string copies]
+   | _ => raise Fail "Not a multicast update"
+  val outstring =
+   String.concat ["val ", valname, "_astate = optionSyntax.dest_some $ rhs $ concl $ EVAL ``", upd, "``;\n\n"]
   val _ = TextIO.output (outstream, outstring);
  in
   ()
@@ -610,6 +637,33 @@ fun drop_stf_word s =
  Substring.string $ Substring.dropl Char.isSpace $ Substring.dropl (not o Char.isSpace) $ Substring.dropl Char.isSpace $ Substring.full s
 ;
 
+(* Multicast commands of the BMv2 CLI, V1Model only *)
+fun parse_stf_mc_line arch_opt_tm s =
+ let
+  fun to_int tok =
+   if List.all Char.isDigit (explode tok)
+   then IntInf.toInt (parse_stf_exact_num tok)
+   else raise Fail ("Not a decimal number in STF command: "^s)
+  fun insert p [] = [p]
+    | insert p (h::t) =
+     if p < h then p::h::t
+     else if p = h then raise Fail ("Duplicate port in STF command: "^s)
+     else h::(insert p t)
+ in
+  if not (is_arch_v1model $ dest_some arch_opt_tm)
+  then raise Fail ("Unsupported STF command: "^s)
+  else
+   case String.tokens Char.isSpace s of
+     ["mc_mgrp_create", g] => mc_mgrp_create (to_int g)
+   | ("mc_node_create"::rid::ports) =>
+     if List.exists (fn tok => Char.contains tok #"|") ports
+     then raise Fail ("Multicast LAGs are not supported in STF command: "^s)
+     else mc_node_create (to_int rid, foldl (fn (tok, ps) => insert (to_int tok) ps) [] ports)
+   | ["mc_node_associate", g, h] => mc_node_associate (to_int g, to_int h)
+   | _ => raise Fail ("Invalid STF command: "^s)
+ end
+;
+
 fun parse_stf_line arch_opt_tm (pblock_map, fmap, ftymap, blftymap, ttymap) s =
  case String.tokens Char.isSpace s of
    [] => none
@@ -617,6 +671,9 @@ fun parse_stf_line arch_opt_tm (pblock_map, fmap, ftymap, blftymap, ttymap) s =
  | "expect" :: rest => parse_stf_io_line s expect
  | "add" :: rest => parse_stf_add_line arch_opt_tm (pblock_map, fmap, ftymap, blftymap, ttymap) (drop_stf_word s)
  | "setdefault" :: rest => parse_stf_setdefault_line (pblock_map, fmap, ftymap, blftymap) (drop_stf_word s)
+ | "mc_mgrp_create" :: rest => parse_stf_mc_line arch_opt_tm s
+ | "mc_node_create" :: rest => parse_stf_mc_line arch_opt_tm s
+ | "mc_node_associate" :: rest => parse_stf_mc_line arch_opt_tm s
  | ["wait"] => none
  | _ => raise Fail ("Unsupported STF command: "^s)
 ;
@@ -626,11 +683,18 @@ fun stf_add_to_string (table_name, keys, priority, action_name, args) =
                 Int.toString priority, ":num), \"", action_name, "\", ", term_to_string args, ")"]
 ;
 
+fun stf_mc_upd_to_string cmd =
+ case cmd of
+   mc_mgrp_create g => "v1model_mc_create "^(Int.toString g)
+ | mc_associate (g, copies) => String.concat ["v1model_mc_assoc ", Int.toString g, " ", stf_copies_to_string copies]
+ | _ => raise Fail "Not a multicast update"
+;
+
 (* The test theorem with one run per phase, each from the final state of the previous one *)
-fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (string * term * int * string * term) list * (int * term list) list * (int * term list * bool) list) list) =
+fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (string * term * int * string * term) list * stf_restype list * (int * term list) list * (int * term list * bool) list) list) =
  let
-  val inputs = List.concat (map #3 phases)
-  val outputs = List.concat (map #4 phases)
+  val inputs = List.concat (map #4 phases)
+  val outputs = List.concat (map #5 phases)
   val (in_vars, in_data', i) = process_arbs_list (map snd inputs) 0
   val (out_vars, out_data', i') = process_arbs_list (map #2 outputs) i
   val tails = List.tabulate (length outputs, fn k =>
@@ -641,7 +705,7 @@ fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (str
   val in_packets = map mk_pair (zip in_data' (map (term_of_int o fst) inputs))
   val out_packets = mk_list ((map mk_pair (zip out_data'' (map (term_of_int o #1) outputs))), “:(bool list # num)”);
   fun phase_inputs [] _ = []
-    | phase_inputs ((_, _, ins, _)::t) l =
+    | phase_inputs ((_, _, _, ins, _)::t) l =
      (mk_list (List.take (l, length ins), “:(bool list # num)”))::(phase_inputs t (List.drop (l, length ins)))
   val phases' = zip phases (phase_inputs phases in_packets)
   val _ = TextIO.output (outstream,
@@ -649,20 +713,23 @@ fun output_test_phases_theorem outstream valname arch_opt (phases:(string * (str
                           term_to_string (snd $ hd phases'), " ^", valname, "_astate)”;\n\n"])
   fun state_vars j = String.concat [" outl", j, " ascope", j, " g", j, " status", j]
   fun final_state j = String.concat ["((0, [], outl", j, ", ascope", j, "), g", j, ", arch_frame_list_empty, status", j, ")"]
-  fun start_state j (upds, ins_tm) =
+  fun start_state j (upds, mc_upds, ins_tm) =
    if j = 1
    then "^"^valname^"_astate"
    else
     let
      val j' = Int.toString (j - 1)
-     val add_ctrl_list = if is_arch_v1model $ dest_some arch_opt then "v1model_add_ctrl_list" else "add_ctrl_list_gen"
+     val (upds_fun, mc_upds_str) =
+      if is_arch_v1model $ dest_some arch_opt
+      then ("v1model_stf_upds", String.concat ["\n  [", String.concatWith ";\n   " (map stf_mc_upd_to_string mc_upds), "]"])
+      else ("add_ctrl_list_gen", "")
     in
-     String.concat ["(THE (", add_ctrl_list, " ((0, ", term_to_string ins_tm, ", outl", j', ", ascope", j', "), g", j', ", arch_frame_list_empty, status", j', ")\n  [",
-                    String.concatWith ";\n   " (map stf_add_to_string upds), "]))"]
+     String.concat ["(THE (", upds_fun, " ((0, ", term_to_string ins_tm, ", outl", j', ", ascope", j', "), g", j', ", arch_frame_list_empty, status", j', ")\n  [",
+                    String.concatWith ";\n   " (map stf_add_to_string upds), "]", mc_upds_str, "))"]
     end
   val conjs =
-   map (fn (j, ((actx_name, upds, _, _), ins_tm)) =>
-         String.concat ["arch_multi_exec ^", actx_name, " ", start_state j (upds, ins_tm), " n", Int.toString j, " =\n",
+   map (fn (j, ((actx_name, upds, mc_upds, _, _), ins_tm)) =>
+         String.concat ["arch_multi_exec ^", actx_name, " ", start_state j (upds, mc_upds, ins_tm), " n", Int.toString j, " =\n",
                         " SOME ", final_state (Int.toString j)]) (zip (List.tabulate (length phases, fn j => j + 1)) phases')
   val vars = String.concatWith " " (List.tabulate (length phases, fn j => "n"^(Int.toString (j + 1))^(state_vars (Int.toString (j + 1)))))
   val _ = TextIO.output (outstream, "Theorem "^(valname^("_test"^(":\n"))));
@@ -714,6 +781,37 @@ in
 end
 ;
 
+(* Replaces node associations by the group's new copies, numbering nodes from 0 as BMv2 does *)
+fun resolve_mc_nodes cmds =
+ let
+  fun resolve [] _ _ _ = []
+    | resolve (cmd::cmds) nodes assoc grps =
+     case cmd of
+       mc_mgrp_create g => cmd::(resolve cmds nodes assoc (g::grps))
+     | mc_node_create node => resolve cmds (nodes@[node]) assoc grps
+     | mc_node_associate (g, h) =>
+      let
+       val assoc_str = "mc_node_associate "^(Int.toString g)^(" "^(Int.toString h))
+      in
+       if h < 0 orelse h >= length nodes
+       then raise Fail ("Unknown multicast node in STF command: "^assoc_str)
+       else if List.exists (fn x => x = h) assoc
+       then raise Fail ("Multicast node already associated in STF command: "^assoc_str)
+       else if not (List.exists (fn x => x = g) grps)
+       then raise Fail ("Unknown multicast group in STF command: "^assoc_str)
+       else
+        let
+         val (rid, ports) = List.nth (nodes, h)
+        in
+         mc_associate (g, map (fn port => (port, rid)) ports)::(resolve cmds nodes (h::assoc) grps)
+        end
+      end
+     | _ => cmd::(resolve cmds nodes assoc grps)
+ in
+  resolve cmds [] [] []
+ end
+;
+
 (* Should parse to pairs of bits and port number, type abbreviation in_out *)
 local
  fun read_stf_cmds arch_opt_tm maps instream =
@@ -733,19 +831,28 @@ local
   (List.mapPartial (fn cmd => case cmd of io (packet, port, data, exact) => SOME (port, data) | _ => NONE) ios,
    List.mapPartial (fn cmd => case cmd of io (expect, port, data, exact) => SOME (port, data, exact) | _ => NONE) ios)
 
- (* Outputs a phase's table updates: setdefault into the actx, add into the astate or the theorem *)
+ (* Outputs a phase's updates: setdefault into the actx, the others into the astate or the theorem *)
  fun output_phase_upds outstream valname arch_opt_tm (j, (upds, ios)) (actx_name, acc) =
   let
    val actx_name' = if j = 1 orelse List.all (fn cmd => case cmd of setdefault _ => false | _ => true) upds
                     then actx_name else valname^"_actx"^(Int.toString j)
-   val (_, adds) =
-    foldl (fn (cmd, (prev_actx_name, adds)) =>
+   fun mc_upd cmd (prev_actx_name, adds, mc_upds) =
+    if j = 1
+    then
+     let
+      val _ = output_astate_mc_upd outstream valname cmd
+     in
+      (prev_actx_name, adds, mc_upds)
+     end
+    else (prev_actx_name, adds, mc_upds@[cmd])
+   val (_, adds, mc_upds) =
+    foldl (fn (cmd, (prev_actx_name, adds, mc_upds)) =>
             case cmd of
               setdefault (block_name, table_name, action_name, args_tm) =>
                let
                 val _ = output_actx_setdefault outstream (actx_name', prev_actx_name) block_name table_name action_name (term_to_string args_tm)
                in
-                (actx_name', adds)
+                (actx_name', adds, mc_upds)
                end
             | add (table_name, keys_tm, priority, action_name, args_tm) =>
               if j = 1
@@ -753,13 +860,15 @@ local
                let
                 val _ = output_astate_add outstream valname arch_opt_tm table_name keys_tm priority action_name (term_to_string args_tm)
                in
-                (prev_actx_name, adds)
+                (prev_actx_name, adds, mc_upds)
                end
-              else (prev_actx_name, adds@[(table_name, keys_tm, priority, action_name, args_tm)])
-            | _ => (prev_actx_name, adds)) (actx_name, []) upds
+              else (prev_actx_name, adds@[(table_name, keys_tm, priority, action_name, args_tm)], mc_upds)
+            | mc_mgrp_create _ => mc_upd cmd (prev_actx_name, adds, mc_upds)
+            | mc_associate _ => mc_upd cmd (prev_actx_name, adds, mc_upds)
+            | _ => (prev_actx_name, adds, mc_upds)) (actx_name, [], []) upds
    val (inputs, outputs) = ios_of ios
   in
-   (actx_name', acc@[(actx_name', adds, inputs, outputs)])
+   (actx_name', acc@[(actx_name', adds, mc_upds, inputs, outputs)])
   end
 in
  fun parse_stf outstream stfname_opt valname maps arch_opt_tm =
@@ -769,7 +878,7 @@ in
      val instream = TextIO.openIn stfname;
      val cmds = read_stf_cmds arch_opt_tm maps instream;
      val _ = TextIO.closeIn instream;
-     val phases = stf_phases cmds
+     val phases = stf_phases (resolve_mc_nodes cmds)
      val (_, phases') =
       foldl (fn (phase, res) => output_phase_upds outstream valname arch_opt_tm phase res)
             (valname^"_actx", []) (zip (List.tabulate (length phases, fn j => j + 1)) phases)
@@ -1022,9 +1131,14 @@ fun output_hol4p4_vals outstream output_extra_maps valname stfname_opt (ftymap, 
      val tparams = eval_rhs “(\ (tau1, tau2). (zero_val_from_tau tau1, zero_val_from_tau tau2)) ^(mk_pair (dest_v1model_pkg_V1Switch $ dest_some $ dest_arch_v1model $ dest_some arch_opt_tm))”
      val (n_tm, g_scope_ties, pblock_map', insts) = tie_ext_insts v1model_init_counter top_inits pblock_map
      val v1model_input_f = “v1model_input_f random_oracle ^n_tm ^tparams”
+     (* The order of multicast copies: a free variable in symbolic mode, the identity otherwise *)
+     val v1model_ffblock_map' =
+      if output_extra_maps
+      then v1model_ffblock_map_gen (mk_var ("order_f", “:num -> (num # num) list -> (num # num) list”))
+      else v1model_ffblock_map
      val actx =
       rhs $ concl $ SIMP_CONV list_ss [] $
-       list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map', v1model_ffblock_map,
+       list_mk_pair [v1model_add_ffblocks_to_ab_list ab_list_tm, pblock_map', v1model_ffblock_map',
 		     v1model_input_f, v1model_output_f,
 		     v1model_copyin_pbl, v1model_copyout_pbl, mk_comb (v1model_apply_table_f, api_tm),
 		     v1model_ext_map, fmap',

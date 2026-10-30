@@ -62,3 +62,27 @@ Definition v1model_mc_associate_def:
   | SOME copies' => SOME ((i, in_out_list, in_out_list', (counter, ext_obj_map, v_map, (tables, AUPDATE groups (g, copies'++copies)), oracle_index)), g_scope_list, scope_list, status)
   | NONE => NONE
 End
+
+(* Multicast updates of a later STF phase *)
+Datatype:
+ v1model_mc_upd = v1model_mc_create num | v1model_mc_assoc num ((num # num) list)
+End
+
+Definition v1model_mc_upd_list_def:
+ (v1model_mc_upd_list astate [] = SOME astate) /\
+ (v1model_mc_upd_list astate ((v1model_mc_create g)::t) =
+  case v1model_mc_mgrp_create astate g of
+  | SOME astate' => v1model_mc_upd_list astate' t
+  | NONE => NONE) /\
+ (v1model_mc_upd_list astate ((v1model_mc_assoc g copies)::t) =
+  case v1model_mc_associate astate g copies of
+  | SOME astate' => v1model_mc_upd_list astate' t
+  | NONE => NONE)
+End
+
+Definition v1model_stf_upds_def:
+ v1model_stf_upds astate adds mc_upds =
+  case v1model_add_ctrl_list astate adds of
+  | SOME astate' => v1model_mc_upd_list astate' mc_upds
+  | NONE => NONE
+End
