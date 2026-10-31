@@ -3162,21 +3162,7 @@ fun mk_v_bit_freevars_fromindex (prefix, index, nbits) =
 (* The block name *)
 val bname = “"p"”
 
-val ab_list = “[arch_block_inp;
-  arch_block_pbl "p"
-    [e_var (varn_name "b"); e_var (varn_name "parsedHdr");
-     e_var (varn_name "meta"); e_var (varn_name "standard_metadata")];
-  arch_block_ffbl "postparser";
-  arch_block_pbl "vrfy" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
-  arch_block_pbl "ingress"
-    [e_var (varn_name "hdr"); e_var (varn_name "meta");
-     e_var (varn_name "standard_metadata")];
-  arch_block_pbl "egress"
-    [e_var (varn_name "hdr"); e_var (varn_name "meta");
-     e_var (varn_name "standard_metadata")];
-  arch_block_pbl "update" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
-  arch_block_pbl "deparser" [e_var (varn_name "b"); e_var (varn_name "hdr")];
-  arch_block_out]”
+val ab_list = #1 $ dest_actx symb_exec1_actx
 
 val pblock_tymap = symb_exec1_pblock_tymap;
 *)

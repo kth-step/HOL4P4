@@ -309,8 +309,8 @@ fun final_state_is_none step_thm = optionSyntax.is_none $ rhs $ concl step_thm
 
 (* Stepwise evaluation *)
 local
-(* One step. Only the input block (the head) and the output block (an append) look at the
- * input and output lists, so their tail and whole are variables during evaluation *)
+(* One step. Only the input block reads the input list (its head), and the output and next_copy
+ * blocks only append to the output list, so their tail and whole are variables during evaluation *)
 fun eval_one actx astate =
  let
   val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate

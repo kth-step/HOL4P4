@@ -134,7 +134,8 @@ A proof can be split at the start of a block `k`, except after the traffic manag
 multicast packet (see V1Model packet flow). `get_v1model_wellformed_defs ctx init_astate k`
 defines the predicate `p4_v1model_parser_wellformed`, which holds of a state when block `k` is
 next, no packets are left, and the table entries and extern objects are those of `init_astate`,
-except that the packet objects hold the rest of the packet and each register holds an arbitrary
+except that the packet objects hold the rest of the packet (after the deparser, the deparsed
+packet and the rest) and each register holds an arbitrary
 array `reg_i` with `wellformed_register_array w reg_i`; the header, metadata and apply-result bits
 and the oracle index are arbitrary. A variable of the context, such as the random oracle, that
 still occurs in the extern objects or the table entries is a parameter of the predicate.

@@ -40,7 +40,7 @@ Type v1model_sum_v_ext = “:(core_v_ext, v1model_v_ext) sum”
     ((e_list -> bool, num),
      (* the action of a table entry: string is action name, e_list is arguments *)
      string # e_list) alist) alist,
-    (* the multicast group id (mcast_grp) to its (egress port, egress rid) copies in replication order *)
+    (* the multicast group id (mcast_grp) to its (egress port, egress rid) copies in BMv2's replication order *)
     (num, (num # num) list) alist)
 *)
 Type v1model_ctrl = “:((string, (((e_list -> bool) # num), string # e_list) alist) alist) # ((num, (num # num) list) alist)”

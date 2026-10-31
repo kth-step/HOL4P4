@@ -761,7 +761,7 @@ fun is_stf_packet cmd =
  | _ => false
 ;
 
-(* Groups STF commands into phases: a table update after a packet starts a new phase *)
+(* Groups STF commands into phases: an update after a packet starts a new phase *)
 local
  fun stf_phases' [] (upds, ios) = [(upds, ios)]
    | stf_phases' (cmd::cmds) (upds, ios) =
