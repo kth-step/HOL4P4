@@ -25,6 +25,18 @@ fun lookup_var varname scope_list =
  end
 ;
 
+(* |- !list. LENGTH list = width ==> ?bits. list = bits, for the fresh variables bits *)
+fun bits_exists_thm approx_vars width =
+ let
+  val list_var = mk_var("list", mk_list_type bool)
+ in
+  prove(mk_forall (list_var, mk_imp (mk_eq (mk_length list_var, width), list_mk_exists (fst $ dest_list approx_vars, mk_eq (list_var, approx_vars)))),
+   rpt strip_tac >>
+   rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
+  )
+ end
+;
+
 fun approx_v1model_register_construct p4_symb_arg_prefix fv_index scope_list ascope =
  let
   (* Array size *)
@@ -88,12 +100,7 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
   val goal_tm = mk_disj_list [list_mk_exists (fst $ dest_list approx_vars, mk_eq (tm1, rhs_tm))]
 
   (* Unless you cache, these have to be proved every single time *)
-  val list_var = mk_var("list", mk_list_type bool)
-  val list_hyp = mk_eq(mk_length list_var, entry_width)
-  val list_exists_thm = prove(mk_forall (list_var, mk_imp (list_hyp, list_mk_exists(fst $ dest_list approx_vars, mk_eq (list_var, approx_vars)))), 
-   rpt strip_tac >>
-   rpt (goal_term (fn tm => tmCases_on (fst $ dest_eq $ snd $ strip_exists tm) []) >> FULL_SIMP_TAC list_ss [])
-  );
+  val list_exists_thm = bits_exists_thm approx_vars entry_width
 
   val approx_thm =
    (* “^(mk_imp (mk_wellformed_register_array (entry_width, array), goal_tm))” *)
@@ -121,6 +128,39 @@ fun approx_v1model_register_read p4_symb_arg_prefix fv_index scope_list ascope =
    | NONE => approx_thm
  in
   SOME (approx_thm', [fv_index+(int_of_term entry_width)])
+ end
+;
+
+(* Fresh variables in [lo, hi] when the draw is not resolved by the bounds alone *)
+fun approx_v1model_random p4_symb_arg_prefix fv_index scope_list ascope =
+ let
+  val lo = fst $ dest_pair $ dest_v_bit $ lookup_var "lo" scope_list
+  val hi = fst $ dest_pair $ dest_v_bit $ lookup_var "hi" scope_list
+  val width = snd $ dest_pair $ dest_v_bit $ lookup_var "result" scope_list
+  val oracle_index = #5 $ dest_v1model_ascope ascope
+  val tm1 = mk_v1model_random_inner (lo, hi, width, oracle_index, random_oracle_tm)
+  val tm1_val = rhs $ concl $ EVAL tm1
+ in
+  if is_list tm1_val andalso not (can (find_term is_cond) tm1_val)
+  then NONE
+  else
+   let
+    val approx_vars = fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, int_of_term width)
+    val range_tm = mk_imp (mk_leq (mk_v2n lo, mk_v2n hi), mk_conj (mk_leq (mk_v2n lo, mk_v2n approx_vars), mk_leq (mk_v2n approx_vars, mk_v2n hi)))
+    val goal_tm = mk_disj_list [list_mk_exists (fst $ dest_list approx_vars, mk_conj (mk_eq (tm1, approx_vars), range_tm))]
+    val len_thm = MP (SPECL [lo, hi, width, oracle_index, random_oracle_tm] v1model_random_inner_LENGTH) (EQT_ELIM $ EVAL (mk_eq (mk_length lo, width)))
+    val range_thm = SPECL [lo, hi, width, oracle_index, random_oracle_tm] v1model_random_inner_range
+    val exists_thm = MP (SPEC tm1 (bits_exists_thm approx_vars width)) len_thm
+    val approx_thm =
+     prove(goal_tm,
+      SIMP_TAC std_ss [disj_list_def] >>
+      STRIP_ASSUME_TAC exists_thm >>
+      MAP_EVERY EXISTS_TAC (fst $ dest_list approx_vars) >>
+      POP_ASSUM (fn thm => REWRITE_TAC [GSYM thm, range_thm])
+     )
+   in
+    SOME (approx_thm, [fv_index + (int_of_term width)])
+   end
  end
 ;
 

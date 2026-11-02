@@ -90,13 +90,14 @@ val table_defaults_actx = ``([arch_block_inp;
   arch_block_pbl "MyIngress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "MyEgress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
   arch_block_pbl "MyComputeChecksum"
     [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "MyDeparser"
-    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_out],
+    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_ffbl "next_copy"; arch_block_out],
  [("MyParser",pbl_type_parser,
    [("b",d_none); ("hdr",d_out); ("meta",d_inout); ("sm",d_inout)],
    [("MyParser",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])],
@@ -156,11 +157,13 @@ val table_defaults_actx = ``([arch_block_inp;
        (stmt_ass lval_null
           (e_call (funn_ext "packet_out" "emit")
              [e_var (varn_name "b"); e_acc (e_var (varn_name "hdr")) "h"])),
-     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 0
+     [])],[],[],[])],[("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle (\(i:num) (l:(num # num) list). l)));
+  ("next_copy",ffblock_ff (v1model_next_copy random_oracle))],
+ v1model_input_f random_oracle 0
    (v_struct [("h",v_header F [("f",v_bit ([F; F; F; F; F; F; F; F],8))])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -225,7 +228,7 @@ val table_defaults_actx = ``([arch_block_inp;
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
 val table_defaults_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("MyIngress.tok",tok_tbl); ("MyIngress.texpr",texpr_tbl); ("MyIngress.tnodef",tnodef_tbl)],0),
+  ([("MyIngress.tok",tok_tbl); ("MyIngress.texpr",texpr_tbl); ("MyIngress.tnodef",tnodef_tbl)],[]),0),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);
@@ -249,7 +252,7 @@ val pblock_map_tm = #2 $ p4Syntax.dest_actx ctx;
 val pblock_map_def = hd $ Defn.eqns_of $ Defn.mk_defn "pblock_map" (mk_eq(mk_var("pblock_map", type_of pblock_map_tm), pblock_map_tm));
 fun wf_tm (name, var) = “v1model_tbl_is_well_formed ^(lhs $ concl ty_ctx_def) ^(lhs $ concl pblock_map_def) (^(stringSyntax.fromMLstring name), ^var)”;
 val ctrl = #4 $ p4_v1modelLib.dest_v1model_ascope $ #4 $ p4Syntax.dest_aenv $ #1 $ p4Syntax.dest_astate init_astate;
-val tbl_vars = map (pairSyntax.dest_pair) $ fst $ listSyntax.dest_list ctrl;
+val tbl_vars = map (pairSyntax.dest_pair) $ fst $ listSyntax.dest_list $ #1 $ pairSyntax.dest_pair ctrl;
 val wf_conjs = map (fn (n, v) => wf_tm (stringSyntax.fromHOLstring n, v)) tbl_vars;
 val path_cond = ASSUME (list_mk_conj ((“8 <= LENGTH ^p”)::wf_conjs));
 val debug_flag = false;

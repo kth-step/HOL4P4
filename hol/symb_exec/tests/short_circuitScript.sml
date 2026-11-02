@@ -142,13 +142,14 @@ val short_circuit_actx = ``([arch_block_inp;
   arch_block_pbl "MyIngress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "MyEgress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
   arch_block_pbl "MyComputeChecksum"
     [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "MyDeparser"
-    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_out],
+    [e_var (varn_name "b"); e_var (varn_name "hdr")]; arch_block_ffbl "next_copy"; arch_block_out],
  [("MyParser",pbl_type_parser,
    [("packet",d_none); ("hdr",d_out); ("meta",d_inout); ("sm",d_inout)],
    [("MyParser",stmt_seq stmt_empty (stmt_trans (e_v (v_str "start"))),[])],
@@ -245,8 +246,10 @@ val short_circuit_actx = ``([arch_block_inp;
              (e_call (funn_ext "packet_out" "emit")
                 [e_var (varn_name "packet");
                  e_acc (e_var (varn_name "hdr")) "h2"]))),[])],[],[],[])],
- [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 0
+ [("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle (\(i:num) (l:(num # num) list). l)));
+  ("next_copy",ffblock_ff (v1model_next_copy random_oracle))],
+ v1model_input_f random_oracle 0
    (v_struct
       [("h1",
         v_header F
@@ -257,7 +260,7 @@ val short_circuit_actx = ``([arch_block_inp;
           [("a",v_bit ([F; F; F; F; F; F; F; F],8));
            ("b",v_bit ([F; F; F; F; F; F; F; F],8))])],v_struct []),
  v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -321,7 +324,7 @@ val short_circuit_actx = ``([arch_block_inp;
    [("from_table$",d_in); ("hit$",d_in)])],v1model_get_oracle_index,
  v1model_set_oracle_index,random_oracle):v1model_ascope actx``;
 
-val short_circuit_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],[],0),
+val short_circuit_astate = ``((0,[],[],0,[],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],([],[]),0),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);

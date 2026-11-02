@@ -96,11 +96,13 @@ val symb_exec7_actx = ``([arch_block_inp;
   arch_block_pbl "ingress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
+  arch_block_ffbl "traffic_manager";
   arch_block_pbl "egress"
     [e_var (varn_name "hdr"); e_var (varn_name "meta");
      e_var (varn_name "standard_metadata")];
   arch_block_pbl "update" [e_var (varn_name "hdr"); e_var (varn_name "meta")];
   arch_block_pbl "deparser" [e_var (varn_name "b"); e_var (varn_name "hdr")];
+  arch_block_ffbl "next_copy";
   arch_block_out],
  [("p",pbl_type_parser,
    [("b",d_none); ("h",d_out); ("m",d_inout); ("sm",d_inout)],
@@ -144,8 +146,10 @@ val symb_exec7_actx = ``([arch_block_inp;
                       (lval_field (lval_varname (varn_name "h")) "h") "row")
                    "t") (e_cast (cast_unsigned 16) (e_var (varn_name "tmp")))))),
      [])],[(varn_name "counters",tau_ext,NONE)],[],[])],
- [("postparser",ffblock_ff v1model_postparser)],
- v1model_input_f 1
+ [("postparser",ffblock_ff v1model_postparser);
+  ("traffic_manager",ffblock_ff (v1model_traffic_manager random_oracle (\(i:num) (l:(num # num) list). l)));
+  ("next_copy",ffblock_ff (v1model_next_copy random_oracle))],
+ v1model_input_f random_oracle 1
    (v_struct
       [("h",
         v_header F
@@ -160,7 +164,7 @@ val symb_exec7_actx = ``([arch_block_inp;
                ("r",v_bit ([F; F; F; F; F; F; F; F],8));
                ("v",v_bit ([F; F; F; F; F; F; F; F],8))])])],
     v_struct []),v1model_output_f,v1model_copyin_pbl,v1model_copyout_pbl,
- v1model_apply_table_f,
+ v1model_apply_table_f v1model_api_tdi,
  [("header",NONE,
    [("isValid",[("this",d_in)],header_is_valid);
     ("setValid",[("this",d_inout)],header_set_valid);
@@ -219,7 +223,7 @@ val p = “p:bool list”;
 
 val symb_exec7_astate_symb =
  rhs $ concl $ computeLib.RESTR_EVAL_CONV [“v1model_register_construct_inner”] ``p4_append_input_list [(^p,0)] ((0,[],[],1,[(0,INR (v1model_v_ext_register (v1model_register_construct_inner 1024 32 0 random_oracle)))],[("parseError",v_bit (fixwidth 32 (n2v 0),32))],
-  [("t2",t2_ctrl);
+  ([("t2",t2_ctrl);
    ("t1",
     [(((λk.
             match_all
@@ -244,7 +248,7 @@ val symb_exec7_astate_symb =
                   [s_sing (v_bit ([F; F; F; F; F; F; T; T],8))]))),0),
       "set_out_port",
       [e_v (v_bool T); e_v (v_bool T);
-       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])],32768),
+       e_v (v_bit ([F; F; F; F; F; T; T; F; T],9))])])],[]),32768),
  [[(varn_name "gen_apply_result",
     v_struct
       [("hit",v_bool F); ("miss",v_bool T);

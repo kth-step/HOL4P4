@@ -9,18 +9,12 @@ Libs
    https://github.com/p4lang/behavioral-model/blob/main/targets/simple_switch/simple_switch.cpp
 *)
 
-(* NOTE ON CONTROL PLANE APIS
- * By default, this model is set up to work with TDI-style tables, where priority annotation
- * leads to smallest priority winning out in case of multiple matches (for ternary match kinds).
- * Change this by setting the value of CONTROL_PLANE_API to correspond with the control plane
- * API you want to model.
- *
- * TDI (default): 0
- * P4Runtime API: 1
- *
- * *)
-
-val CONTROL_PLANE_API = 0;
+(* The control-plane API decides which of several matching entries wins (v1model_apply_table_f):
+ * in TDI, the longest prefix in tables with only lpm and exact keys and the smallest priority
+ * otherwise; in P4Runtime, the largest priority *)
+Datatype:
+ v1model_cp_api = v1model_api_tdi | v1model_api_p4runtime
+End
 
 (* TODO: v1model uses a checksum in the verify_checksum and update_checksum externs *)
 Datatype:
@@ -31,21 +25,25 @@ Datatype:
  | v1model_v_ext_meter
  | v1model_v_ext_direct_meter
  | v1model_v_ext_register ((bool list # num) list)
+ (* Pending multicast copies: egress block index, v_map snapshot, "b", "b_temp", remaining (port, rid) *)
+ | v1model_v_ext_copies (num # ((string, v) alist) # bool list # bool list # (num # num) list)
  (* From IPSec example *)
  | v1model_v_ext_ipsec_crypt
 End
 Type v1model_sum_v_ext = “:(core_v_ext, v1model_v_ext) sum”
 
-(* The control plane representation:
+(* The control plane representation, the table map and the multicast groups:
 
    (* the table name *)
-   (string, 
+   ((string,
      (* the key of a table entry: first element is a predicate for matching, second is priority *)
     ((e_list -> bool, num),
      (* the action of a table entry: string is action name, e_list is arguments *)
-     string # e_list) alist) alist``)
+     string # e_list) alist) alist,
+    (* the multicast group id (mcast_grp) to its (egress port, egress rid) copies in BMv2's replication order *)
+    (num, (num # num) list) alist)
 *)
-Type v1model_ctrl = “:(string, (((e_list -> bool) # num), string # e_list) alist) alist”
+Type v1model_ctrl = “:((string, (((e_list -> bool) # num), string # e_list) alist) alist) # ((num, (num # num) list) alist)”
 
 (* The architectural state type of the V1Model architecture model *)
 Type v1model_ascope = “:(num # ((num, v1model_sum_v_ext) alist) # ((string, v) alist) # v1model_ctrl # num)”
@@ -76,8 +74,9 @@ Definition v1model_packet_in_lookahead_def:
  v1model_packet_in_lookahead = packet_in_lookahead_gen v1model_ascope_lookup v1model_ascope_update_v_map
 End
 
+(* BMv2 fails an advance by a non-multiple of 8 bits with ParserInvalidArgument *)
 Definition v1model_packet_in_advance_def:
- v1model_packet_in_advance = packet_in_advance_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
+ v1model_packet_in_advance = packet_in_advance_gen T v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
 Definition v1model_packet_out_emit_def:
@@ -122,6 +121,36 @@ Definition v1model_mark_to_drop_def:
    | NONE => NONE
 End
 
+(* No effect on the run, as with p4c --ndebug; the symbolic executor can check them *)
+Definition v1model_assert_def:
+ v1model_assert (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+Definition v1model_assume_def:
+ v1model_assume (v1model_ascope:v1model_ascope, g_scope_list:g_scope_list, scope_list:scope list) =
+  SOME (v1model_ascope, scope_list, status_returnv v_bot)
+End
+
+(* As BMv2: the smallest length requested for the packet, in bytes, cuts the output *)
+Definition v1model_truncate_def:
+ v1model_truncate ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "length")) of
+  | SOME (v_bit (bl, n)) =>
+   let bl' = (case ALOOKUP v_map "truncate_length" of
+              | SOME (v_bit (bl_old, n_old)) => if v2n bl_old <= v2n bl then bl_old else bl
+              | _ => bl) in
+    SOME ((counter, ext_obj_map, AUPDATE v_map ("truncate_length", v_bit (bl', n)), ctrl, oracle_index), scope_list, status_returnv v_bot)
+  | _ => NONE
+End
+
+Definition v1model_truncate_packet_def:
+ v1model_truncate_packet v_map bl =
+  case ALOOKUP v_map "truncate_length" of
+  | SOME (v_bit (len_bl, n)) => TAKE (8 * v2n len_bl) bl
+  | _ => bl
+End
+
 (**********************)
 (* Checksum methods   *)
 (**********************)
@@ -148,11 +177,6 @@ Definition v2w8s'_def:
 Termination
 WF_REL_TAC `measure LENGTH` >>
 fs []
-End
-
-(* Zero-pads at the end to a multiple of n bits *)
-Definition pad_bits_def:
- pad_bits n bl = bl ++ REPLICATE ((n - LENGTH bl MOD n) MOD n) F
 End
 
 
@@ -215,12 +239,56 @@ Definition v1model_hash_def:
   | _ => NONE
 End
 
+(**********)
+(* random *)
+
+(* An oracle draw, replaced by lo when outside [lo, hi]; any value when lo > hi (v1model.p4).
+ * The bounds are tested first, so that a constant or full range needs no test of the draw *)
+Definition v1model_random_inner_def:
+ v1model_random_inner lo hi w oracle_index random_oracle =
+  let r = get_oracle_calls w oracle_index random_oracle in
+   if v2n hi < v2n lo then r
+   else if v2n lo = v2n hi then lo
+   else if v2n lo = 0 /\ v2n hi = 2 ** w - 1 then r
+   else if v2n lo <= v2n r /\ v2n r <= v2n hi then r
+   else lo
+End
+
+(* The width of the result is that of the out parameter, as in register_read *)
+Definition v1model_random_def:
+ v1model_random random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "result")) of
+  | SOME (v_bit (bl_res, w)) =>
+   (case lookup_lval scope_list (lval_varname (varn_name "lo")) of
+    | SOME (v_bit (bl_lo, n_lo)) =>
+     (case lookup_lval scope_list (lval_varname (varn_name "hi")) of
+      | SOME (v_bit (bl_hi, n_hi)) =>
+       (case assign scope_list (v_bit (v1model_random_inner bl_lo bl_hi w oracle_index random_oracle, w)) (lval_varname (varn_name "result")) of
+        | SOME scope_list' =>
+         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index + w), scope_list', status_returnv v_bot)
+        | NONE => NONE)
+      | _ => NONE)
+    | _ => NONE)
+  | _ => NONE
+End
+
+(* The *_with_payload checksums append the unparsed packet to the data padded to bytes, as bmv2's BufBuilder *)
+Definition v1model_checksum_data_def:
+ v1model_checksum_data with_payload ext_obj_map v_map bl =
+  if with_payload
+  then
+   (case lookup_obj ext_obj_map v_map "b_temp" of
+    | SOME (INL (core_v_ext_packet payload)) => SOME (pad_bits 8 bl ++ payload)
+    | _ => NONE)
+  else SOME bl
+End
+
 (*******************)
 (* verify_checksum *)
 
 (* Any algorithm, data length and checksum width; the comparison is numeric, as in bmv2 *)
-Definition v1model_verify_checksum_def:
- (v1model_verify_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+Definition v1model_verify_checksum_gen_def:
+ (v1model_verify_checksum_gen with_payload ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
@@ -229,7 +297,7 @@ Definition v1model_verify_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case data_bits data of
+         (case OPTION_BIND (data_bits data) (v1model_checksum_data with_payload ext_obj_map v_map) of
           | SOME bl_data =>
            (case v1model_hash_det (v2n bl) bl_data of
             | SOME h =>
@@ -255,6 +323,14 @@ Definition v1model_verify_checksum_def:
  )
 End
 
+Definition v1model_verify_checksum_def:
+ v1model_verify_checksum = v1model_verify_checksum_gen F
+End
+
+Definition v1model_verify_checksum_with_payload_def:
+ v1model_verify_checksum_with_payload = v1model_verify_checksum_gen T
+End
+
 (*******************)
 (* update_checksum *)
 
@@ -264,8 +340,8 @@ Definition v1model_update_checksum_inner_def:
 End
 
 (* csum16 into a 16-bit field stays the folded v1model_update_checksum_inner for symbolic execution *)
-Definition v1model_update_checksum_def:
- (v1model_update_checksum ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
+Definition v1model_update_checksum_gen_def:
+ (v1model_update_checksum_gen with_payload ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   (case lookup_lval scope_list (lval_varname (varn_name "condition")) of
    | SOME $ v_bool b =>
     if b
@@ -274,7 +350,7 @@ Definition v1model_update_checksum_def:
       | SOME $ v_bit (bl, n) =>
        (case lookup_lval scope_list (lval_varname (varn_name "data")) of
         | SOME data =>
-         (case data_bits data of
+         (case OPTION_BIND (data_bits data) (v1model_checksum_data with_payload ext_obj_map v_map) of
           | SOME bl_data =>
            (case lookup_lval scope_list (lval_varname (varn_name "checksum")) of
             | SOME $ v_bit (bl', n') =>
@@ -301,6 +377,14 @@ Definition v1model_update_checksum_def:
  )
 End
 
+Definition v1model_update_checksum_def:
+ v1model_update_checksum = v1model_update_checksum_gen F
+End
+
+Definition v1model_update_checksum_with_payload_def:
+ v1model_update_checksum_with_payload = v1model_update_checksum_gen T
+End
+
 (**************)
 (* Register   *)
 (**************)
@@ -323,6 +407,7 @@ Definition v1model_register_construct_inner_def:
   get_oracle_calls_array width oracle_index random_oracle size
 End
         
+(* v1model.p4 leaves the initial contents unspecified (BMv2 zeroes them), so they are oracle bits *)
 Definition register_construct_def:
  (register_construct random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "size")) of
@@ -373,7 +458,7 @@ Definition v1model_register_read_inner_def:
  )
 End
 
-(* Note that register_read always has a result, according to v1model.p4. *)
+(* Always has a result (v1model.p4); the oracle index advances by the result width, also in range *)
 Definition register_read_def:
  (register_read random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "index")) of
@@ -388,7 +473,7 @@ Definition register_read_def:
          let (bl', n') = v1model_register_read_inner n'' bl array oracle_index random_oracle in
            (case assign scope_list (v_bit (bl', n')) (lval_varname (varn_name "result")) of
             | SOME scope_list' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list', status_returnv v_bot)
+             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index + n''), scope_list', status_returnv v_bot)
             | NONE => NONE)
         | _ => NONE)
       | _ => NONE)
@@ -508,25 +593,22 @@ Termination
  METIS_TAC [v1_size_mem]
 End
 
+(* The P4-IPsec extern marks the packet for dropping on a failed HMAC check, so egress_spec is drawn *)
 Definition ipsec_crypt_decrypt_aes_ctr_def:
  (ipsec_crypt_decrypt_aes_ctr random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
    (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
-      | SOME standard_metadata =>
-       let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
-       (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
-        | SOME scope_list' =>
-         let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
-         (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
-          | SOME scope_list'' =>
-         let (v3, oracle_index''') = init_out_v random_oracle oracle_index standard_metadata in
-           (case assign scope_list'' (set_validity T v3) (lval_varname (varn_name "standard_metadata")) of
-            | SOME scope_list''' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index'''), scope_list''', status_returnv v_bot)
-            | _ => NONE)
+     let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
+     (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
+      | SOME scope_list' =>
+       let (v2, oracle_index'') = init_out_v random_oracle oracle_index' esp_header in
+       (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
+        | SOME scope_list'' =>
+         (case assign scope_list'' (v_bit (get_oracle_calls 9 oracle_index'' random_oracle, 9)) (lval_field (lval_varname (varn_name "standard_metadata")) "egress_spec") of
+          | SOME scope_list''' =>
+           SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index'' + 9), scope_list''', status_returnv v_bot)
           | _ => NONE)
         | _ => NONE)
       | _ => NONE)
@@ -544,10 +626,10 @@ Definition ipsec_crypt_encrypt_aes_ctr_def:
      let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
      (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
       | SOME scope_list' =>
-       let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
+       let (v2, oracle_index'') = init_out_v random_oracle oracle_index' esp_header in
        (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
         | SOME scope_list'' =>
-         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index), scope_list'', status_returnv v_bot)
+         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index''), scope_list'', status_returnv v_bot)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -564,7 +646,7 @@ Definition ipsec_crypt_encrypt_null_def:
      let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
      (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
       | SOME scope_list' =>
-       let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
+       let (v2, oracle_index'') = init_out_v random_oracle oracle_index' esp_header in
        (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
         | SOME scope_list'' =>
          SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index''), scope_list'', status_returnv v_bot)
@@ -575,26 +657,20 @@ Definition ipsec_crypt_encrypt_null_def:
  )
 End
 
+(* The P4-IPsec extern leaves standard_metadata unchanged *)
 Definition ipsec_crypt_decrypt_null_def:
  (ipsec_crypt_decrypt_null random_oracle ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "ipv4")) of
   | SOME ipv4_header =>
    (case lookup_lval scope_list (lval_varname (varn_name "esp")) of
     | SOME esp_header =>
-     (case lookup_lval scope_list (lval_varname (varn_name "standard_metadata")) of
-      | SOME standard_metadata =>
-       let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
-       (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
-        | SOME scope_list' =>
-         let (v2, oracle_index'') = init_out_v random_oracle oracle_index esp_header in
-         (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
-          | SOME scope_list'' =>
-           let (v3, oracle_index''') = init_out_v random_oracle oracle_index standard_metadata in
-           (case assign scope_list'' (set_validity T v3) (lval_varname (varn_name "standard_metadata")) of
-            | SOME scope_list''' =>
-             SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index'''), scope_list''', status_returnv v_bot)
-            | _ => NONE)
-          | _ => NONE)
+     let (v1, oracle_index') = init_out_v random_oracle oracle_index ipv4_header in
+     (case assign scope_list (set_validity T v1) (lval_varname (varn_name "ipv4")) of
+      | SOME scope_list' =>
+       let (v2, oracle_index'') = init_out_v random_oracle oracle_index' esp_header in
+       (case assign scope_list' (set_validity T v2) (lval_varname (varn_name "esp")) of
+        | SOME scope_list'' =>
+         SOME ((counter, ext_obj_map, v_map, ctrl, oracle_index''), scope_list'', status_returnv v_bot)
         | _ => NONE)
       | _ => NONE)
     | _ => NONE)
@@ -606,7 +682,7 @@ End
 (*                     MODEL-SPECIFIC                     *)
 (**********************************************************)
 
-(* TODO: The reset values of standard metadata *)
+(* BMv2 resets metadata to 0 at packet arrival; v1model_input_f sets or draws the fields that differ *)
 val v1model_standard_metadata_zeroed =
  listSyntax.mk_list
   (map pairSyntax.mk_pair
@@ -665,9 +741,18 @@ val v1model_header_uninit =
  mk_v_struct_list [(``"h"``, v1model_hdr_uninit)];
 *)
 
+(* Bit fields with the given names and widths, drawn from the oracle in order *)
+Definition v1model_draw_fields_def:
+ (v1model_draw_fields random_oracle (i:num) [] = ([], i)) /\
+ (v1model_draw_fields random_oracle i ((x:string, w)::t) =
+  let (t', i') = v1model_draw_fields random_oracle (i + w) t in
+   ((x, v_bit (get_oracle_calls w i random_oracle, w))::t', i'))
+End
+
+(* egress_port is unspecified in ingress (simple_switch.md) *)
 (* TODO: This should also arbitrate between different ports, taking a list of lists of input *)
 Definition v1model_input_f_def:
- (v1model_input_f n (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, ascope:v1model_ascope) =
+ (v1model_input_f random_oracle n (tau1_uninit_v,tau2_uninit_v) (io_list:in_out_list, ascope:v1model_ascope) =
   case io_list of
   | [] => NONE
   | ((bl,p)::t) =>
@@ -675,14 +760,15 @@ Definition v1model_input_f_def:
    let ext_obj_map' = AUPDATE_LIST ext_obj_map [(counter, INL (core_v_ext_packet bl));
                                                 (counter+1, INL (core_v_ext_packet []))] in
    let counter' = counter + 2 in
+   let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("egress_port", 9); ("ingress_global_timestamp", 48)] in
    (* TODO: Currently, no garbage collection in v_map is done *)
-   let v_map' = AUPDATE_LIST v_map [("b", v_ext_ref counter);
+   let v_map' = AUPDATE_LIST (FILTER (\ (k, v). k <> "truncate_length" /\ k <> "copies$") v_map) [("b", v_ext_ref counter);
                                     ("b_temp", v_ext_ref (counter+1));
-                                    ("standard_metadata", v_struct (AUPDATE_LIST (^v1model_standard_metadata_zeroed) [("ingress_port", v_bit (w9 (n2w p))); ("packet_length", v_bit (fixwidth 32 (n2v (LENGTH bl DIV 8)), 32))]));
+                                    ("standard_metadata", v_struct (AUPDATE_LIST (^v1model_standard_metadata_zeroed) ([("ingress_port", v_bit (w9 (n2w p))); ("packet_length", v_bit (fixwidth 32 (n2v (LENGTH bl DIV 8)), 32))]++drawn)));
                                     ("parsedHdr", tau1_uninit_v);
                                     ("hdr", tau1_uninit_v);
                                     ("meta", tau2_uninit_v)] in
-    SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index):v1model_ascope))
+    SOME (t, (counter', ext_obj_map', v_map', ctrl, oracle_index'):v1model_ascope))
 End
 
 Definition v1model_copyin_pbl_def:
@@ -737,9 +823,79 @@ Definition v1model_is_drop_port_def:
   else F
 End
 
-(* TODO: Outsource obtaining the output port to an external function? *)
-(* NOTE: "b" renamed to "b_out" *)
-(* A little clumsy with the double v2n, but that makes things easier *)
+Definition remove_first_def:
+ (remove_first x [] = []) /\
+ (remove_first x (h::t) = if x = h then t else h::remove_first x t)
+End
+
+(* Whether the first list is a permutation of the second *)
+Definition is_perm_def:
+ (is_perm [] l = (l = [])) /\
+ (is_perm (h::t) l = (MEM h l /\ is_perm t (remove_first h l)))
+End
+
+(* The (egress port, egress rid) copies of a multicast group, NONE for an unknown group *)
+Definition v1model_mcast_copies_def:
+ v1model_mcast_copies (groups:(num, (num # num) list) alist) mcast_bl = ALOOKUP groups (v2n mcast_bl)
+End
+
+(* Starts egress on a multicast copy to port with rid, as BMv2 does for each copy *)
+Definition v1model_install_copy_def:
+ v1model_install_copy random_oracle oracle_index (v_map:(string, v) alist) (port:num) (rid:num) =
+  (case ALOOKUP v_map "standard_metadata" of
+   | SOME (v_struct fields) =>
+    let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("enq_timestamp", 32); ("enq_qdepth", 19); ("deq_timedelta", 32); ("deq_qdepth", 19); ("egress_global_timestamp", 48)] in
+    let fields' = AUPDATE_LIST fields ([("egress_port", v_bit (fixwidth 9 (n2v port), 9)); ("egress_rid", v_bit (fixwidth 16 (n2v rid), 16)); ("instance_type", v_bit (fixwidth 32 (n2v 5), 32)); ("egress_spec", v_bit (fixwidth 9 (n2v 0), 9))]++drawn) in
+     SOME (AUPDATE v_map ("standard_metadata", v_struct fields'), oracle_index')
+   | _ => NONE)
+End
+
+(* End of ingress as in BMv2 (simple_switch.cpp): multicast before the drop port *)
+Definition v1model_traffic_manager_def:
+ v1model_traffic_manager random_oracle order_f ((i, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index)):v1model_ascope aenv) =
+  (case ALOOKUP v_map "standard_metadata" of
+   | SOME (v_struct fields) =>
+    (case ALOOKUP fields "egress_spec" of
+     | SOME (v_bit (spec_bl, n)) =>
+      (case ALOOKUP fields "mcast_grp" of
+       | SOME (v_bit (mcast_bl, n')) =>
+        if v2n mcast_bl <> 0
+        then
+         (case v1model_mcast_copies groups mcast_bl of
+          | SOME copies =>
+           let copies' = order_f oracle_index copies in
+           if ~is_perm copies' copies
+           then NONE
+           else
+            (case copies' of
+             | [] => SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index))
+             | ((port, rid)::rest) =>
+              (case lookup_obj ext_obj_map v_map "b" of
+               | SOME (INL (core_v_ext_packet b_bl)) =>
+                (case lookup_obj ext_obj_map v_map "b_temp" of
+                 | SOME (INL (core_v_ext_packet b_temp_bl)) =>
+                  let snap = FILTER (\ (k, v). k <> "truncate_length" /\ k <> "copies$") v_map in
+                  (case v1model_install_copy random_oracle (oracle_index + 1) snap port rid of
+                   | SOME (v_map', oracle_index') =>
+                    if rest = []
+                    then SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map', (tables, groups), oracle_index'))
+                    else SOME (i+1, io_list, io_list', (counter + 1, AUPDATE ext_obj_map (counter, INR (v1model_v_ext_copies (i+1, snap, b_bl, b_temp_bl, rest))), AUPDATE v_map' ("copies$", v_ext_ref counter), (tables, groups), oracle_index'))
+                   | NONE => NONE)
+                 | _ => NONE)
+               | _ => NONE))
+          | NONE => SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index)))
+        else if v1model_is_drop_port spec_bl
+        then SOME (0, io_list, io_list', (counter, ext_obj_map, v_map, (tables, groups), oracle_index))
+        else
+         let (drawn, oracle_index') = v1model_draw_fields random_oracle oracle_index [("enq_timestamp", 32); ("enq_qdepth", 19); ("deq_timedelta", 32); ("deq_qdepth", 19); ("egress_global_timestamp", 48)] in
+         let fields' = AUPDATE_LIST fields ([("egress_port", v_bit (spec_bl, n)); ("egress_spec", v_bit (fixwidth 9 (n2v 0), 9)); ("instance_type", v_bit (fixwidth 32 (n2v 0), 32))]++drawn) in
+          SOME (i+1, io_list, io_list', (counter, ext_obj_map, AUPDATE v_map ("standard_metadata", v_struct fields'), (tables, groups), oracle_index'))
+       | _ => NONE)
+     | _ => NONE)
+   | _ => NONE)
+End
+
+(* Egress drops the packet with egress_spec 511, otherwise it leaves on egress_port *)
 Definition v1model_output_f_def:
  v1model_output_f (in_out_list:in_out_list, (counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope) =
   (case lookup_obj ext_obj_map v_map "b" of
@@ -749,20 +905,53 @@ Definition v1model_output_f_def:
       (case ALOOKUP v_map "standard_metadata" of
        | SOME (v_struct struct) =>
         (case ALOOKUP struct "egress_spec" of
-         | SOME (v_bit (port_bl, n)) =>
-          SOME (in_out_list++(if v1model_is_drop_port port_bl then [] else [(bl++bl', v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl, oracle_index))
+         | SOME (v_bit (spec_bl, n)) =>
+          (case ALOOKUP struct "egress_port" of
+           | SOME (v_bit (port_bl, n')) =>
+            SOME (in_out_list++(if v1model_is_drop_port spec_bl then [] else [(v1model_truncate_packet v_map (bl++bl'), v2n port_bl)]), (counter, ext_obj_map, v_map, ctrl, oracle_index))
+           | _ => NONE)
          | _ => NONE)
        | _ => NONE)
      | _ => NONE)
    | _ => NONE)
 End
 
-(* Note that table priority is runtime-dependent, with only partial P4 language
- * support. *)
-(* API 0: longest prefix wins in tables with only lpm and exact keys, smallest priority otherwise (TDI); API 1: largest *)
-val v1model_largest_wins = if CONTROL_PLANE_API = 0 then “\mk_list:mk_list. MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list” else “\mk_list:mk_list. T”;
+(* After the deparser: emits the current multicast copy and starts egress on the next one *)
+Definition v1model_next_copy_def:
+ v1model_next_copy random_oracle ((i, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)):v1model_ascope aenv) =
+  (case ALOOKUP v_map "copies$" of
+   | SOME (v_ext_ref k) =>
+    (case ALOOKUP ext_obj_map k of
+     | SOME (INR (v1model_v_ext_copies (egress_i, snap, b_bl, b_temp_bl, ((port, rid)::rest)))) =>
+      (case v1model_output_f (io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)) of
+       | SOME (io_list'', _) =>
+        (case ALOOKUP snap "b" of
+         | SOME (v_ext_ref j) =>
+          (case ALOOKUP snap "b_temp" of
+           | SOME (v_ext_ref j') =>
+            (case v1model_install_copy random_oracle oracle_index snap port rid of
+             | SOME (v_map', oracle_index') =>
+              let ext_obj_map' = AUPDATE_LIST ext_obj_map [(j, INL (core_v_ext_packet b_bl)); (j', INL (core_v_ext_packet b_temp_bl))] in
+              if rest = []
+              then SOME (egress_i, io_list, io_list'', (counter, ext_obj_map', v_map', ctrl, oracle_index'))
+              else SOME (egress_i, io_list, io_list'', (counter, AUPDATE ext_obj_map' (k, INR (v1model_v_ext_copies (egress_i, snap, b_bl, b_temp_bl, rest))), AUPDATE v_map' ("copies$", v_ext_ref k), ctrl, oracle_index'))
+             | NONE => NONE)
+           | _ => NONE)
+         | _ => NONE)
+       | NONE => NONE)
+     | _ => SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)))
+   | _ => SOME (i+1, io_list, io_list', (counter, ext_obj_map, v_map, ctrl, oracle_index)))
+End
+
+(* Whether the largest priority (for lpm, the longest prefix) wins *)
+Definition v1model_largest_wins_def:
+ (v1model_largest_wins v1model_api_tdi mk_list = (MEM mk_lpm mk_list /\ EVERY (\mk. mk = mk_exact \/ mk = mk_lpm) mk_list)) /\
+ (v1model_largest_wins v1model_api_p4runtime (mk_list:mk_list) = T)
+End
+
 Definition v1model_apply_table_f_def:
- v1model_apply_table_f = apply_table_f_gen ^v1model_largest_wins:v1model_ascope apply_table_f
+ v1model_apply_table_f api (x, e_l, mk_list, (x', e_l'), ((counter, ext_obj_map, v_map, ctrl, oracle_index):v1model_ascope)) =
+  apply_table_f_gen (v1model_largest_wins api) (x, e_l, mk_list, (x', e_l'), (counter, ext_obj_map, v_map, FST ctrl, oracle_index))
 End
 
 Definition v1model_get_oracle_index_def:

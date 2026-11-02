@@ -1706,7 +1706,7 @@ Definition petr4_verify_checksum_args_def:
  petr4_verify_checksum_args (vtymap, ftymap) extfun_name res_args =
   case res_args of
   | [cond; data; e_acc hdr fld; algo] =>
-   if extfun_name = "verify_checksum"
+   if extfun_name = "verify_checksum" \/ extfun_name = "verify_checksum_with_payload"
    then
     (case exp_to_p_tau (vtymap, ftymap) hdr of
      | SOME (p_tau_xtl struct_ty_header f_t_list) =>
@@ -1715,6 +1715,20 @@ Definition petr4_verify_checksum_args_def:
      | NONE => NONE_msg "could not infer the type of the checksum argument of verify_checksum")
    else SOME_msg res_args
   | _ => SOME_msg res_args
+End
+
+(* mark_to_drop() acts on the standard_metadata in scope, which becomes its argument *)
+Definition petr4_mark_to_drop_args_def:
+ petr4_mark_to_drop_args (tyenv, vtymap) extfun_name res_args =
+  if extfun_name = "mark_to_drop" /\ NULL res_args
+  then
+   (case ALOOKUP tyenv "standard_metadata_t" of
+    | SOME sm_ty =>
+     (case nub (MAP FST (FILTER (\ (x, ty). ty = sm_ty) vtymap)) of
+      | [varn_name x] => SOME_msg [e_var (varn_name x)]
+      | _ => NONE_msg "mark_to_drop() needs exactly one variable of type standard_metadata_t in scope")
+    | NONE => NONE_msg "mark_to_drop() needs the type standard_metadata_t")
+  else SOME_msg res_args
 End
 
 Definition p4_seq_append_stmt_def:
@@ -2422,7 +2436,7 @@ Definition petr4_parse_method_call_def:
                | (funn_ext ext_name extfun_name) =>
                 if ext_name = ""
                 then
-                 (case petr4_verify_checksum_args (vtymap, ftymap) extfun_name res_args of
+                 (case opt_msg_bind (petr4_mark_to_drop_args (tyenv, vtymap) extfun_name res_args) (petr4_verify_checksum_args (vtymap, ftymap) extfun_name) I of
                   | SOME_msg res_args' =>
                    (case petr4_postprocess_extern_method_call tyenv (funn_ext "" extfun_name) res_args' tyargs of
                     | SOME_msg stmt => SOME_msg ([], [], [], [], [], p4_dontcare_block dontcare_decls stmt)
@@ -5416,12 +5430,14 @@ Definition v1model_init_ctrl_def:
  v1model_init_ctrl pblock_map tbl_updates =
   let
    init_tbl_map = (FLAT (MAP (\ (pblock_name, pblock). case pblock of
-                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map)):v1model_ctrl
+                      | (pbl_type, params, b_func_map, decl_list, state_map, tbl_map) => ZIP ((MAP FST tbl_map), REPLICATE (LENGTH tbl_map) [])) pblock_map))
   in
   let
    init_tbl_map' = FILTER_DUPLICATES init_tbl_map
   in
-   init_ctrl_gen init_tbl_map' tbl_updates
+   case init_ctrl_gen init_tbl_map' tbl_updates of
+   | SOME tables => SOME ((tables, []):v1model_ctrl)
+   | NONE => NONE
 End
 
 

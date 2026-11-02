@@ -69,11 +69,13 @@ val vss_set_oracle_index = ``vss_set_oracle_index``;
 
 (* Fixed-function block map *)
 val vss_ffblock_map = ``[("parser_runtime", ffblock_ff vss_parser_runtime);
-                         ("pre_deparser", ffblock_ff vss_pre_deparser)]:vss_ascope ffblock_map``;
+                         ("pre_deparser", ffblock_ff vss_pre_deparser);
+                         ("demux", ffblock_ff vss_demux)]:vss_ascope ffblock_map``;
 
 val vss_Checksum16_map =
  ``[("clear", ([("this", d_in)], Checksum16_clear));
     ("update", ([("this", d_in); ("data", d_in)], Checksum16_update));
+    ("remove", ([("this", d_in); ("data", d_in)], Checksum16_remove));
     ("get", ([("this", d_in)], Checksum16_get))]:vss_ascope ext_fun_map``;
 
 val vss_ext_map =
@@ -88,11 +90,12 @@ val vss_func_map = core_func_map;
 (***********************)
 (* Architectural state *)
 
-val vss_init_counter = term_of_int 3;
+val vss_init_counter = term_of_int 4;
 
 val vss_init_ext_obj_map = ``[(0, INL (core_v_ext_packet []));
 			      (1, INL (core_v_ext_packet []));
-			      (2, INL (core_v_ext_packet []))]:(num, vss_sum_v_ext) alist``;
+			      (2, INL (core_v_ext_packet []));
+			      (3, INL (core_v_ext_packet []))]:(num, vss_sum_v_ext) alist``;
 
 val vss_init_v_map = ``^core_init_v_map ++
 		       (* Both input port and output port can be concretized initially
@@ -101,7 +104,8 @@ val vss_init_v_map = ``^core_init_v_map ++
 			("outCtrl", v_struct [("outputPort", ^(mk_v_bitii (0,4)))]);
 			("b_in", v_ext_ref 0);
 			("b_out", v_ext_ref 1);
-			("data_crc", v_ext_ref 2)]:(string, v) alist``;
+			("payload", v_ext_ref 2);
+			("b_orig", v_ext_ref 3)]:(string, v) alist``;
 
 (* Kept folded when the import tool runs the constructors *)
 val vss_construct_stop_consts = ([]:term list);

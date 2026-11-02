@@ -1,6 +1,6 @@
 Theory p4_symb_exec
 Ancestors
-  p4 p4_core list symb_exec p4_v1model p4_bigstep p4_ebpf[qualified] p4_vss[qualified]
+  p4 p4_core list sorting symb_exec p4_v1model p4_bigstep p4_ebpf[qualified] p4_vss[qualified]
 Libs
   wordsLib[qualified]
 (* wordsLib is loaded for its side effect of adding the word simpsets to srw_ss *)
@@ -256,6 +256,18 @@ Theorem p4_contract_at_contract':
 p4_contract_at P ctx E Q <=> p4_contract' P ctx (\s. E s /\ Q s)
 Proof
 simp[p4_contract_at_def, p4_contract'_alt_shape]
+QED
+
+(* Marks the hypotheses that assume statements add when the executor checks assertions *)
+Definition p4_assumption_def:
+ p4_assumption (b:bool) = b
+End
+
+Theorem p4_contract_at_assume:
+!H P ctx E Q.
+(H ==> p4_contract_at P ctx E Q) ==> p4_contract_at (\s. P s /\ H) ctx E Q
+Proof
+rw[p4_contract_at_def]
 QED
 
 Theorem p4_contract'_contract_at:
@@ -599,6 +611,127 @@ Theorem num_eq_add_numeral_F:
 Proof
 REWRITE_TAC [arithmeticTheory.NUMERAL_DEF, arithmeticTheory.BIT1, arithmeticTheory.BIT2] >>
 decide_tac
+QED
+
+Theorem v1model_random_inner_LENGTH:
+!lo hi w i f. LENGTH lo = w ==> LENGTH (v1model_random_inner lo hi w i f) = w
+Proof
+rw[v1model_random_inner_def, LENGTH_get_oracle_calls]
+QED
+
+Theorem v1model_random_inner_range:
+!lo hi w i f.
+v2n lo <= v2n hi ==>
+v2n lo <= v2n (v1model_random_inner lo hi w i f) /\ v2n (v1model_random_inner lo hi w i f) <= v2n hi
+Proof
+rpt gen_tac >>
+strip_tac >>
+simp[v1model_random_inner_def] >>
+rw[] >>
+qspec_then `get_oracle_calls w i f` assume_tac bitstringTheory.v2n_lt >>
+fs[LENGTH_get_oracle_calls]
+QED
+
+Definition insert_all_def:
+ (insert_all x [] = [[x]]) /\
+ (insert_all x (h::t) = (x::h::t)::MAP (CONS h) (insert_all x t))
+End
+
+(* All permutations of a list, repeated ones included when the list has duplicates *)
+Definition all_perms_def:
+ (all_perms [] = [[]]) /\
+ (all_perms (h::t) = FLAT (MAP (insert_all h) (all_perms t)))
+End
+
+(* Ports of the output packets, in output order *)
+Definition output_ports_def:
+ output_ports (((i, in_out_list, in_out_list', scope), g_scope_list, arch_frame_list, status):'a astate) =
+  MAP SND in_out_list'
+End
+
+(* The multicast copy ordering of the V1Model traffic manager only permutes the copies *)
+Definition v1model_wf_ordering_def[nocompute]:
+ v1model_wf_ordering (f:num -> (num # num) list -> (num # num) list) <=> !i l. PERM (f i l) l
+End
+
+Triviality PERM_remove_first:
+!x l. MEM x l ==> PERM l (x::remove_first x l)
+Proof
+Induct_on ‘l’ >> (
+ rw[remove_first_def]
+) >>
+irule PERM_TRANS >>
+qexists_tac ‘h::x::remove_first x l’ >>
+simp[PERM_SWAP_AT_FRONT]
+QED
+
+Theorem is_perm_PERM:
+!l1 l2. is_perm l1 l2 <=> PERM l1 l2
+Proof
+Induct_on ‘l1’ >- (
+ simp[is_perm_def, PERM_NIL]
+) >>
+rw[is_perm_def] >>
+eq_tac >- (
+ rpt strip_tac >>
+ irule PERM_TRANS >>
+ qexists_tac ‘h::remove_first h l2’ >>
+ simp[Once PERM_SYM, PERM_remove_first]
+) >>
+strip_tac >>
+subgoal ‘MEM h l2’ >- (
+ drule_then (qspec_then ‘h’ mp_tac) PERM_MEM_EQ >>
+ simp[]
+) >>
+simp[] >>
+irule (iffLR PERM_CONS_IFF) >>
+qexists_tac ‘h’ >>
+irule PERM_TRANS >>
+qexists_tac ‘l2’ >>
+simp[PERM_remove_first]
+QED
+
+Triviality MEM_insert_all:
+!m n x. MEM (m ++ x::n) (insert_all x (m ++ n))
+Proof
+Induct_on ‘m’ >- (
+ Cases_on ‘n’ >> (
+  simp[insert_all_def]
+ )
+) >>
+rpt strip_tac >>
+rewrite_tac [listTheory.APPEND, insert_all_def, listTheory.MEM] >>
+disj2_tac >>
+irule listTheory.MEM_MAP_f >>
+first_x_assum irule
+QED
+
+Theorem PERM_MEM_all_perms:
+!l1 l2. PERM l1 l2 ==> MEM l1 (all_perms l2)
+Proof
+Induct_on ‘l2’ >- (
+ simp[all_perms_def, PERM_NIL]
+) >>
+rpt strip_tac >>
+drule_then assume_tac (iffLR PERM_SYM) >>
+drule_then strip_assume_tac (iffLR PERM_CONS_EQ_APPEND) >>
+rewrite_tac [all_perms_def, listTheory.MEM_FLAT, listTheory.MEM_MAP] >>
+qexists_tac ‘insert_all h (M ++ N)’ >>
+conj_tac >- (
+ qexists_tac ‘M ++ N’ >>
+ simp[] >>
+ first_x_assum irule >>
+ simp[Once PERM_SYM]
+) >>
+qpat_x_assum ‘l1 = _’ (fn thm => rewrite_tac [thm, MEM_insert_all])
+QED
+
+Theorem v1model_wf_ordering_all_perms:
+!f i l. v1model_wf_ordering f ==> MEM (f i l) (all_perms l)
+Proof
+rw[v1model_wf_ordering_def] >>
+irule PERM_MEM_all_perms >>
+simp[]
 QED
 
 (*

@@ -21,6 +21,7 @@ val v1model_copyout_pbl : term
 
 val v1model_apply_table_f : term
 
+val v1model_ffblock_map_gen : term -> term
 val v1model_ffblock_map : term
 val v1model_ext_map : term
 val v1model_func_map : term
@@ -46,6 +47,11 @@ val dest_v1model_update_checksum_inner : term -> term
 val is_v1model_update_checksum_inner : term -> bool
 val mk_v1model_update_checksum_inner : term -> term
 val v1model_update_checksum_inner_tm : term
+
+val dest_v1model_random_inner : term -> term * term * term * term * term
+val is_v1model_random_inner : term -> bool
+val mk_v1model_random_inner : term * term * term * term * term -> term
+val v1model_random_inner_tm : term
 
 val v1model_construct_stop_consts : term list
 

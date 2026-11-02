@@ -230,12 +230,25 @@ fun symb_branch debug_flag disj_thm path_cond =
   (* TODO: Here, path condition can be simplified. But then it also becomes harder to
    * rewrite with... *)
   (* TODO: Don't translate back and forth to symb_true here, do once and for all and at end *)
-  val path_disj_thm4' = PURE_REWRITE_RULE [GSYM symb_true_def] (DISCH_ALL path_disj_thm4)
+  (* Hypotheses of disj_thm other than the path condition stay hypotheses *)
+  val path_disj_thm4' = PURE_REWRITE_RULE [GSYM symb_true_def] (DISCH path_cond_tm path_disj_thm4)
 
   val path_disj_thm5 = SIMP_RULE ((pure_ss++boolSimps.BOOL_ss++boolSimps.CONG_ss)-*["NOT_CLAUSES"]) [CONJUNCT2 NOT_CLAUSES, symb_conj_case, EQ_REFL] path_disj_thm4';
 
+  val disj_tm4 = concl path_disj_thm4
   val res =
-   if Teq $ concl path_disj_thm5
+   if Feq disj_tm4 orelse (is_disj_list disj_tm4 andalso null (dest_disj_list disj_tm4))
+   then
+    (* Every disjunct contradicts the path condition (only under hypotheses of disj_thm):
+     * the path ends without successors *)
+    let
+     val path_F_thm = if Feq disj_tm4 then path_disj_thm4 else PURE_ONCE_REWRITE_RULE [disj_list_def] path_disj_thm4
+     val empty_cases_tm = mk_symb_branch_cases (path_cond_tm, mk_list ([], bool))
+     val empty_cases_thm = (PURE_ONCE_REWRITE_CONV [symb_branch_cases_def] THENC RAND_CONV (PURE_ONCE_REWRITE_CONV [disj_list_def])) empty_cases_tm
+    in
+     SOME ([], EQ_MP (SYM empty_cases_thm) (DISCH path_cond_tm path_F_thm), [])
+    end
+   else if Teq $ concl path_disj_thm5
    then NONE
    else
     let

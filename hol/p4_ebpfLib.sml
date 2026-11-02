@@ -46,7 +46,7 @@ val ebpf_copyout_pbl = ``ebpf_copyout_pbl``;
 val ebpf_apply_table_f = ``ebpf_apply_table_f``;
 
 (* Fixed-function block map *)
-val ebpf_ffblock_map = ``[]``;
+val ebpf_ffblock_map = ``[("parser_reject", ffblock_ff ebpf_parser_reject)]``;
 
 val ebpf_CounterArray_map =
  ``[("increment", ([("this", d_in); ("index", d_in)], CounterArray_increment));

@@ -108,7 +108,9 @@ predicates on architectural states, and the definition does not constrain them f
 satisfies `E`, proves `E` and `Q` for each final state, and combines the paths into the
 contract. Since its step theorems speak only about `init_astate`, the tool forms the
 precondition itself, as `\s. path_cond /\ s = init_astate`; the free variables of `init_astate`
-and of the path condition stay universally quantified in the theorem. `E` is an argument of
+and of the path condition stay universally quantified in the theorem. For a V1Model context
+with a variable multicast ordering, the tool first conjoins `v1model_wf_ordering order_f` to
+the path condition (see V1Model packet flow). `E` is an argument of
 `p4_symb_exec_prove_contract`, which fails with an error if a path has not reached `E` within
 `n_max` steps (a branch also costs one step of fuel).
 
@@ -128,10 +130,12 @@ The end point decides what the contract says:
 
 ## Decomposition
 
-A proof can be split at the start of a block `k`. `get_v1model_wellformed_defs ctx init_astate k`
+A proof can be split at the start of a block `k`, except after the traffic manager of a V1Model
+multicast packet (see V1Model packet flow). `get_v1model_wellformed_defs ctx init_astate k`
 defines the predicate `p4_v1model_parser_wellformed`, which holds of a state when block `k` is
 next, no packets are left, and the table entries and extern objects are those of `init_astate`,
-except that the packet objects hold the rest of the packet and each register holds an arbitrary
+except that the packet objects hold the rest of the packet (after the deparser, the deparsed
+packet and the rest) and each register holds an arbitrary
 array `reg_i` with `wellformed_register_array w reg_i`; the header, metadata and apply-result bits
 and the oracle index are arbitrary. A variable of the context, such as the random oracle, that
 still occurs in the extern objects or the table entries is a parameter of the predicate.
@@ -148,8 +152,12 @@ second.
 A contract covers one run from the initial state, and the control plane does not change
 during the run:
 
-* Table entries are the `ctrl` component of the initial state. Nothing in the semantics
-  changes them, so every packet of the run sees the same entries. They can be symbolic,
+* Table entries are in the `ctrl` component of the initial state. For eBPF and VSS, `ctrl` is
+  the table map. For V1Model, it is the pair of the table map and the multicast groups (e.g.
+  `([], [(1, [(1, 0); (2, 0)])])` in `tests/multicastScript.sml`); the groups map a group id
+  (the value of `mcast_grp`) to its list of (egress port, egress rid) copies, which the import
+  tool puts in BMv2's replication order. Nothing in the semantics changes `ctrl`, so every
+  packet of the run sees the same entries and groups. Table entries can be symbolic,
   e.g. `t2_ctrl` in `tests/table_unknownScript.sml`, constrained by
   `v1model_tbl_is_well_formed` in the precondition; the contract then holds for every entry
   list that satisfies the precondition, but for one list per run.
@@ -164,6 +172,83 @@ parameter types as arguments. The empty table satisfies it (`v1model_tbl_is_well
 and before running, the executor checks that every conjunct of the path condition about table
 entries holds when the symbolic entry lists are empty, so that these conjuncts cannot make the
 precondition unsatisfiable.
+
+## V1Model packet flow
+
+As in BMv2's simple_switch, a traffic manager (`v1model_traffic_manager`) runs between
+ingress and egress. A packet with `mcast_grp` 0 and `egress_spec` 511 is dropped there and
+egress does not run for it; a packet with `mcast_grp` 0 and another `egress_spec` runs egress
+with `egress_port` set to `egress_spec`, `egress_spec` 0 and `instance_type` 0, and a packet
+for which egress sets `egress_spec` to 511 is dropped at the output.
+
+A packet with nonzero `mcast_grp` is replicated to the copies of that multicast group (see
+Control plane), and the original is discarded whatever its `egress_spec`. An unknown or empty
+group gives no output. The traffic manager takes an ordering `order_f` as a parameter:
+`order_f oi c` is the order in which the copies `c` are processed, where `oi` is the oracle
+index at the traffic manager. If it is not a permutation of `c`, the traffic manager has no
+step. Each copy runs egress, compute checksum and the deparser, starting from the variables
+and the packet at the end of ingress, with `egress_port` and `egress_rid` from the group,
+`instance_type` 5 and `egress_spec` 0; an ingress `truncate` does not apply to the copies.
+The `next_copy` block (`v1model_next_copy`) after the deparser emits every copy but the last
+and starts egress on the next one, and the output block emits the last. A copy for which
+egress sets `egress_spec` to 511 is dropped, the others are not. Registers and the other
+extern objects keep their state from one copy to the next.
+
+The import tool passes the identity ordering `\i l. l` in its concrete modes and a free
+variable `order_f` in symbolic mode. The hand-written contexts in `tests` and `example_ipsec`
+use the identity, except those in `tests/multicastScript.sml`. `v1model_ffblock_map_gen` in
+`hol/p4_v1modelLib.sml` builds the fixed-function block map for a given ordering term.
+
+* The executor branches on `v1model_is_drop_port` when `egress_spec` is symbolic: at the
+  traffic manager (for `mcast_grp` 0), at `next_copy` while a multicast copy is pending, and at
+  the output. It keeps that constant folded where needed itself, so it need not be in
+  `stop_consts_rewr`.
+* The executor needs a known `mcast_grp` at the traffic manager: it stops with an error when
+  `mcast_grp` does not evaluate to a number there. A proof split before the traffic manager
+  must therefore keep `mcast_grp` in the intermediate postcondition (see
+  `tests/decomposeScript.sml`).
+* When the ordering in the context is a variable `order_f`, the executor branches at the
+  traffic manager of a multicast packet into one path for each distinct permutation `p` of the
+  group's copies `c`, with `order_f oi c = p` in its path condition. The executor proves that
+  these paths cover all cases from `v1model_wf_ordering order_f`, which
+  `p4_symb_exec_prove_contract` conjoins to the path condition, so the contract's precondition
+  has that conjunct. `v1model_wf_ordering f` (`p4_symb_execScript.sml`) is
+  `!i l. PERM (f i l) l`; the contract holds for every `order_f` that satisfies it. The context
+  definition then takes `order_f` as a parameter, as it takes `random_oracle` (see
+  `tests/multicastScript.sml`). `p4_debug_symb_exec` conjoins `v1model_wf_ordering order_f` in
+  the same way, but `p4_symb_exec` takes the path condition as given: called directly with such
+  a context, it needs that conjunct in its path condition, or `symb_branch` cannot prove the
+  branch at the traffic manager. With a closed ordering term the executor does not branch
+  there. With any other ordering term (one with free variables that is not a variable), the
+  executor stops with an error at the traffic manager of a packet whose group exists.
+* Decomposition does not support a cut after the traffic manager (at the start of egress,
+  compute checksum, the deparser, `next_copy` or the output block) of a packet whose multicast
+  group has two or more copies. `p4_v1model_parser_wellformed` describes a state without the
+  copies object that the traffic manager then creates, so it does not hold at such a cut and
+  the first contract cannot be proved.
+* `packet_has_port s p` (`p4_symb_execScript.sml`) holds only when the output is exactly one
+  packet, on port `p`. For the copies of a multicast packet, `output_ports s` is the list of
+  the ports of all output packets in output order; e.g. the postcondition
+  `\s. is_perm (output_ports s) [1; 2]` says that the output is one packet on port 1 and one on
+  port 2, in either order.
+* The timestamps and queue fields of `standard_metadata`, and `egress_port` during ingress,
+  are oracle bits; the queue fields are drawn anew for each multicast copy.
+
+## assert, assume and random
+
+In the semantics, `assert` and `assume` have no effect, as with p4c's `--ndebug`. With the trace
+`p4_symb_exec_assertions` set (`set_trace "p4_symb_exec_assertions" 1`), the executor checks
+them:
+
+* `assert(c)`: `c` must follow from the path condition, by bit-blasting or by arithmetic on the
+  numbers of the bit-strings. Otherwise the executor stops with "assert may fail".
+* `assume(c)`: the path continues with `c` in its path condition, and the precondition of the
+  contract gets the conjunct `!vs. pc ==> c`, where `pc` is the path condition at the call and
+  `vs` are the executor's fresh variables in it. A path on which `c` contradicts the path
+  condition ends at the call.
+
+`random(r, lo, hi)` gives `r` fresh variables in `[lo, hi]`, unless the bounds alone decide the
+value. See `tests/assert_assumeScript.sml`.
 
 ## Tests and examples
 
