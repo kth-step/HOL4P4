@@ -92,6 +92,9 @@ fun mk_v_bitii (num, width) =
 fun mk_v_biti_arb width =
   mk_v_bit (mk_pair (mk_list (List.tabulate (width, (fn w => (inst[Type.alpha |-> bool] arb))), bool), term_of_int width));
 
+val (v_varbit_tm, mk_v_varbit, dest_v_varbit, is_v_varbit) =
+  syntax_fns2 "p4" "v_varbit";
+
 val (v_bool_tm, mk_v_bool, dest_v_bool, is_v_bool) =
   syntax_fns1 "p4" "v_bool";
 
@@ -286,6 +289,13 @@ val mk_tau_bit =
   mk_tau_bit_tmp o (fn n => term_of_int n);
 val dest_tau_bit =
   int_of_term o dest_tau_bit_tmp;
+
+val (tau_varbit_tm, mk_tau_varbit_tmp, dest_tau_varbit_tmp, is_tau_varbit) =
+  syntax_fns1 "p4" "tau_varbit";
+val mk_tau_varbit =
+  mk_tau_varbit_tmp o (fn n => term_of_int n);
+val dest_tau_varbit =
+  int_of_term o dest_tau_varbit_tmp;
 
 val (tau_xtl_tm, mk_tau_xtl_tmp, dest_tau_xtl, is_tau_xtl) =
   syntax_fns2 "p4" "tau_xtl";

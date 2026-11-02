@@ -39,6 +39,10 @@ Definition ebpf_packet_in_extract:
  ebpf_packet_in_extract = packet_in_extract_gen ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
 End
 
+Definition ebpf_packet_in_extract_varbit_def:
+ ebpf_packet_in_extract_varbit = packet_in_extract_varbit_gen F ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
+End
+
 Definition ebpf_packet_in_lookahead:
  ebpf_packet_in_lookahead = packet_in_lookahead_gen ebpf_ascope_lookup ebpf_ascope_update_v_map
 End

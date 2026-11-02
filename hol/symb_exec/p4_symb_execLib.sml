@@ -626,6 +626,9 @@ fun get_fv_arg_of_tau tau fv_index =
   in
    (mk_e_v $ mk_v_bit (mk_pair (fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, width), term_of_int width)), fv_index + width)
   end
+ (* A varbit is empty, as init_from_tau makes it; a symbolic length is not supported *)
+ else if is_tau_varbit tau
+ then (mk_e_v $ mk_v_varbit (mk_pair (mk_list ([], bool), zero_tm), term_of_int (dest_tau_varbit tau)), fv_index)
  else if is_tau_xtl tau
  then
   let
@@ -1255,6 +1258,8 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       then p4_check_assert path_tm scope_list
       else if (ext_obj = "packet_in") andalso (ext_method = "extract")
       then SOME (approx_packet_in_extract fv_index path_tm scope_list ascope)
+      else if (ext_obj = "packet_in") andalso (ext_method = "extract_varbit")
+      then SOME (approx_packet_in_extract_varbit fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "lookahead")
       then SOME (approx_packet_in_lookahead fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "advance")
@@ -2836,6 +2841,12 @@ val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_d
 fun get_bits_of_v v =
  if is_v_bit v
  then fst $ dest_list $ fst $ dest_pair $ dest_v_bit v
+ (* The well-formed state holds empty varbits, which have no free variables *)
+ else if is_v_varbit v
+ then
+  (case fst $ dest_list $ fst $ dest_pair $ fst $ dest_v_varbit v of
+     [] => []
+   | _ => raise (ERR "get_bits_of_v" ("varbit not supported here: a well-formed state holds empty varbits, but found "^(term_to_string v))))
  else if is_v_bool v
  then [dest_v_bool v]
  else if is_v_ext_ref v
@@ -3190,6 +3201,9 @@ fun free_vars_v_of_name_tau prefix fv_index name_tau =
    in
     (fv_index+width, mk_pair (name, snd $ mk_v_bit_freevars_fromindex (prefix, fv_index, width)))
    end
+  (* A varbit is empty, as init_from_tau makes it; a symbolic length is not supported *)
+  else if is_tau_varbit tau
+  then (fv_index, mk_pair (name, mk_v_varbit (mk_pair (mk_list ([], bool), zero_tm), term_of_int (dest_tau_varbit tau))))
   else if is_tau_xtl tau
   then
    let
