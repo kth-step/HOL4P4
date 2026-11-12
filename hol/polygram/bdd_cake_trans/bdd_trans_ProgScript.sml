@@ -164,6 +164,27 @@ val r = translate simp_table_def;
 val r = translate simp_tables_def;
 val r = translate simp_tables_wrapper_def;
 
+(* reachability-based simplifier used by table_structure *)
+val r = translate_no_ind (simp_table_reach_def |> REWRITE_RULE [MEMBER_INTRO]);
+
+(* the translator's induction obligation: P holds at every argument once
+   it holds at the recursive calls; a list induction gives the latter *)
+val simp_table_reach_ind = prove(
+  fetch "-" "simp_table_reach_ind_def" |> SPEC_ALL |> concl |> lhs,
+  once_rewrite_tac [fetch "-" "simp_table_reach_ind_def"]
+  \\ rpt gen_tac \\ strip_tac
+  \\ Induct
+  \\ rpt gen_tac
+  \\ first_x_assum match_mp_tac
+  \\ rpt strip_tac
+  \\ gvs []);
+
+val _ = simp_table_reach_ind |> update_precondition;
+val r = translate out_states_def;
+val r = translate simp_tables_reach_def;
+val r = translate drop_decided_def;
+val r = translate simp_tables_wrapper_reach_def;
+
 val r = translate final_row_def;
 val r = translate final_tbl_def;
 val r = translate final_tbll_def;
@@ -176,6 +197,10 @@ val r = translate fv_tbll_def;
 val r = translate fv_tables_def;
 
 val r = translate table_structure_def;
+
+val r = translate simp_tables_reach_def;
+val r = translate drop_decided_def;
+val r = translate simp_tables_wrapper_reach_def;
 
 
 Type action_table_type = “:((string# num list) var_table_list # num)”;

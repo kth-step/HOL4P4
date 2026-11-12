@@ -1,4 +1,5 @@
 open HolKernel Parse bossLib;
+open wordsLib p4Theory p4_auxTheory;
 
 val _ = new_theory "bdd_gen";
 

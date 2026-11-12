@@ -644,39 +644,7 @@ Theorem isIsomorph_exe_abs_imp:
   ∀ BDD1 BDD2 I.
     isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) ⇒ isIsomorph I BDD1 BDD2
 Proof
-
-  rpt strip_tac >>
-  PairCases_on ‘BDD1’ >>
-  PairCases_on ‘BDD2’ >>
-  rename1 ‘isIsomorph_exec I' (r1,edges1,labels1) (r2,edges2,labels2)’ >>
-
-  gvs[isIsomorph_exec_def, isIsomorph_def] >>
-
-  rpt strip_tac >>
-
-  (
-  Cases_on ‘their_i_map I' (dom_range_edges edges1)’ >-
-   gvs[apply_iso_check_for_nodes_def, their_i_map_def, dom_range_edges_def, node_in_BDD_def] >>
-
-  PairCases_on ‘h’ >>
-  rename1 ‘their_i_map I' (dom_range_edges edges1) = (n1',n1_map')::t’ >>
-  gvs[apply_iso_check_for_nodes_def, apply_iso_check_def] >>
-
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  gvs[node_in_BDD_def] >>
-  gvs[their_i_map_def] >>
-
-  Cases_on ‘dom_range_edges edges1’ >> gvs[] >>
-  Cases_on ‘h=n1’ >> gvs[] >>
-
-  gvs[EVERY_MAP] >>
-  gvs[EVERY_MEM] >>
-  res_tac >>
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-
-  rpt strip_tac >>
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  res_tac)
+  metis_tac[isIsomorph_exe_abs_eq]
 QED
 
 

@@ -175,12 +175,77 @@ End
 
 
 
+(*******************************************************)
+(*  Reachability-based table simplification            *)
+(*                                                     *)
+(*  The MTBDD is built top-down: two leaves are merged *)
+(*  only if their tables are syntactically equal, so   *)
+(*  the simplifier should map tables with the same     *)
+(*  meaning to the same term. simp_tables_wrapper_reach*)
+(*    1. tracks the set reach of states that can enter *)
+(*       each table (the first table is entered in     *)
+(*       st_in, table k+1 in an output state of a      *)
+(*       remaining row of table k), dropping rows for  *)
+(*       other states and rows after a [True] row for  *)
+(*       the same state (they can never be chosen);    *)
+(*    2. drops leading tables that are decided, i.e.   *)
+(*       reduced to [([True], st_in, state s)], and    *)
+(*       continues from state s.                       *)
+(*******************************************************)
+
+(* simplify one table, keeping only rows for states in reach;
+   dead lists the states that already have a [True] row *)
+Definition simp_table_reach_def:
+  (simp_table_reach ([]: 'a var_table) (reach:num list) (dead:num list) = []) ∧
+  (simp_table_reach ((atoms,st,res)::table) reach dead =
+     if ~MEM st reach ∨ MEM st dead then simp_table_reach table reach dead
+     else
+       let atoms' = simp_row atoms in
+         if atoms' = [False] then simp_table_reach table reach dead
+         else if atoms' = [True] then
+           (atoms',st,res) :: simp_table_reach table reach (st::dead)
+         else (atoms',st,res) :: simp_table_reach table reach dead)
+End
+
+
+(* the states a table can pass on to the next table *)
+Definition out_states_def:
+  (out_states ([]: 'a var_table) = []) ∧
+  (out_states ((atoms,st,state s)::table) = s :: out_states table) ∧
+  (out_states ((atoms,st,action a)::table) = out_states table)
+End
+
+
+Definition simp_tables_reach_def:
+  (simp_tables_reach ([]: 'a var_table_list) reach = []) ∧
+  (simp_tables_reach (t::tbll) reach =
+     let t' = simp_table_reach t reach [] in
+       t' :: simp_tables_reach tbll (out_states t'))
+End
+
+
+(* drop leading decided tables and continue from the state they lead to *)
+Definition drop_decided_def:
+  (drop_decided ([([True], st, state s)]::t::tbll) (st_in:num) =
+     if st = st_in then drop_decided (t::tbll) s
+     else ([([True], st, state s)]::t::tbll, st_in)) ∧
+  (drop_decided (tbll: 'a var_table_list) st_in = (tbll, st_in))
+End
+
+
+Definition simp_tables_wrapper_reach_def:
+  simp_tables_wrapper_reach ((tbll: 'a var_table_list), st_in) =
+    drop_decided (simp_tables_reach tbll [st_in]) st_in
+End
+
+
+
 Definition table_structure_def:
   table_structure =
   <|
     sem := sem_tables;
     sub := mk_substitute_tables;
-    simp := simp_tables_wrapper;
+    simp := simp_tables_wrapper_reach;
     final := final_tables;
     fv := fv_tables;
   |>
@@ -2159,18 +2224,153 @@ QED
 
 
 
+(*******************************************************)
+(*  Lemmas for simp_tables_wrapper_reach               *)
+(*******************************************************)
+
+Triviality index_find_case_shift:
+  ∀ l i j P (f:'x -> 'y).
+    (case INDEX_FIND i P l of NONE => NONE | SOME (idx,line) => SOME (f line)) =
+    (case INDEX_FIND j P l of NONE => NONE | SOME (idx,line) => SOME (f line))
+Proof
+  Induct >> rw[INDEX_FIND_def]
+QED
+
+
+(* match_tbl looks at the rows one by one *)
+Theorem match_tbl_cons:
+  (∀ mv s. match_tbl [] mv s = NONE) ∧
+  (∀ atoms st res t mv s.
+     match_tbl ((atoms,st,res)::t) mv s =
+     if is_match_row s st atoms mv then SOME res else match_tbl t mv s)
+Proof
+  rw[match_tbl_def, check_all_rows_match_def, min_idx_till_def, INDEX_FIND_def] >>
+  irule index_find_case_shift
+QED
+
+
+Theorem is_atoml_true_single:
+  (∀ mv. is_atoml_true [True] mv) ∧ (∀ mv. ~is_atoml_true [False] mv)
+Proof
+  rw[is_atoml_true_def, sem_var_atom_def]
+QED
+
+
+Theorem simp_row_nil:
+  simp_row [] = []
+Proof
+  rw[simp_row_def]
+QED
+
+
+(* substituting a variable that has a value in mv does not change matching *)
+Theorem match_tbl_sub_eq:
+  ∀ t x b mv s.
+    ALOOKUP mv x = SOME b ⇒
+    match_tbl (mk_substitute_tbl t x b) mv s = match_tbl t mv s
+Proof
+  rw[match_tbl_def] >>
+  metis_tac[check_all_rows_match_sub_eq]
+QED
+
+
+Theorem match_tbll_sub_eq:
+  ∀ tbll x b mv s.
+    ALOOKUP mv x = SOME b ⇒
+    match_tbll (MAP (λt. mk_substitute_tbl t x b) tbll) mv s = match_tbll tbll mv s
+Proof
+  Induct >- rw[match_tbll_def] >>
+  rpt strip_tac >>
+  Cases_on ‘tbll’ >>
+  gvs[match_tbll_def, match_tbl_sub_eq]
+QED
+
+
+(* pruning to the reachable states keeps the match of every reachable state *)
+Theorem match_tbl_simp_table_reach:
+  ∀ t reach dead s mv.
+    MEM s reach ∧ ~MEM s dead ⇒
+    match_tbl (simp_table_reach t reach dead) mv s = match_tbl t mv s
+Proof
+  Induct >- rw[simp_table_reach_def, match_tbl_cons] >>
+  PairCases >> rename1 ‘(atoms,st,res)::t’ >>
+  rpt strip_tac >>
+  ‘is_atoml_true atoms mv = is_atoml_true (simp_row atoms) mv’
+    by metis_tac[simp_row_list_imp_atoml_true] >>
+  Cases_on ‘st = s’ >>
+  gvs[simp_table_reach_def, match_tbl_cons, is_match_row_def] >>
+  rw[match_tbl_cons, is_match_row_def] >>
+  gvs[is_atoml_true_single, simp_row_not_empty, simp_row_nil]
+QED
+
+
+(* a state result of match_tbl is an output state of the table *)
+Theorem match_tbl_state_out_states:
+  ∀ t mv s s'.
+    match_tbl t mv s = SOME (state s') ⇒ MEM s' (out_states t)
+Proof
+  Induct >- rw[match_tbl_cons] >>
+  PairCases >> rename1 ‘(atoms,st,res)::t’ >>
+  rpt strip_tac >>
+  Cases_on ‘res’ >>
+  gvs[match_tbl_cons, out_states_def] >>
+  Cases_on ‘is_match_row s st atoms mv’ >> gvs[] >>
+  metis_tac[]
+QED
+
+
+Theorem match_tbll_simp_tables_reach:
+  ∀ tbll reach s mv.
+    MEM s reach ⇒
+    match_tbll (simp_tables_reach tbll reach) mv s = match_tbll tbll mv s
+Proof
+  Induct >- rw[simp_tables_reach_def, match_tbll_def] >>
+  rpt strip_tac >>
+  rename1 ‘t::tbll’ >>
+  ‘match_tbl (simp_table_reach t reach []) mv s = match_tbl t mv s’
+    by gvs[match_tbl_simp_table_reach] >>
+  Cases_on ‘tbll’ >>
+  gvs[simp_tables_reach_def, match_tbll_def] >>
+  Cases_on ‘match_tbl t mv s’ >> gvs[] >>
+  rename1 ‘match_tbl t mv s = SOME r’ >>
+  Cases_on ‘r’ >> gvs[] >>
+  first_x_assum irule >>
+  metis_tac[match_tbl_state_out_states]
+QED
+
+
+(* dropping a decided leading table does not change the semantics *)
+Theorem match_tbll_drop_decided:
+  ∀ tbll s mv.
+    match_tbll (FST (drop_decided tbll s)) mv (SND (drop_decided tbll s)) =
+    match_tbll tbll mv s
+Proof
+  recInduct drop_decided_ind >>
+  rw[drop_decided_def] >>
+  gvs[match_tbll_def, match_tbl_cons, is_match_row_def, is_atoml_true_single]
+QED
+
+
+Theorem sem_simp_tables_wrapper_reach:
+  ∀ tbll s mv.
+    sem_tables (simp_tables_wrapper_reach (tbll,s)) mv = sem_tables (tbll,s) mv
+Proof
+  rw[simp_tables_wrapper_reach_def] >>
+  Cases_on ‘drop_decided (simp_tables_reach tbll [s]) s’ >>
+  rename1 ‘drop_decided _ _ = (tbll',s')’ >>
+  qspecl_then [‘simp_tables_reach tbll [s]’, ‘s’, ‘mv’] mp_tac match_tbll_drop_decided >>
+  gvs[sem_tables_def, match_tbll_simp_tables_reach]
+QED
+
+
 Theorem prop1_var_tables:
   prop1 table_structure
 Proof
-  rgs[prop1_def, table_structure_def, fv_in_p_def] >>
-
+  rgs[prop1_def, table_structure_def] >>
   rpt strip_tac >>
   Cases_on ‘p’ >>
-  rename1 ‘(tbls, s_in)’ >>
-
-  gvs[mk_substitute_tables_def, simp_tables_def, simp_tables_wrapper_def] >>
-  gvs[mk_substitute_tbll_def] >>
-  gvs[prop1_tables_verbose]
+  gvs[sem_simp_tables_wrapper_reach, mk_substitute_tables_def, mk_substitute_tbll_def,
+      sem_tables_def, match_tbll_sub_eq]
 QED
 
 
@@ -2295,18 +2495,30 @@ QED
 
 
 
+(* a final simplified table determines the semantics of the original *)
+Theorem final_simp_reach_imp_sem:
+  ∀ tbll s mv h b q.
+    ALOOKUP mv h = SOME b ∧
+    final_tables (simp_tables_wrapper_reach (mk_substitute_tables (tbll,s) h b)) = SOME q ⇒
+    sem_tables (tbll,s) mv = SOME q
+Proof
+  rpt strip_tac >>
+  ‘sem_tables (simp_tables_wrapper_reach (mk_substitute_tables (tbll,s) h b)) mv = SOME q’
+    by (Cases_on ‘simp_tables_wrapper_reach (mk_substitute_tables (tbll,s) h b)’ >>
+        gvs[] >> metis_tac[property_final_imp_sem_tbll_simp]) >>
+  gvs[sem_simp_tables_wrapper_reach, mk_substitute_tables_def, mk_substitute_tbll_def,
+      sem_tables_def, match_tbll_sub_eq]
+QED
+
+
+
 Theorem prop2_var_tables:
   prop2 table_structure
 Proof
-  rgs[prop2_def, table_structure_def, fv_in_p_def] >>
-
+  rgs[prop2_def, table_structure_def] >>
   rpt strip_tac >>
   Cases_on ‘p’ >>
-  rename1 ‘(tbls, s_in)’ >>
-
-  gvs[mk_substitute_tables_def, simp_tables_def, simp_tables_wrapper_def] >>
-  gvs[mk_substitute_tbll_def] >>
-  metis_tac[prop2_var_tables_verbose]
+  metis_tac[final_simp_reach_imp_sem]
 QED
 
 
@@ -2317,14 +2529,10 @@ QED
 Theorem prop3_var_tables:
   prop3 table_structure
 Proof
-  rgs[prop3_def, table_structure_def, fv_in_p_def] >>
-
+  rgs[prop3_def, table_structure_def] >>
   rpt strip_tac >>
-  Cases_on ‘p’ >>
-  rename1 ‘(tbls, s_in)’ >>
-
-  gvs[mk_substitute_tables_def, simp_tables_def, simp_tables_wrapper_def] >>
-  gvs[mk_substitute_tbll_def] >>
+  Cases_on ‘simp_tables_wrapper_reach (mk_substitute_tables p h b)’ >>
+  gvs[] >>
   metis_tac[property_final_imp_sem_tbll_simp]
 QED
 
@@ -2549,24 +2757,89 @@ QED
 (*  simplification                                     *)
 (*******************************************************)
 
+(* free variables can only shrink *)
+Theorem mem_fv_tbl_cons:
+  ∀ atoms st res t x.
+    MEM x (fv_tbl ((atoms,st,res)::t)) ⇔ MEM x (fv_row atoms) ∨ MEM x (fv_tbl t)
+Proof
+  rw[fv_tbl_def, MEM_FLAT, MEM_MAP, PULL_EXISTS, EXISTS_PROD] >>
+  metis_tac[]
+QED
+
+
+Theorem mem_fv_tbll_cons:
+  ∀ t tbll x.
+    MEM x (fv_tbll (t::tbll)) ⇔ MEM x (fv_tbl t) ∨ MEM x (fv_tbll tbll)
+Proof
+  rw[fv_tbll_def, MEM_FLAT, MEM_MAP, PULL_EXISTS] >>
+  metis_tac[]
+QED
+
+
+Theorem mem_fv_row_simp_row:
+  ∀ atoms x. MEM x (fv_row (simp_row atoms)) ⇒ MEM x (fv_row atoms)
+Proof
+  rw[fv_row_def] >>
+  metis_tac[mem_flat_fv_row]
+QED
+
+
+Theorem mem_fv_simp_table_reach:
+  ∀ t reach dead x.
+    MEM x (fv_tbl (simp_table_reach t reach dead)) ⇒ MEM x (fv_tbl t)
+Proof
+  Induct >- rw[simp_table_reach_def] >>
+  PairCases >> rename1 ‘(atoms,st,res)::t’ >>
+  rw[simp_table_reach_def] >>
+  gvs[mem_fv_tbl_cons] >>
+  metis_tac[mem_fv_row_simp_row]
+QED
+
+
+Theorem mem_fv_simp_tables_reach:
+  ∀ tbll reach x.
+    MEM x (fv_tbll (simp_tables_reach tbll reach)) ⇒ MEM x (fv_tbll tbll)
+Proof
+  Induct >- rw[simp_tables_reach_def] >>
+  rw[simp_tables_reach_def] >>
+  gvs[mem_fv_tbll_cons] >>
+  metis_tac[mem_fv_simp_table_reach]
+QED
+
+
+Theorem mem_fv_drop_decided:
+  ∀ tbll s x.
+    MEM x (fv_tbll (FST (drop_decided tbll s))) ⇒ MEM x (fv_tbll tbll)
+Proof
+  recInduct drop_decided_ind >>
+  rw[drop_decided_def] >>
+  gvs[mem_fv_tbll_cons]
+QED
+
+
+Theorem mem_fv_simp_tables_wrapper_reach:
+  ∀ tbll s x.
+    MEM x (fv_tables (simp_tables_wrapper_reach (tbll,s))) ⇒ MEM x (fv_tbll tbll)
+Proof
+  rw[simp_tables_wrapper_reach_def] >>
+  Cases_on ‘drop_decided (simp_tables_reach tbll [s]) s’ >>
+  qspecl_then [‘simp_tables_reach tbll [s]’, ‘s’, ‘x’] mp_tac mem_fv_drop_decided >>
+  gvs[fv_tables_def] >>
+  metis_tac[mem_fv_simp_tables_reach]
+QED
+
+
 Theorem prop4_var_tables:
   prop4 table_structure
 Proof
-  rgs[prop4_def, table_structure_def, fv_in_p_def, fv_in_vars_def] >>
-
+  rgs[prop4_def, table_structure_def, fv_in_vars_def] >>
   rpt strip_tac >>
   Cases_on ‘prop_parent’ >>
   rename1 ‘(tbls, s_in)’ >>
-
-  gvs[fv_tables_def, simp_tables_def, mk_substitute_tables_def, mk_substitute_tbll_def,
-      simp_tables_wrapper_def] >>
-
-  imp_res_tac fv_tbls_in_sub_varslist_thm >>
-  imp_res_tac mem_var_list_simp_tables_fv_tbll >>
-  res_tac >> gvs[] >>
-
-  metis_tac[]
-
+  gvs[mk_substitute_tables_def, mk_substitute_tbll_def] >>
+  imp_res_tac mem_fv_simp_tables_wrapper_reach >>
+  gvs[fv_tables_def] >>
+  metis_tac[fv_tbls_in_sub_varslist_thm]
 QED
 
 

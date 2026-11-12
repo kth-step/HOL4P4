@@ -350,23 +350,17 @@ Theorem merge_replaces_stays_same:
 Proof
   Induct >-
    gvs[merge_edges_def] >>
-  rpt strip_tac >>
-
-  (
-  qpat_x_assum ‘ALOOKUP (merge_edges (h::edges) n n') n = SOME (x1,x2)’
-               (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once merge_edges_list_cons] thm)) >>
-
-  qpat_x_assum ‘ALOOKUP (merge_edges [h] n n' ⧺ merge_edges edges n n') n = SOME (x1,x2)’
-               (fn thm => assume_tac (SIMP_RULE (srw_ss()) [Once ALOOKUP_APPEND] thm)) >>
-  fs[AllCaseEqs()] >|[
-      PairCases_on ‘h’ >>
-      imp_res_tac merge_Theorem1 >>
-      rgs[Once ALOOKUP_def] >>
-      metis_tac[]
-      ,
-      metis_tac[merge_replaces_stays_same_singular]
-    ]
-  )
+  PairCases >> rpt gen_tac >> strip_tac >>
+  (* the induction hypothesis is dropped or instantiated before simplifying:
+     its conclusion x1 = x1' ∧ x2 = x2' would otherwise rewrite any term *)
+  Cases_on ‘h0 = n’ >| [
+    qpat_x_assum ‘∀n'. _’ kall_tac >>
+    gvs[merge_edges_def]
+    ,
+    qpat_x_assum ‘∀n'. _’
+      (qspecl_then [‘n'’, ‘n’, ‘x1’, ‘x2’, ‘x1'’, ‘x2'’] mp_tac) >>
+    gvs[merge_edges_def]
+  ]
 QED
 
 
@@ -1448,57 +1442,27 @@ Proof
   rpt(BasicProvers.FULL_CASE_TAC >> gvs[]) >|[
 
     gvs[flat_edges_def] >>
-    Cases_on ‘n'' = h0 ∨ n'' = h1 ∨ n'' = h2’ >> gvs[] >>
-
-    Cases_on ‘edges’ >> gvs[] >|[
-
-      rgs[Once merge_edges_list_normalize] >>
-      rgs[Once merge_edges_def] >>
-
-      subgoal ‘MEM (n',a,b) t ’ >- ( rgs[Once merge_edges_list_normalize] >>
-                                     metis_tac[merge_edges_membership] ) >>
-
-      irule list_not_merged_flat_membership2 >> gvs[] >>
-      srw_tac [SatisfySimps.SATISFY_ss][]
-
+    (* both (n,a,b) and (n',a,b) survive the merge, since a and b ≠ n' *)
+    ‘MEM (n,a,b) ((h0,h1,h2)::t) ∧ MEM (n',a,b) ((h0,h1,h2)::t)’
+      by metis_tac[merge_edges_membership] >>
+    ‘MEM (n',a,b) t’ by gvs[] >>
+    Cases_on ‘h0 = n’ >|[
+      (* the head of the merged list is (n,a,b) itself *)
+      ‘¬MEM (n,a,b) t’
+        by (qpat_assum ‘∀y. _’ (qspec_then ‘(n,a,b)’ mp_tac) >> simp[]) >>
+      ‘h1 = a ∧ h2 = b’ by gvs[] >>
+      Cases_on ‘n'' = a ∨ n'' = b’ >- gvs[] >>
+      rpt disj2_tac >>
+      irule list_not_merged_flat_membership2 >>
+      rpt conj_tac >> TRY (qexistsl_tac [‘a’,‘b’]) >>
+      simp[]
       ,
-
-      rgs[Once merge_edges_list_normalize] >>
-      rgs[Once merge_edges_def]
-
-      ,
-
-      PairCases_on ‘h’ >>
-      rgs[Once merge_edges_list_normalize] >>
-      rgs[Once merge_edges_def] >>
-
-      Cases_on ‘h1' = n' ∧ h2' = n'’ >> fs[] >>
-      Cases_on ‘h1' = n'’ >> fs[] >>
-      Cases_on ‘h2' = n'’ >> fs[]  >|[
-
-          subgoal ‘MEM (h1,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          subgoal ‘MEM (h1',a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          metis_tac[list_merged_flat_membership1]
-          ,
-          subgoal ‘MEM (h1,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          subgoal ‘MEM (h1',a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          metis_tac[list_merged_flat_membership1]
-          ,
-          subgoal ‘MEM (h2,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          subgoal ‘MEM (h2',a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          metis_tac[list_merged_flat_membership1]
-          ,
-          subgoal ‘MEM (n,a,b) t ’ >- ( metis_tac[merge_edges_membership] ) >>
-          subgoal ‘MEM (n',a,b) t ’ >- (  metis_tac[merge_edges_membership] ) >>
-          Cases_on ‘n=n''’ >> gvs[] >|[
-              irule list_not_merged_flat_membership2 >> gvs[] >>
-              metis_tac[]
-              ,
-              irule list_merged_flat_membership1 >> gvs[] >>
-              qexistsl_tac [‘a’,‘b’, ‘n’] >>
-              metis_tac[]
-            ]
-        ]
+      (* (n,a,b) is in the tail, so n'' is kept after removing n' *)
+      ‘MEM (n,a,b) t’ by gvs[] >>
+      rpt disj2_tac >>
+      irule list_merged_flat_membership1 >>
+      rpt conj_tac >> TRY (qexistsl_tac [‘a’,‘b’,‘n’]) >>
+      simp[]
     ]
 
     ,

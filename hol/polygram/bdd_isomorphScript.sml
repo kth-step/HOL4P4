@@ -3,6 +3,7 @@ open HolKernel boolLib simpLib Parse bossLib;
 open listTheory;
 open alistTheory;
 open rich_listTheory;
+open sptreeTheory;
 
 open p4_auxTheory;
 
@@ -157,13 +158,49 @@ Definition their_i_map_def:
 End
 
 
-(* Executable version of isIsomorph that checks all nodes in domain *)
+(* children_edges_eq over sptree maps (num_map) instead of association
+   lists: every lookup is logarithmic rather than linear.
+   children_edges_eq_sp_fromAList shows it agrees with children_edges_eq. *)
+Definition children_edges_eq_sp_def:
+  children_edges_eq_sp Isp e1 l1 e2 l2 (n1:num) (n2:num) =
+    case lookup n1 e1 of
+    | NONE => (lookup n2 e2 = NONE ∧
+               (case lookup n1 l1 of SOME (termn (b,p)) => T | _ => F) ∧
+               (case lookup n1 l1 of SOME (termn (b,p)) => SOME b | _ => NONE) =
+               (case lookup n2 l2 of SOME (termn (b,p)) => SOME b | _ => NONE))
+    | SOME (n1_left,n1_right) =>
+        (case lookup n2 e2 of
+         | NONE => F
+         | SOME (n2_left,n2_right) =>
+             ((case lookup n1 l1 of SOME (non_termn (SOME x,p)) => T | _ => F) ∧
+              (case lookup n1 l1 of SOME (non_termn (SOME x,p)) => SOME x | _ => NONE) =
+              (case lookup n2 l2 of SOME (non_termn (SOME x,p)) => SOME x | _ => NONE) ∧
+              lookup n1_left Isp = SOME n2_left ∧
+              lookup n1_right Isp = SOME (n2_right:num)))
+End
+
+
+(* Executable version of isIsomorph that checks all nodes in domain.
+   The maps I, edges and labels, and the node set of BDD2, are converted
+   to sptrees once, so the check costs O(E log E) for E edges instead of
+   recomputing the (nub-ed) node list of BDD2 for every node of BDD1.
+   Nodes of BDD1 may be visited more than once (no nub); that only repeats
+   a check. isIsomorph_exe_abs_eq shows it equals isIsomorph. *)
 Definition isIsomorph_exec_def:
   isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) =
   let (r1,edges1,labels1) = BDD1 in
-    let all_nodes1 = dom_range_edges edges1 in
-      let I_extended = their_i_map I all_nodes1 in
-        apply_iso_check_for_nodes I BDD1 BDD2 I_extended
+  let (r2,edges2,labels2) = BDD2 in
+  let Isp = fromAList I in
+  let e1 = fromAList edges1 in
+  let l1 = fromAList labels1 in
+  let e2 = fromAList edges2 in
+  let l2 = fromAList labels2 in
+  let nodes2 = fromAList (MAP (λn. (n,())) (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges2))) in
+    EVERY (λn1. case lookup n1 Isp of
+                | NONE => T
+                | SOME n2 => IS_SOME (lookup n2 nodes2) ∧
+                             children_edges_eq_sp Isp e1 l1 e2 l2 n1 n2)
+          (FLAT (MAP (λ(k,v1,v2). [k; v1; v2]) edges1))
 End
 
 
@@ -182,43 +219,38 @@ EVAL “ isIsomorph_exec [(0,3);(1,4);(2,5)]
 
 
 (*Executable definition is equivalent to abstract definition *)
+Theorem children_edges_eq_sp_fromAList:
+  ∀ I r1 edges1 labels1 r2 edges2 labels2 n1 n2.
+    children_edges_eq_sp (fromAList I) (fromAList edges1) (fromAList labels1)
+                         (fromAList edges2) (fromAList labels2) n1 n2 =
+    children_edges_eq I (r1,edges1,labels1) (r2,edges2,labels2) n1 n2
+Proof
+  rw[children_edges_eq_sp_def, children_edges_eq_def, lookup_fromAList,
+     get_res_def, get_var_def, leaf_is_terminal_def,
+     internal_is_non_terminal_def]
+QED
+
+
+Triviality is_some_alookup_unit_map:
+  ∀ l k. IS_SOME (ALOOKUP (MAP (λn. (n,())) l) k) ⇔ MEM k l
+Proof
+  Induct >> rw[]
+QED
+
+
 Theorem isIsomorph_exe_abs_eq:
   ∀ BDD1 BDD2 I.
     isIsomorph_exec I (BDD1:('a,'b) BDD) (BDD2:('c,'b) BDD) = isIsomorph I BDD1 BDD2
 Proof
-  rpt strip_tac >>
+  rpt gen_tac >>
   PairCases_on ‘BDD1’ >>
   PairCases_on ‘BDD2’ >>
-  rename1 ‘isIsomorph_exec I' (r1,edges1,labels1) (r2,edges2,labels2)’ >>
-
-  gvs[isIsomorph_exec_def, isIsomorph_def] >>
-  EQ_TAC >>
-
-  rpt strip_tac >>
-
-  (
-  Cases_on ‘their_i_map I' (dom_range_edges edges1)’ >-
-   gvs[apply_iso_check_for_nodes_def, their_i_map_def, dom_range_edges_def, node_in_BDD_def] >>
-
-  PairCases_on ‘h’ >>
-  rename1 ‘their_i_map I' (dom_range_edges edges1) = (n1',n1_map')::t’ >>
-  gvs[apply_iso_check_for_nodes_def, apply_iso_check_def] >>
-
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  gvs[node_in_BDD_def] >>
-  gvs[their_i_map_def] >>
-
-  Cases_on ‘dom_range_edges edges1’ >> gvs[] >>
-  Cases_on ‘h=n1’ >> gvs[] >>
-
-  gvs[EVERY_MAP] >>
-  gvs[EVERY_MEM] >>
-  res_tac >>
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-
-  rpt strip_tac >>
-  rpt (BasicProvers.full_case_tac >> gvs[]) >>
-  res_tac)
+  simp[isIsomorph_exec_def, isIsomorph_def, EVERY_MEM, lookup_fromAList,
+       is_some_alookup_unit_map, GSYM children_edges_eq_sp_fromAList,
+       node_in_BDD_def, dom_range_edges_def, MEM_nub] >>
+  eq_tac >> rpt strip_tac >>
+  first_x_assum drule >>
+  Cases_on ‘ALOOKUP I' n1’ >> gvs[]
 QED
 
 

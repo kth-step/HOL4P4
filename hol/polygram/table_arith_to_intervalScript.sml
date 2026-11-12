@@ -1146,23 +1146,15 @@ Theorem if_bs_le_ge_max_then_eq:
     bitv_binpred binop_le (a,len) (n2v (max_from_type len),len) = SOME T ⇒
     a = fixwidth len (n2v (max_from_type len))
 Proof
-  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_def] >>
-  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def] >>
-  rpt strip_tac >>
-
-  rpt(
-    BasicProvers.FULL_CASE_TAC >-(
-        fs[] >>
-        gvs[get_word_binpred_def] >>
-
-        gvs[WORD_HIGHER_OR_EQ, v2w_11] >>
-        fs[wf_bit_def] >>
-        gvs[] >>
-
-        gvs[fixwidth_max_all] >>
-        blastLib.FULL_BBLAST_TAC
-      )
-    ) >> metis_tac[]
+  rw[bitv_binpred_def, wf_bit_def] >>
+  ‘0 < LENGTH a’ by decide_tac >>
+  gvs[bitv_binpred_inner_nat, bitv_v2n_fixwidth, v2n_n2v, max_from_type_def,
+      bitv_mod_exp_facts] >>
+  ‘v2n a MOD 2 ** LENGTH a ≤ 2 ** LENGTH a − 1’ by simp[bitv_mod_exp_facts] >>
+  ‘v2n a MOD 2 ** LENGTH a = 2 ** LENGTH a − 1’ by decide_tac >>
+  ‘fixwidth (LENGTH a) a = fixwidth (LENGTH a) (n2v (2 ** LENGTH a − 1))’
+    by simp[bitv_fixwidth_eq_v2n, v2n_n2v, bitv_mod_exp_facts] >>
+  gvs[fixwidth_id]
 QED
 
 
@@ -1490,16 +1482,7 @@ Theorem transitive_binpred2:
     bitv_binpred binop_le (c,len) (a,len) = SOME T
 Proof
   rw[bitv_binpred_def] >>
-  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
-  rpt strip_tac >>
-
-  rpt(
-    BasicProvers.FULL_CASE_TAC >-
-     (fs[get_word_binpred_def] >>
-      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
-      blastLib.FULL_BBLAST_TAC
-     )
-    ) >> intLib.COOPER_TAC
+  gvs[bitv_binpred_inner_nat]
 QED
 
 
@@ -1513,16 +1496,7 @@ Theorem transitive_binpred3:
     bitv_binpred binop_ge (c,len) (b,len) = SOME T
 Proof
   rw[bitv_binpred_def] >>
-  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
-  rpt strip_tac >>
-
-  rpt(
-    BasicProvers.FULL_CASE_TAC >-
-     (fs[get_word_binpred_def] >>
-      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
-      blastLib.FULL_BBLAST_TAC
-     )
-    ) >> intLib.COOPER_TAC
+  gvs[bitv_binpred_inner_nat]
 QED
 
 
@@ -1536,16 +1510,7 @@ Theorem transitive_binpred4:
     bitv_binpred binop_ge (c,len) (b,len) = SOME F
 Proof
   rw[bitv_binpred_def] >>
-  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
-  rpt strip_tac >>
-
-  rpt(
-    BasicProvers.FULL_CASE_TAC >-
-     (fs[get_word_binpred_def] >>
-      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
-      blastLib.FULL_BBLAST_TAC
-     )
-    ) >> intLib.COOPER_TAC
+  gvs[bitv_binpred_inner_nat]
 QED
 
 
@@ -1558,19 +1523,8 @@ Theorem transitive_binpred5:
     bitv_binpred binop_le (c,len) (a,len) = SOME T ⇒
     bitv_binpred binop_le (c,len) (b,len) = SOME T
 Proof
-
   rw[bitv_binpred_def] >>
-  Rewrite.ONCE_REWRITE_TAC [bitv_binpred_inner_def, get_word_binpred_def] >>
-  rpt strip_tac >>
-
-  rpt(
-    BasicProvers.FULL_CASE_TAC >-
-     (fs[get_word_binpred_def] >>
-      gvs[bitv_binpred_inner_def, get_word_binpred_def] >>
-      blastLib.FULL_BBLAST_TAC
-     )
-    ) >> intLib.COOPER_TAC
-
+  gvs[bitv_binpred_inner_nat]
 QED
 
 
