@@ -605,6 +605,10 @@ rw[wellformed_register_array_EVERY, EVERY_EL, EL_LUPDATE] >>
 rw[]
 QED
 
+Definition wellformed_varbit_def:
+ wellformed_varbit (w:num) ((bl:bool list), (n:num)) <=> (LENGTH bl = n /\ n <= w)
+End
+
 (* With a symbolic oracle index i, declarations and copy-in compare i with i + n *)
 Theorem num_eq_add_numeral_F:
 !m n. (m = m + NUMERAL (BIT1 n) <=> F) /\ (m = m + NUMERAL (BIT2 n) <=> F)

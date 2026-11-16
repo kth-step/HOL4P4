@@ -139,16 +139,18 @@ defines the predicate `p4_v1model_parser_wellformed`, which holds of a state whe
 next, no packets are left, and the table entries and extern objects are those of `init_astate`,
 except that the packet objects hold the rest of the packet (after the deparser, the deparsed
 packet and the rest) and each register holds an arbitrary
-array `reg_i` with `wellformed_register_array w reg_i`; the header, metadata and apply-result bits
-and the oracle index are arbitrary. A variable of the context, such as the random oracle, that
-still occurs in the extern objects or the table entries is a parameter of the predicate.
+array `reg_i` with `wellformed_register_array w reg_i`; each varbit field holds arbitrary bits `bl`
+of arbitrary width `n` with `wellformed_varbit w (bl, n)`, that is `LENGTH bl = n` and `n <= w` for
+the declared maximum width `w`; the header, metadata and apply-result bits and the oracle index are
+arbitrary. A variable of the context, such as the random oracle, that still occurs in the extern
+objects or the table entries is a parameter of the predicate.
 
 The steps, as in `tests/decompose_registerScript.sml`: a contract from `init_astate` to the end
 point `\s. p4_block_next s k` with the predicate in its postcondition, which the simpset
 `p4_wellformed_ss def` proves; a contract from `get_intermediate_state postcond def` under the
-path condition `get_intermediate_path_cond postcond def`, the register conjuncts; and
-`p4_combine_contracts c1 c2 def`. What the first part writes to a register is not carried to the
-second.
+path condition `get_intermediate_path_cond postcond def`, the register and varbit conjuncts; and
+`p4_combine_contracts c1 c2 def`. What the first part writes to a register or extracts into a
+varbit is not carried to the second.
 
 ## Control plane
 
