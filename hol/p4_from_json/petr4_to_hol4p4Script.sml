@@ -947,17 +947,20 @@ Definition incomplete_typeinf_def:
   | _ => F
 End
 
+Definition tau_has_varbit_def:
+ (tau_has_varbit (tau_varbit w) = T) /\
+ (tau_has_varbit (tau_xtl struct_ty x_tau_l) = EXISTS (\(x, tau). tau_has_varbit tau) x_tau_l) /\
+ (tau_has_varbit _ = F)
+End
+
 Definition get_typeinf_dummy_args_def:
  get_typeinf_dummy_args tyenv tyargs =
-  case
-   FOLDL ( \ args_opt tyarg.
-          case args_opt of
-          | SOME args =>
-           petr4_parse_type [] tyenv tyarg >>=
-           \type. SOME (args++[(e_v $ zero_val_from_tau type)])
-          | NONE => NONE) (SOME []) tyargs of
-   | SOME dummy_args => SOME_msg dummy_args
-   | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
+  case OPT_MMAP (petr4_parse_type [] tyenv) tyargs of
+  | SOME types =>
+   if EXISTS tau_has_varbit types
+   then get_error_msg "varbit type arguments unsupported: " (Array tyargs)
+   else SOME_msg (MAP (e_v o zero_val_from_tau) types)
+  | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
 End
 
 Definition get_bitv_of_e_def:
