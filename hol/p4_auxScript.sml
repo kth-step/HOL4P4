@@ -2435,6 +2435,7 @@ QED
 Definition v_to_tau_def:
   (v_to_tau (v_bool boolv) = SOME tau_bool) /\
   (v_to_tau (v_bit (bl, n)) = if LENGTH bl = n then SOME (tau_bit n) else NONE) /\
+  (v_to_tau (v_varbit (bl, n) w) = if LENGTH bl = n /\ n <= w then SOME (tau_varbit w) else NONE) /\
   (v_to_tau (v_struct ((x,v)::t)) =
    OPTION_BIND (v_to_tau (v_struct t))
     (\ res. case res of
@@ -2508,6 +2509,10 @@ Cases_on ‘v’ >> (
   gs[v_to_tau_def]
  )
 ) >- (
+ Cases_on ‘p’ >> (
+  gs[v_to_tau_def]
+ )
+) >- (
  Cases_on ‘l’ >> (
   gs[v_to_tau_def] >>
   Cases_on ‘h’ >> (
@@ -2527,6 +2532,7 @@ QED
 Definition zero_val_from_tau_def:
  (zero_val_from_tau tau_bool     = v_bool F) /\
  (zero_val_from_tau (tau_bit w)  = v_bit ( (GENLIST (\x. F) w ) , w)) /\
+ (zero_val_from_tau (tau_varbit w) = v_varbit ([], 0) w) /\
  (zero_val_from_tau tau_bot      = v_bot) /\
  (zero_val_from_tau tau_ext      = v_ext_ref 0) /\
  (zero_val_from_tau (tau_xtl struct_ty_struct []) =  v_struct []) /\
@@ -2643,6 +2649,7 @@ Datatype:
 p_tau =
    p_tau_bool   (* Note that the integer width must be a compile-time known value *)
  | p_tau_bit num_exp
+ | p_tau_varbit num_exp
  | p_tau_bot
  (* Note that structs can be type-parametrized *)
  | p_tau_xtl struct_ty ((x#p_tau) list)
@@ -2662,6 +2669,7 @@ Definition deparameterise_tau_def:
   case t of
   | p_tau_bool => SOME tau_bool
   | p_tau_bit num_exp => SOME (tau_bit num_exp)
+  | p_tau_varbit num_exp => SOME (tau_varbit num_exp)
   | p_tau_bot => SOME tau_bot
   | p_tau_xtl struct_ty fields =>
    deparameterise_x_taus fields >>= \fields'.
@@ -2688,6 +2696,7 @@ Definition parameterise_tau_def:
   case t of
   | tau_bool => p_tau_bool
   | tau_bit num_exp => (p_tau_bit num_exp)
+  | tau_varbit num_exp => (p_tau_varbit num_exp)
   | tau_bot => p_tau_bot
   | tau_xtl struct_ty fields =>
    (p_tau_xtl struct_ty (parameterise_x_taus fields))

@@ -57,6 +57,8 @@ Extern objects are instantiated once, at import time, and persist across packets
 
 Every call of an extern function or extern object method must match an entry of the architecture's extern map by name and number of arguments, where the extern object and the dummy arguments added for the type arguments of `lookahead` count as arguments, and every instantiated extern object must have a constructor there; otherwise the import fails. This rejects, for example, `clone`, `packet_in.length()`, `meter` and `direct_counter` in v1model programs. A v1model `mark_to_drop()` without argument becomes `mark_to_drop(sm)` for the one variable `sm` of type `standard_metadata_t` in scope, and fails to import when there is none or more than one.
 
+The two-argument `extract(hdr, size)` becomes the extern method `extract_varbit`, which sets the varbit field of `hdr` to `size` bits. It fails with `ParserInvalidArgument` when `size` is not a multiple of 8 (v1model only, as in BMv2), with `PacketTooShort` when the packet is too short, and otherwise with `HeaderTooShort` when `size` exceeds the declared maximum width of the varbit.
+
 The type parameters of an extern object are bound to the type arguments of each instance, so that an integer literal passed for a parameter of type `T` of `register<bit<8>>(256) r` (as in `r.write(0, 42)`) gets width 8.
 
 A don't-care argument `_` of a call statement becomes a fresh variable `dontcare$k` of the parameter's type, declared in a block around the call (`_` inside an expression is rejected). When the parameter's type is a type parameter of the method or function, the call must have exactly one type argument, which is taken as its type (`p.extract<H>(_)`).
@@ -138,7 +140,7 @@ The arguments of default actions and of constant entries are folded to values at
 
 ### Other rejected forms
 
-The import also rejects default parameter values, `==` and `!=` on structs, headers and tuples, a parser or control type with tables, extern objects or constructor parameters passed twice to the package (its instances would share them), a block variable named like a constructor parameter, `verify` outside parsers, serializable enum members whose value does not fit the type, and a control type with tables or extern objects invoked directly (`C.apply(...)`) more than once in a control, whose invocations would share them. Integer constant expressions are folded exactly (negative intermediates included) and then take the expected width; comparisons of integer constants fold to booleans. Bitwise operators are not defined on two integer constants (spec 8.8, and petr4 rejects them), and a shift of an integer constant by a non-constant amount is rejected. Constants may use unary operators and struct initialisers.
+The import also rejects default parameter values, `==` and `!=` on structs, headers and tuples, a parser or control type with tables, extern objects or constructor parameters passed twice to the package (its instances would share them), a block variable named like a constructor parameter, `verify` outside parsers, serializable enum members whose value does not fit the type, a control type with tables or extern objects invoked directly (`C.apply(...)`) more than once in a control, whose invocations would share them, and an `extract` without size argument of a header with a varbit field, or with one of a header without exactly one varbit field. Only assignment, `==`, `!=`, `extract` and `emit` operate on varbits: varbit table keys, `select` on varbits, and casts, slices, concatenation, arithmetic and ordered comparisons of varbits are rejected. Integer constant expressions are folded exactly (negative intermediates included) and then take the expected width; comparisons of integer constants fold to booleans. Bitwise operators are not defined on two integer constants (spec 8.8, and petr4 rejects them), and a shift of an integer constant by a non-constant amount is rejected. Constants may use unary operators and struct initialisers.
 
 ### Compile-time constants
 
@@ -146,7 +148,7 @@ Widths and slice bounds are folded exactly at import: `int` arithmetic is exact,
 
 ### Struct initialisers
 
-A list expression `{e1, ..., en}` of struct type becomes a struct with the declared field names, and a structure-valued expression `{f = e, ...}` a struct with its fields in declaration order. Both are rejected at header type, since HOL4P4 has no header-valued expressions. A list expression without a known struct type is a tuple with fields `"1"`..`"n"`.
+A list expression `{e1, ..., en}` of struct type becomes a struct with the declared field names, and a structure-valued expression `{f = e, ...}` a struct with its fields in declaration order. Both are rejected at header type, since HOL4P4 has no header-valued expressions. A list expression without a known struct type is a tuple with fields `"1"`..`"n"`, and a `typedef` of a tuple type defines the struct type with these fields.
 
 ### VSS
 

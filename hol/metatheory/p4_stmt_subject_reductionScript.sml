@@ -1127,6 +1127,8 @@ REPEAT STRIP_TAC >| [
  ,
  fs[Once v_typ_cases]
  ,
+ fs[Once v_typ_cases]
+ ,
  (* headers and structs *)
  fs[Once v_typ_cases] >>
  TRY(OPEN_V_TYP_TAC “any v”) >>

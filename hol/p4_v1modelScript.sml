@@ -70,6 +70,10 @@ Definition v1model_packet_in_extract_def:
  v1model_packet_in_extract = packet_in_extract_gen v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
+Definition v1model_packet_in_extract_varbit_def:
+ v1model_packet_in_extract_varbit = packet_in_extract_varbit_gen T v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
+End
+
 Definition v1model_packet_in_lookahead_def:
  v1model_packet_in_lookahead = packet_in_lookahead_gen v1model_ascope_lookup v1model_ascope_update_v_map
 End

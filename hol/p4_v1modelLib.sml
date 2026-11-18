@@ -38,6 +38,7 @@ val v1model_objectless_map =
 
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
+    ("extract_varbit", ([("this", d_in); ("headerLvalue", d_out); ("variableFieldSizeInBits", d_in)], v1model_packet_in_extract_varbit));
     ("lookahead", ([("this", d_in); ("targ1", d_in)], v1model_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], v1model_packet_in_advance))]``;
 

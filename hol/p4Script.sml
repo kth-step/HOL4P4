@@ -39,6 +39,7 @@ val _ = Hol_datatype `
 v =  (* value *)
    v_bool of boolv (* boolean value *)
  | v_bit of bitv (* bit-string *)
+ | v_varbit of bitv => i (* variable-width bit-string of maximum width w *)
  | v_str of x (* string literal *)
  | v_struct of (x#v) list (* struct *)
  | v_header of boolv => (x#v) list (* header *)
@@ -160,6 +161,7 @@ val _ = Hol_datatype `
 tau =  (* type *)
    tau_bool (* boolean *)
  | tau_bit of num_exp (* bit-string *)
+ | tau_varbit of num_exp (* variable-width bit-string *)
  | tau_bot (* no value *)
  | tau_xtl of struct_ty => (x#tau) list (* struct *)
  | tau_ext (* extern *)
@@ -1537,6 +1539,7 @@ End
 Definition init_out_v_def:
  (init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
+ (init_out_v random_oracle i (v_varbit (bl, n) w) = (v_varbit ([], 0) w, i)) /\
  (* Note you can't have string variables in P4 (but you can pass string literals to externs) *)
  (init_out_v random_oracle i (v_str x) = (v_str "", i)) /\
  (init_out_v random_oracle i (v_struct x_v_l) =
@@ -1589,6 +1592,7 @@ QED
 Definition init_from_tau_def:
  (init_from_tau random_oracle i tau_bool     = (v_bool $ random_oracle i, i+1)) /\
  (init_from_tau random_oracle i (tau_bit w)  = (v_bit (get_oracle_calls w i random_oracle, w), i+w)) /\
+ (init_from_tau random_oracle i (tau_varbit w) = (v_varbit ([], 0) w, i)) /\
  (init_from_tau random_oracle i tau_bot      = (v_bot, i)) /\
  (* NOTE: Extern objects can't be declared in blocks.
   *       They can be block-local, but will then always be instantiated, so this value doesn't matter *)
@@ -2430,6 +2434,12 @@ Inductive e_sem:
  ==> 
 ( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_neq (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([], (NONE:num option))  )))
 
+[e_neq_varbit:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (w:i) (bitv':bitv) (w':i) (b:b) .
+(clause_name "e_neq_varbit") /\
+(( (( bitv  <>  bitv' ) <=>  b ) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_varbit bitv w)) binop_neq (e_v (v_varbit bitv' w'))) (e_v (v_bool  b ))  ([], (NONE:num option))  )))
+
 [e_neq_bool:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) (b'':b) .
 (clause_name "e_neq_bool") /\
 (( (( b  <>  b' ) <=>  b'' ) ))
@@ -2441,6 +2451,12 @@ Inductive e_sem:
 (( (( bitv  =  bitv' ) <=>  b ) ))
  ==> 
 ( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_bit bitv)) binop_eq (e_v (v_bit bitv'))) (e_v (v_bool  b ))  ([], (NONE:num option))  )))
+
+[e_eq_varbit:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (w:i) (bitv':bitv) (w':i) (b:b) .
+(clause_name "e_eq_varbit") /\
+(( (( bitv  =  bitv' ) <=>  b ) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_varbit bitv w)) binop_eq (e_v (v_varbit bitv' w'))) (e_v (v_bool  b ))  ([], (NONE:num option))  )))
 
 [e_eq_bool:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (b:b) (b':b) (b'':b) .
 (clause_name "e_eq_bool") /\
@@ -3006,6 +3022,13 @@ is_bv_bool_op (oper:binop) =
 (oper = binop_eq)) 
 `;
 
+(* returns true if the operation is an equality test, the only operations on varbits *)
+Definition is_eq_op_def:
+is_eq_op (oper:binop) =
+((oper = binop_eq) \/
+(oper = binop_neq))
+End
+
 (* returns true if the operation is conducted between two bools and returns bool*)
 val is_bool_op_def = Define `
 is_bool_op (oper:binop) =
@@ -3058,6 +3081,12 @@ Inductive v_typ:
 (( ( w  = bs_width  bitv ) ))
  ==> 
 ( ( v_typ (v_bit bitv) (t_tau (tau_bit  w ))  F  )))
+
+[v_typ_varbit:] (! (bitv:bitv) (w:i) .
+(clause_name "v_typ_varbit") /\
+(( (bs_width  bitv  <=  w ) ))
+ ==> 
+( ( v_typ (v_varbit bitv w) (t_tau (tau_varbit  w ))  F  )))
 
 [v_typ_bot:] (
 (clause_name "v_typ_bot")
@@ -3312,6 +3341,14 @@ Inductive e_typ:
 ( ( e_typ t_scopes_tup T_e e (t_tau (tau_bit  w ))  b  )) /\
 ( ( e_typ t_scopes_tup T_e e' (t_tau (tau_bit  w ))  b'  )) /\
 ( is_bv_bool_op  binop ))
+ ==> 
+( ( e_typ t_scopes_tup T_e (e_binop e binop e') (t_tau tau_bool)  F  )))
+
+[e_typ_binop_varbit_bool:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (binop:binop) (e':e) (w:i) (b:b) (b':b) .
+(clause_name "e_typ_binop_varbit_bool") /\
+(( ( e_typ t_scopes_tup T_e e (t_tau (tau_varbit  w ))  b  )) /\
+( ( e_typ t_scopes_tup T_e e' (t_tau (tau_varbit  w ))  b'  )) /\
+( is_eq_op  binop ))
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_binop e binop e') (t_tau tau_bool)  F  )))
 

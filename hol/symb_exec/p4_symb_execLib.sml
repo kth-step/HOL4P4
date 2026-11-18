@@ -626,6 +626,9 @@ fun get_fv_arg_of_tau tau fv_index =
   in
    (mk_e_v $ mk_v_bit (mk_pair (fixedwidth_freevars_fromindex (p4_symb_arg_prefix, fv_index, width), term_of_int width)), fv_index + width)
   end
+ (* A varbit is empty, as init_from_tau makes it; a symbolic length is not supported *)
+ else if is_tau_varbit tau
+ then (mk_e_v $ mk_v_varbit (mk_pair (mk_list ([], bool), zero_tm), term_of_int (dest_tau_varbit tau)), fv_index)
  else if is_tau_xtl tau
  then
   let
@@ -1255,6 +1258,8 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       then p4_check_assert path_tm scope_list
       else if (ext_obj = "packet_in") andalso (ext_method = "extract")
       then SOME (approx_packet_in_extract fv_index path_tm scope_list ascope)
+      else if (ext_obj = "packet_in") andalso (ext_method = "extract_varbit")
+      then SOME (approx_packet_in_extract_varbit fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "lookahead")
       then SOME (approx_packet_in_lookahead fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "advance")
@@ -2833,9 +2838,17 @@ val p4_prove_postcond_rewr_thms = [packet_has_port_def, get_packet_def, packet_d
 *)
 
 
+(* The quantified variables of an abstract value in order, or the witnesses of a concrete one *)
 fun get_bits_of_v v =
  if is_v_bit v
  then fst $ dest_list $ fst $ dest_pair $ dest_v_bit v
+ else if is_v_varbit v
+ then
+  let
+   val (bl, n) = dest_pair $ fst $ dest_v_varbit v
+  in
+   [bl, n]
+  end
  else if is_v_bool v
  then [dest_v_bool v]
  else if is_v_ext_ref v
@@ -2901,13 +2914,16 @@ fun p4_prove_wellformed_state prove_wf wf_def tm =
     *    * Desugaring struct for apply results *)
    val g_scope_list_bits = get_bits_of_v $ fst $ dest_pair $ snd $ dest_pair $ hd $ fst $ dest_list $ hd $ fst $ dest_list g_scope_list
 
-   (* 4. The register contents are well-formed arrays *)
-   val wf_thms = map (prove_wf o subst ext_obj_ctrl_subst) wf_conjs
+   (* 4. The register contents are well-formed arrays and the varbits are well-formed *)
+   val witnesses = ext_obj_ctrl_witnesses@v_map_bits@[oracle_index]@g_scope_list_bits
+   val _ =
+    if length witnesses = length vars
+    then ()
+    else raise (ERR "p4_prove_wellformed_state" ("Found "^(Int.toString (length witnesses))^" witnesses for "^(Int.toString (length vars))^" quantified variables"))
+   val full_subst = map (op |->) (zip vars witnesses)
+   val wf_thms = map (prove_wf o subst full_subst) wf_conjs
   in
-   (map_every $ exists_tac) ext_obj_ctrl_witnesses >>
-   (map_every $ exists_tac) v_map_bits >>
-   exists_tac oracle_index >>
-   (map_every $ exists_tac) g_scope_list_bits >>
+   (map_every $ exists_tac) witnesses >>
    REWRITE_TAC wf_thms
   end
   )
@@ -2927,6 +2943,25 @@ fun p4_prove_wellformed_register_array solver stack tm =
  end
 ;
 
+(* Proves a register or varbit conjunct of a well-formedness predicate, with the simplifier's context *)
+fun p4_prove_wellformed_conj solver stack tm =
+ if is_wellformed_register_array tm
+ then p4_prove_wellformed_register_array solver stack tm
+ else if is_wellformed_varbit tm
+ then
+  (case (SOME (solver stack tm) handle HOL_ERR _ => NONE | UNCHANGED => NONE) of
+     SOME thm => thm
+   | NONE =>
+    let
+     val thm = QCONV EVAL tm
+    in
+     if Teq $ rhs $ concl thm
+     then EQT_ELIM thm
+     else raise (ERR "p4_prove_wellformed_conj" ("Could not prove "^(term_to_string tm)))
+    end)
+ else raise (ERR "p4_prove_wellformed_conj" ("Could not prove "^(term_to_string tm)))
+;
+
 (*
 val astate = (optionSyntax.dest_some $ rhs $ snd $ dest_imp $ concl step_thm1)
 prove(“p4_v1model_parser_wellformed ^astate <=> T”,
@@ -2935,7 +2970,7 @@ SIMP_TAC (bool_ss++(p4_wellformed_ss wf_def)) []
 *)
 local
 fun wf_conv wf_def =
- {conv = (fn solver => fn stack => p4_prove_wellformed_state (p4_prove_wellformed_register_array solver stack) wf_def),
+ {conv = (fn solver => fn stack => p4_prove_wellformed_state (p4_prove_wellformed_conj solver stack) wf_def),
   key = SOME ([], lhs $ snd $ strip_forall $ concl wf_def),
   (* TODO: Better names *)
   name = "Prove wellformedness (v1model)",
@@ -3190,6 +3225,15 @@ fun free_vars_v_of_name_tau prefix fv_index name_tau =
    in
     (fv_index+width, mk_pair (name, snd $ mk_v_bit_freevars_fromindex (prefix, fv_index, width)))
    end
+  (* A varbit field becomes v_varbit (bl, n) w with fresh variables bl and n *)
+  else if is_tau_varbit tau
+  then
+   let
+    val bl_var = mk_var (prefix^(Int.toString fv_index)^"_bl", mk_list_type bool)
+    val n_var = mk_var (prefix^(Int.toString fv_index)^"_n", num)
+   in
+    (fv_index+1, mk_pair (name, mk_v_varbit (mk_pair (bl_var, n_var), term_of_int (dest_tau_varbit tau))))
+   end
   else if is_tau_xtl tau
   then
    let
@@ -3371,7 +3415,8 @@ fun get_v1model_wellformed_defs_gen pc_conjs actx init_astate block_index_stop =
   val (fv_index, sm_name_v) = free_vars_v_of_name_tau fv_prefix 32 v1model_standard_metadata_name_ty
   val (fv_index', ph_name_v) = free_vars_v_of_name_tau fv_prefix fv_index (mk_pair(fromMLstring "parsedHdr" , tau1))
   val (fv_index'', h_name_v) = free_vars_v_of_name_tau fv_prefix fv_index' (mk_pair(fromMLstring "hdr" , tau1))
-  val (fv_index''', m_name_v) = free_vars_v_of_name_tau fv_prefix fv_index'' (mk_pair(fromMLstring "meta" , tau2))
+  val (_, m_name_v) = free_vars_v_of_name_tau fv_prefix fv_index'' (mk_pair(fromMLstring "meta" , tau2))
+  val block_param_vs = map (snd o dest_pair) [sm_name_v, ph_name_v, h_name_v, m_name_v]
 
   val v_map' = mk_list ([mk_pair (fromMLstring "parseError", pe_v),
                          mk_pair (fromMLstring "b", mk_v_ext_ref n_tm),
@@ -3400,7 +3445,9 @@ fun get_v1model_wellformed_defs_gen pc_conjs actx init_astate block_index_stop =
 
   (* TODO: Make this work for ctrl tables that are not constants *)
   (* Note: p4_prove_wellformed_state provides the witnesses in this order *)
-  val def_free_vars = ext_obj_ctrl_qvars@(fst $ dest_list $ fixedwidth_freevars (fv_prefix, fv_index'''))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  val def_free_vars = ext_obj_ctrl_qvars@(flatten $ map get_bits_of_v (pe_v::block_param_vs))@[oracle_index_var, hit_var, miss_var]@ar_free_vars
+  (* Each varbit field holds bits bl of width n with wellformed_varbit w (bl, n) *)
+  val varbit_conjs = map (fn v => let val (bl_n, w) = dest_v_varbit v in mk_wellformed_varbit (w, bl_n) end) $ flatten $ map (rev o find_terms is_v_varbit) block_param_vs
   val astate_var = mk_var ("astate", “:v1model_ascope astate”)
   val state_tm = “((^block_index_stop, [], [], (^counter', ^ext_obj_map', ^v_map', ^ctrl, ^oracle_index_var)), ^g_scope_list', arch_frame_list_empty, status_running):v1model_ascope astate”
   val wf_args = params@[astate_var]
@@ -3408,7 +3455,7 @@ fun get_v1model_wellformed_defs_gen pc_conjs actx init_astate block_index_stop =
  in
   (* TODO: Adjust block index for the block in question, adjust extern map? *)
   Defn.mk_defn "p4_v1model_parser_wellformed"
-   (mk_eq (list_mk_comb (wf_var, wf_args), list_mk_exists (def_free_vars, list_mk_conj ((mk_eq (astate_var, state_tm))::wf_conjs))))
+   (mk_eq (list_mk_comb (wf_var, wf_args), list_mk_exists (def_free_vars, list_mk_conj ((mk_eq (astate_var, state_tm))::(wf_conjs@varbit_conjs)))))
  end
 ;
 
@@ -3427,7 +3474,7 @@ val (p4_v1model_lookup_avar_validity_tm,  mk_p4_v1model_lookup_avar_validity, de
 val (p4_v1model_lookup_avar_tm,  mk_p4_v1model_lookup_avar, dest_p4_v1model_lookup_avar, is_p4_v1model_lookup_avar) =
   syntax_fns2 "p4_symb_exec" "p4_v1model_lookup_avar";
 
-(* The state equation and the wellformed_register_array conjuncts of wf_def *)
+(* The state equation and the wellformed_register_array and wellformed_varbit conjuncts of wf_def *)
 fun dest_wellformed_def_body wf_def =
  dest_first_conj $ snd $ strip_exists $ rhs $ snd $ strip_forall $ concl wf_def
 ;
@@ -3462,7 +3509,7 @@ fun get_intermediate_state postcond wf_def =
  end
 ;
 
-(* The path condition for the intermediate state: the register contents are well-formed *)
+(* The path condition for the intermediate state: the register contents and the varbits are well-formed *)
 fun get_intermediate_path_cond postcond wf_def =
  let
   val (eqn, wf_conjs) = dest_wellformed_def_body wf_def
@@ -3483,6 +3530,9 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
 
   val init_state1 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre1
   val init_state2 = snd $ dest_eq $ hd $ rev $ strip_conj $ snd $ dest_abs pre2
+
+  (* Keeps the varbit conjuncts as the path condition of contract2 states them *)
+  val eval_conv = RESTR_EVAL_CONV [wellformed_varbit_tm]
 
   val split_conj_asms =
    rpt (qpat_x_assum ‘A /\ B’ (fn thm => assume_tac (CONJUNCT1 thm) >> assume_tac (CONJUNCT2 thm)))
@@ -3529,11 +3579,11 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
     rpt strip_tac >>
     (* Simplify the first contract *)
     qpat_x_assum ‘!s. _’ (fn thm => assume_tac (SPEC init_state1 thm)) >>
-    qpat_x_assum ‘A ==> B’ (fn thm => assume_tac (REWRITE_RULE [(EVAL_CONV $ fst $ dest_imp $ concl thm)] thm)) >>
+    qpat_x_assum ‘A ==> B’ (fn thm => assume_tac (REWRITE_RULE [(eval_conv $ fst $ dest_imp $ concl thm)] thm)) >>
     discharge_antecedents >>
     FULL_SIMP_TAC pure_ss [] >>
     (* Evaluate the postcondition of the first contract applied to the intermediate state *)
-    RULE_ASSUM_TAC (fn thm => let val tm = concl thm in if is_comb tm andalso is_abs (rator tm) then REWRITE_RULE [EVAL_CONV tm] thm else thm end) >>
+    RULE_ASSUM_TAC (fn thm => let val tm = concl thm in if is_comb tm andalso is_abs (rator tm) then REWRITE_RULE [eval_conv tm] thm else thm end) >>
     (**********************************************)
     (* Construction of the intermediate state s'  *)
 
@@ -3541,7 +3591,7 @@ fun p4_combine_contracts contract1 contract2 wellformed_def =
     split_conj_asms >>
     (* Eliminate existentially quantified variables *)
     rpt (qpat_x_assum ‘?vars. _’ (fn thm => CHOOSE_TAC thm)) >>
-    (* Split off the wellformed_register_array conjuncts *)
+    (* Split off the wellformed_register_array and wellformed_varbit conjuncts *)
     split_conj_asms >>
 
     qpat_x_assum ‘s' = _’ (fn thm => FULL_SIMP_TAC bool_ss [thm]) >>

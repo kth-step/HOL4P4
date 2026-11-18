@@ -3276,6 +3276,10 @@ Induct >> (
  PairCases_on `p` >>
  fs[bs_width_def, extend_def, init_out_v_def]
 ) >- (
+ (* v_varbit *)
+ PairCases_on ‘p’ >>
+ fs[bs_width_def, init_out_v_def]
+) >- (
  (* v_struct *)
  gvs[clause_name_def] >>
  qexists_tac ‘ZIP(MAP(λ(x,v,tau). x) (x_v_tau_list:(string#v#tau) list),
@@ -3470,6 +3474,11 @@ Induct >> (
  ) >- (
   Cases_on `tau` >> fs[Once v_typ_cases] >>
   fs[Once v_typ_cases]
+ ) >- (
+  Cases_on ‘tau’ >> (
+   fs[Once v_typ_cases] >>
+   fs[Once v_typ_cases]
+  )
  ) >- (
   fs[clause_name_def] >>
   rpt strip_tac >>
@@ -4877,7 +4886,7 @@ rpt strip_tac >| [
     OPEN_EXP_RED_TAC ``(e_binop e _ e')`` >>
     fs[] >>
     FULL_SIMP_TAC list_ss [lemma_v_red_forall] >>
-    gvs[clause_name_def, is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def] >>
+    gvs[clause_name_def, is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def] >>
     
      OPEN_EXP_TYP_TAC ``(e_v (v_bit bitv'))`` >>
      OPEN_EXP_TYP_TAC `` (e_v (v_bit bitv))`` >>
@@ -4911,13 +4920,13 @@ rpt strip_tac >| [
     OPEN_EXP_RED_TAC ``(e_binop _ _ e')`` >>
     fs[] >>
     FULL_SIMP_TAC list_ss [lemma_v_red_forall] >>
-    gvs[clause_name_def, is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def,
+    gvs[clause_name_def, is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def,
         is_short_circuitable_def, is_const_def] >>
     
      SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 
      gvs[clause_name_def, is_bv_op_def,
-         is_bool_op_def, is_err_bool_def, is_bv_bool_op_def,
+         is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def,
         is_short_circuitable_def, is_const_def] >>
       fs[sr_exp_def] >>
      METIS_TAC [sr_exp_def]  
@@ -4926,7 +4935,7 @@ rpt strip_tac >| [
     OPEN_EXP_RED_TAC ``(e_binop _ _ e')`` >>
     fs[] >>
     FULL_SIMP_TAC list_ss [lemma_v_red_forall] >>
-    gvs[clause_name_def, is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def,
+    gvs[clause_name_def, is_bv_op_def, is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def,
         is_short_circuitable_def, is_const_def] >>
      srw_tac [SatisfySimps.SATISFY_ss][] >>
 	
@@ -4934,7 +4943,7 @@ rpt strip_tac >| [
      ( SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 
      gvs[clause_name_def, is_bv_op_def,
-         is_bool_op_def, is_err_bool_def, is_bv_bool_op_def,
+         is_bool_op_def, is_err_bool_def, is_bv_bool_op_def, is_eq_op_def,
         is_short_circuitable_def, is_const_def] >>
         srw_tac [boolSimps.DNF_ss][] >>
            METIS_TAC [sr_exp_def] )

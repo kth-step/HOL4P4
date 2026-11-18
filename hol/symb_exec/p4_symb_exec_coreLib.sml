@@ -27,6 +27,8 @@ val (size_in_bits_tm, mk_size_in_bits, dest_size_in_bits, is_size_in_bits) =
  syntax_fns1 "p4_core" "size_in_bits";
 val (packet_slice_tm, mk_packet_slice, dest_packet_slice, is_packet_slice) =
  syntax_fns3 "p4_symb_exec" "packet_slice";
+val (set_varbit_width_tm, mk_set_varbit_width, dest_set_varbit_width, is_set_varbit_width) =
+ syntax_fns2 "p4_core" "set_varbit_width";
 
 val packet_in_inner_consts = [packet_in_take_tm];
 
@@ -225,6 +227,22 @@ fun approx_packet_in_take fv_index path_cond_tm pkt size_tm =
 fun approx_packet_in_extract fv_index path_cond_tm scope_list ascope =
  approx_packet_in_take fv_index path_cond_tm (lookup_packet scope_list ascope)
   (get_size "approx_packet_in_extract" (lookup_var "headerLvalue" scope_list))
+;
+
+(* Takes the header with its varbit field set to the concrete size *)
+fun approx_packet_in_extract_varbit fv_index path_cond_tm scope_list ascope =
+ let
+  val (bits, _) = dest_pair $ dest_v_bit $ lookup_var "variableFieldSizeInBits" scope_list
+  val n_tm = rhs $ concl $ EVAL (mk_v2n bits)
+  val _ = if is_numeral n_tm then () else raise (ERR "approx_packet_in_extract_varbit" "The varbit size is not concrete")
+  val (valid_bit, x_v_l) = dest_v_header $ lookup_var "headerLvalue" scope_list
+  val set_res = rhs $ concl $ EVAL (mk_set_varbit_width (n_tm, x_v_l))
+  val _ = if is_some set_res then () else raise (ERR "approx_packet_in_extract_varbit" "The header has no varbit field")
+  val x_v_l' = snd $ dest_pair $ dest_some set_res
+ in
+  approx_packet_in_take fv_index path_cond_tm (lookup_packet scope_list ascope)
+   (get_size "approx_packet_in_extract_varbit" (mk_v_header (valid_bit, x_v_l')))
+ end
 ;
 
 fun approx_packet_in_lookahead fv_index path_cond_tm scope_list ascope =

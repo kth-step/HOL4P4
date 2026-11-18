@@ -7,6 +7,8 @@ val add_packet_in_stop_consts : term list -> term list
 
 val approx_packet_in_extract :
    int -> term -> term -> term -> (thm * int list)
+val approx_packet_in_extract_varbit :
+   int -> term -> term -> term -> (thm * int list)
 val approx_packet_in_lookahead :
    int -> term -> term -> term -> (thm * int list)
 val approx_packet_in_advance :
