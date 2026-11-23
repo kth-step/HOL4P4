@@ -27,6 +27,12 @@ Definition symb_conj_def:
  symb_conj a b = (a /\ b)
 End
 
+Theorem disj_list_sing:
+ !a. disj_list [a] <=> a
+Proof
+fs[disj_list_def]
+QED
+
 Theorem disj_list_COMM:
  !A B.
  (disj_list (A++B) <=> disj_list (B++A))

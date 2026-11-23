@@ -276,4 +276,4 @@ val ctx_symb_size = subst [size_tm |-> rhs $ concl $ EVAL lookahead_tm] varbit_e
 val _ =
  (prove_contract (mk_ctx_data "ctx_symb_size" ctx_symb_size) (ASSUME “32 <= LENGTH ^p”) “(\s. packet_has_port s 1 \/ packet_has_port s 2):v1model_ascope astate -> bool”;
   raise Fail "a varbit extract with a size that is not concrete was executed")
- handle HOL_ERR e => if String.isSubstring "The varbit size is not concrete" (#message e) then () else raise HOL_ERR e;
+ handle HOL_ERR e => if String.isSubstring "The varbit size is not concrete" (message_of e) then () else raise HOL_ERR e;

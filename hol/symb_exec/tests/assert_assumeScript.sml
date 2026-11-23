@@ -317,5 +317,5 @@ val ctx_fail = subst [“v_bit ([F; F; F; F; T; F; F; F],8)” |-> “v_bit ([F;
 val _ =
  (prove_contract (mk_ctx_data "ctx_fail" ctx_fail) “(\s. packet_has_port s 1):v1model_ascope astate -> bool”;
   raise Fail "an assertion that can fail was accepted")
- handle HOL_ERR e => if String.isSubstring "assert may fail" (#message e) then () else raise HOL_ERR e;
+ handle HOL_ERR e => if String.isSubstring "assert may fail" (message_of e) then () else raise HOL_ERR e;
 val _ = set_trace "p4_symb_exec_assertions" 0;

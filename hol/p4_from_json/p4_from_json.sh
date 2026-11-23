@@ -120,9 +120,9 @@ parse_convert_opts() {
  case "$API" in ""|tdi|p4runtime) ;; *) die "unknown control-plane API $API" ;; esac
 }
 
-buildheap_bin() {
+hol_bin() {
  local holmake; holmake="$(command -v Holmake)" || die "Holmake not found on PATH"
- echo "$(dirname "$holmake")/buildheap"
+ echo "$(dirname "$holmake")/hol"
 }
 
 convert_one() {
@@ -136,7 +136,7 @@ convert_one() {
  [ -n "$ARCH" ] && opts+=("arch=$ARCH")
  [ -n "$API" ] && opts+=("api=$API")
  [ -n "$KEEP_INFO" ] && opts+=("keep-info")
- (cd "$SCRIPT_DIR" && "$(buildheap_bin)" --gcthreads=1 --holstate="$HEAP" petr4_to_hol4p4 "$json" "$LOG" "${opts[@]+"${opts[@]}"}")
+ (cd "$SCRIPT_DIR" && "$(hol_bin)" --gcthreads=1 run --holstate="$HEAP" petr4_to_hol4p4 "$json" "$LOG" "${opts[@]+"${opts[@]}"}")
 }
 
 cmd_convert() {

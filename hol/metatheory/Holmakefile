@@ -47,6 +47,6 @@ default: all
 ifdef POLY
 
 $(NEWHOLHEAP): $(TARGETS) $(HOLHEAP)
-	$(protect $(HOLDIR)/bin/buildheap) $(if $(HOLHEAP),-b $(HOLHEAP),) -o $@ $(HEAPINC)
+	$(protect $(HOLDIR)/bin/hol) buildheap $(if $(HOLHEAP),-b $(HOLHEAP),) -o $@ $(HEAPINC)
 
 endif

@@ -14,14 +14,6 @@ datatype path_tree = empty | node of int * thm * (path_tree list);
 
 val ERR = mk_HOL_ERR "symb_exec"
 
-(* |- !a. disj_list [a] <=> a *)
-val disj_list_sing_thm =
- let
-  val a = mk_var ("a", bool)
- in
-  GEN a (REWRITE_CONV [disj_list_def] (mk_disj_list [a]))
- end;
-
 fun dbg_print debug_flag string =
  if debug_flag
  then print string
@@ -259,7 +251,7 @@ fun symb_branch debug_flag disj_thm path_cond =
       in
        if is_imp_only path_disj_tm5 andalso not (is_disj_list $ snd $ dest_imp_only path_disj_tm5)
        then
-        CONV_RULE (RAND_CONV (REWR_CONV (SYM $ SPEC (snd $ dest_imp_only path_disj_tm5) disj_list_sing_thm))) path_disj_thm5
+        CONV_RULE (RAND_CONV (REWR_CONV (SYM $ SPEC (snd $ dest_imp_only path_disj_tm5) disj_list_sing))) path_disj_thm5
        else path_disj_thm5
       end
      val path_disj_thm6 = PURE_REWRITE_RULE [GSYM symb_branch_cases_def, symb_conj_def, AND_CLAUSES] path_disj_thm5'

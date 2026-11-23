@@ -756,16 +756,16 @@ Theorem e_exec_sound_red:
 !type e. e_exec_sound type e
 Proof
 strip_tac >>
-‘(!e. e_exec_sound type e) /\ (!l. x_e_l_exec_sound type l) /\ (!p. x_e_exec_sound type p) /\ (!l. l_sound type l)’ suffices_by (
+‘(!e. e_exec_sound type e) /\ (!l. l_sound type l) /\ (!l. x_e_l_exec_sound type l) /\ (!p. x_e_exec_sound type p)’ suffices_by (
  fs[]
 ) >>
-irule e_induction >>
+irule e_mutual_induction >>
 rpt strip_tac >| [
- (* x_e list: base case *)
- fs [x_e_l_exec_sound, l_sound],
-
  (* e list: base case *)
  fs [l_sound],
+
+ (* x_e list: base case *)
+ fs [x_e_l_exec_sound, l_sound],
 
  (* Bitvector slice *)
  fs [e_slice_exec_sound_red],
@@ -776,17 +776,11 @@ rpt strip_tac >| [
  (* Binary operation *)
  fs [e_binop_exec_sound_red],
 
- (* e list: inductive step *)
- fs [l_sound_equiv, l_sound_exec],
-
  (* Cast *)
  fs [e_cast_exec_sound_red],
 
  (* Field access *)
  fs [e_acc_exec_sound_red],
-
- (* x_e *)
- fs [x_e_exec_sound],
 
  (* Select expression *)
  fs [e_select_exec_sound_red],
@@ -800,29 +794,35 @@ rpt strip_tac >| [
  gvs[] >>
  metis_tac[(valOf o find_clause_e_red) "e_saved_v", clause_name_def],
 
+ (* x_e *)
+ fs [x_e_exec_sound],
+
+ (* e list: inductive step *)
+ fs [l_sound_equiv, l_sound_exec],
+
  (* TODO: List expression - not in exec sem yet *)
  fs [e_exec_sound, e_exec_def],
 
  (* Function/extern call *)
  fs [e_call_exec_sound_red],
 
- (* Struct *)
- fs [e_struct_exec_sound_red],
-
- (* TODO: Header expression - not in exec sem yet *)
- fs [e_exec_sound, e_exec_def],
-
  (* x_e list: inductive case *)
- Cases_on ‘p’ >>
+ Cases_on ‘h’ >>
  fs[x_e_l_exec_sound, l_sound, x_e_exec_sound] >>
  rpt strip_tac >>
  Cases_on ‘x’ >> (
   fs[oEL_def]
  ) >>
- subgoal ‘MEM e (MAP SND l)’ >- (
+ subgoal ‘MEM e (MAP SND t)’ >- (
   fs [oEL_EQ_EL, EL_MEM]
  ) >>
  metis_tac[l_sound_MEM],
+
+ (* Struct *)
+ fs [e_struct_exec_sound_red],
+
+ (* TODO: Header expression - not in exec sem yet *)
+ fs [e_exec_sound, e_exec_def],
 
  (* Constant value: Irreducible *)
  fs[e_exec_sound, e_exec_def],

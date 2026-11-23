@@ -388,13 +388,13 @@ Definition petr4_ct_binop_def:
    else NONE
 End
 
-Triviality get_error_msg_distinct:
+Theorem get_error_msg_distinct[local]:
  !str obj str'. get_error_msg str obj <> SOME_msg str'
 Proof
 fs[get_error_msg_def]
 QED
 
-Triviality json_parse_arr_size:
+Theorem json_parse_arr_size[local]:
  !str json json'.
  json_parse_arr str SOME json = SOME json' ==>
  json_size json' < json_size json
@@ -408,7 +408,7 @@ Cases_on ‘t’ >> (fs[json_parse_arr'_def]) >>
 Cases_on ‘t'’ >> (fs[json_parse_arr'_def, json_size_def, app_opt_def])
 QED
 
-Triviality json_parse_obj_size:
+Theorem json_parse_obj_size[local]:
  !str_list json json_list.
  json_parse_obj str_list json = SOME json_list ==>
  json3_size json_list < json_size json
@@ -438,13 +438,14 @@ res_tac >>
 gs[]
 QED
 
-Theorem list_size_json3:
-!json_list.
-list_size json_size json_list = json3_size json_list
+Theorem list_size_FST_ZIP[local]:
+!l1 l2 f.
+LENGTH l1 = LENGTH l2 ==>
+list_size (\x. f (FST x)) (ZIP (l1, l2)) = list_size f l1
 Proof
-Induct >> (
- gs[list_size_def, json_size_def]
-)
+Induct >>
+Cases_on ‘l2’ >>
+gs[]
 QED
 
 (* Parses compile-time known constants, e.g. in bitstring widths *)
@@ -895,7 +896,7 @@ Definition find_fty_match_args_def:
     | NONE => NONE)
 End
 
-Triviality find_fty_match_args_LENGTH:
+Theorem find_fty_match_args_LENGTH[local]:
 !ftymap funn numargs res.
  find_fty_match_args ftymap funn numargs = SOME res ==>
  LENGTH (FST res) = numargs
@@ -1030,7 +1031,7 @@ Definition petr4_struct_entry_value_def:
   | _ => Null
 End
 
-Triviality json3_size_struct_entry_values:
+Theorem json3_size_struct_entry_values[local]:
  !entries. json3_size (MAP petr4_struct_entry_value entries) <= json3_size entries
 Proof
 Induct >> (
@@ -1172,7 +1173,7 @@ Definition petr4_parse_expression_gen_def:
          SOME_msg (Exp (e_v (v_bit (fixwidth n (n2v op_const), n))))
         | InlineApp s_l app_exp =>
          get_error_msg "apply expression unsupported for casts: " op
-        | SetExp set_exp =>
+        | SetExp _ =>
          get_error_msg "apply expression unsupported for set expressions: " op)
       | SOME tau_bool =>
        (case res_op of
@@ -1182,7 +1183,7 @@ Definition petr4_parse_expression_gen_def:
          SOME_msg (Exp (e_v (v_bool (HD $ REVERSE (n2v op_const)))))
         | InlineApp s_l app_exp =>
          get_error_msg "apply expression unsupported for casts: " op
-        | SetExp set_exp =>
+        | SetExp _ =>
          get_error_msg "apply expression unsupported for set expressions: " op)
       | SOME (tau_varbit n) => get_error_msg "casts to varbit unsupported: " exp
       | SOME _ => get_error_msg "unsupported cast type: " cast_type
@@ -1496,7 +1497,7 @@ Definition petr4_parse_expression_gen_def:
        | SOME other_tau => get_error_msg "non-bitstring type inference unsupported for exp: " exp
        | NONE => get_error_msg "type inference information missing for function argument: " exp)
      | SOME_msg (InlineApp s_l exp_app) => get_error_msg "apply expressions as arguments disallowed by import tool: " exp
-     | SOME_msg (SetExp set_exp) => get_error_msg "set expressions as arguments disallowed by import tool: " exp
+     | SOME_msg (SetExp _) => get_error_msg "set expressions as arguments disallowed by import tool: " exp
      | NONE_msg exp_msg => NONE_msg ("could not parse arguments: "++exp_msg)
    else NONE_msg ("unsupported argument type: "++argtype)
   | _ => get_error_msg "unknown JSON format of argument: " (FST h)) /\
@@ -1519,13 +1520,13 @@ WF_REL_TAC ‘measure ( \ t. case t of
                            | (INR $ INR (maps, json_list)) => json_p_tau_opt_list_size json_list)’ >>
 gs[json_p_tau_opt_list_size_def] >>
 rpt strip_tac >> (
- gs[json_size_def, UNZIP_MAP, listTheory.MAP_ZIP, list_size_json3]
+ gs[json_size_def, UNZIP_MAP, listTheory.MAP_ZIP]
 ) >- (
  qspec_then ‘entries’ assume_tac json3_size_struct_entry_values >>
  gs[]
 ) >>
 ‘LENGTH args = LENGTH p_1'5'’ by (imp_res_tac find_fty_match_args_LENGTH >> gs[]) >>
-gs[UNZIP_MAP, listTheory.MAP_ZIP, list_size_json3]
+gs[UNZIP_MAP, listTheory.MAP_ZIP, list_size_FST_ZIP]
 End
 
 (* TODO: Baking this into the above messes up the termination proof... *)
@@ -2784,7 +2785,7 @@ Definition petr4_parse_switch_cases_def:
  )
 End
 
-Triviality petr4_parse_switch_cases_size:
+Theorem petr4_parse_switch_cases_size[local]:
  !p_tau fall_labels cases cases_res labels stmts.
  petr4_parse_switch_cases p_tau fall_labels cases = SOME_msg cases_res ==>
  (labels,stmts) = UNZIP cases_res ==>

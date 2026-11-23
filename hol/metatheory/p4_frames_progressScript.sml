@@ -24,14 +24,14 @@ End
 
 
 
-Triviality list_len_3:
+Theorem list_len_3[local]:
 ∀ l a b c . a::b::c = l ⇒ LENGTH l > 1
 Proof
 Cases >> REPEAT STRIP_TAC >> gvs[ADD1]
 QED
 
 
-Triviality MAP_ZIP_tri_normalization:
+Theorem MAP_ZIP_tri_normalization[local]:
 ∀ al bl cl a b c t.
  LENGTH al = LENGTH bl ∧ LENGTH bl = LENGTH cl ∧ 
 (a,b,c)::t = MAP (λ(a_,b_,c_). (a_,b_,c_)) (ZIP (al,ZIP (bl,cl))) ⇒
@@ -49,7 +49,7 @@ QED
 
 
 
-Triviality t_map_to_pass_delta_b_cases:
+Theorem t_map_to_pass_delta_b_cases[local]:
 ∀ delta_b passed_delta_b f .
 t_map_to_pass f delta_b = SOME passed_delta_b ⇒
 (passed_delta_b = [] ∨ passed_delta_b= delta_b)
@@ -61,7 +61,7 @@ QED
 
         
 
-Triviality t_lookup_funn_not_blk_lemma:
+Theorem t_lookup_funn_not_blk_lemma[local]:
 ∀ delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn f delta_g [] delta_x ⇒
 dom_tmap_ei delta_g delta_b ⇒
@@ -81,7 +81,7 @@ QED
 
 
         
-Triviality ext_not_def_in_mpty_delta_b:
+Theorem ext_not_def_in_mpty_delta_b[local]:
 ∀ f delta_g delta_b delta_x txdl t.
    typying_domains_ei delta_g delta_b delta_x ∧
    t_lookup_funn f delta_g [] delta_x = SOME (txdl,t) ∧
@@ -99,7 +99,7 @@ QED
 
     
 
-Triviality delta_b_maps_empty_lemma:
+Theorem delta_b_maps_empty_lemma[local]:
 ∀ f delta_b b_func_map.
  dom_b_eq delta_b b_func_map ∧  
  t_map_to_pass f delta_b = SOME [] ⇒
@@ -116,7 +116,7 @@ QED
 
 
         
-Triviality delta_b_maps_lemma:
+Theorem delta_b_maps_lemma[local]:
 ∀ f delta_b b_func_map.
  LENGTH delta_b = LENGTH b_func_map ∧
  dom_b_eq delta_b b_func_map ∧            
@@ -134,7 +134,7 @@ Cases_on ‘b_func_map’ >> gvs[]
 QED
 
 
-Triviality delta_t_maps_lemma:
+Theorem delta_t_maps_lemma[local]:
 ∀ f delta_b delta_t b_func_map tbl_map.
  LENGTH delta_t = LENGTH tbl_map ∧
   dom_b_eq delta_b b_func_map ∧                  
@@ -156,7 +156,7 @@ QED
 
 
 
-Triviality find_stars_in_g_same:
+Theorem find_stars_in_g_same[local]:
 ∀ e1 e2 x y r .
 find_star_in_globals [e1; e2] (varn_star (funn_name x)) = SOME r ∧
 (∀y'. ALOOKUP e1 (varn_star (funn_name x)) ≠ SOME y') ∧                                                               
@@ -182,7 +182,7 @@ QED
 (* because this is the base frame, we know that there exsist typing global scope,
 that is an extension of the current one (because it is scopes to pass ) *)
         
-Triviality WT_state_imp_frame_typ_single:
+Theorem WT_state_imp_frame_typ_single[local]:
 ∀  ascope gscope f stmtl locale status Prs_n order tslg tsll delta_g delta_b
        delta_x delta_t apply_table_f ext_map func_map b_func_map pars_map get_oracle_index set_oracle_index random_oracle
        tbl_map.
@@ -251,7 +251,7 @@ QED
 
 
         
-Triviality WT_state_imp_t_funn_lookup_HD:
+Theorem WT_state_imp_t_funn_lookup_HD[local]:
 ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope gscope stmtl locale t status Prs_n order tslg
         delta_g delta_b delta_x delta_t tsll.
         
@@ -285,7 +285,7 @@ QED
 
 
 
-Triviality ret_status_framel_empty_lemma:
+Theorem ret_status_framel_empty_lemma[local]:
 ∀ c ascope ascope' gscope gscope' f stmt stmt_stack v framel locale locale'.
 stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
            (ascope',gscope',framel ⧺ [(f,stmt_stack,locale')], status_returnv v) ⇒
@@ -298,7 +298,7 @@ QED
 
 
         
-Triviality ret_status_framel_empty:
+Theorem ret_status_framel_empty[local]:
 ∀ c ascope ascope' gscope gscope' f stmtl stmtl' v framel locale locale'.
 stmt_red c (ascope,gscope,[(f,stmtl,locale)],status_running)
            (ascope',gscope',framel ⧺ [(f,stmtl',locale')],status_returnv v) ⇒
@@ -328,7 +328,7 @@ QED
   
 
 
-Triviality assign_star_length_2:
+Theorem assign_star_length_2[local]:
 ∀ gscope v f sl.                                  
 LENGTH gscope = 2 ∧
 assign gscope v (lval_varname (varn_star f)) = SOME sl ⇒
@@ -341,7 +341,7 @@ QED
 
 
 
-Triviality retrieved_scopes_exsist:
+Theorem retrieved_scopes_exsist[local]:
 ∀ sl  f func_map b_func_map ext_map stmt xdl gscope.               
 LENGTH sl = 2 ∧
 lookup_funn_sig_body f func_map b_func_map ext_map = SOME (stmt,xdl) ⇒
@@ -394,7 +394,7 @@ co_wf_arg_list dl xl (ts_curr_local: t_scope list) passed_tslg pre_ts T_e =
 
 
       
-Triviality co_wf_arg_list_normalization:
+Theorem co_wf_arg_list_normalization[local]:
 ∀ xdl d x ts_current passed_tslg pre_ts T_e.
 co_wf_arg_list (d::MAP (λ(x_,d_). d_) xdl) (x::MAP (λ(x_,d_). x_) xdl) ts_current passed_tslg pre_ts T_e ⇒
 co_wf_arg_list (MAP (λ(x_,d_). d_) xdl) (MAP (λ(x_,d_). x_) xdl) ts_current passed_tslg pre_ts T_e∧
@@ -417,7 +417,7 @@ QED
 
 
 
-Triviality t_lookup_passed_map:
+Theorem t_lookup_passed_map[local]:
 ∀ f delta_b delta_g delta_x passed_delta_b tau txdl.
 t_map_to_pass f delta_b = SOME passed_delta_b ∧
 t_lookup_funn f delta_g passed_delta_b delta_x =  SOME (txdl,tau) ⇒
@@ -433,7 +433,7 @@ QED
 
 
 
-Triviality scopes_to_pass_length:
+Theorem scopes_to_pass_length[local]:
 ∀ f func_map b_func_map scl.        
 LENGTH scl = 2 ⇒
 ∃ scl'. SOME scl' = scopes_to_pass f func_map b_func_map scl ∧
@@ -450,7 +450,7 @@ QED
 
 
 
-Triviality assign_re_LENGTH:
+Theorem assign_re_LENGTH[local]:
 ∀ ss v lval res_ss n.
 LENGTH ss > n ∧
 assign ss v lval = SOME res_ss ⇒
@@ -467,7 +467,7 @@ QED
 
           
           
-Triviality FOLDL_co_not_empty:
+Theorem FOLDL_co_not_empty[local]:
 ∀ xdl ss curr_sc .
 LENGTH ss > 0   ⇒
    FOLDL
@@ -504,7 +504,7 @@ QED
 
                               
 
-Triviality update_res_frame_not_empty:
+Theorem update_res_frame_not_empty[local]:
 ∀ ss curr_sc xl dl .
 LENGTH ss > 0  ⇒
 ~ (update_return_frame (xl) (dl) (ss) [LAST curr_sc] = SOME [])
@@ -517,7 +517,7 @@ QED
 
 
 
-Triviality dir_rel_1:
+Theorem dir_rel_1[local]:
 ∀ d .
 ¬is_d_none_in d ⇔ is_d_out d
 Proof
@@ -528,7 +528,7 @@ QED
 
 
 
-Triviality LAST_TL:
+Theorem LAST_TL[local]:
 ∀l .
 LENGTH l > 1 ⇒                                        
 LAST l = LAST (TL l)
@@ -543,7 +543,7 @@ QED
 
 
 
-Triviality out_consis_inp_LENGTH:
+Theorem out_consis_inp_LENGTH[local]:
 ∀ l1 l2 .
 out_lval_consistent l1 l2 ⇒
 LENGTH l1 = LENGTH l2
@@ -555,7 +555,7 @@ REPEAT STRIP_TAC >>
 gvs[LIST_REL_LENGTH]
 QED
                         
-Triviality out_consis_normalization:
+Theorem out_consis_normalization[local]:
 ∀ l1 l2 h h'.                        
 out_lval_consistent (h::l1) (h'::l2) ⇒ 
 out_lval_consistent (l1) (l2) ∧
@@ -568,7 +568,7 @@ QED
                     
 
 
-Triviality type_scopes_list_single_LENGTH:
+Theorem type_scopes_list_single_LENGTH[local]:
 ∀ l1 l2 .
 type_scopes_list [l1] [l2] ⇒
 LENGTH l1 = LENGTH l2
@@ -585,7 +585,7 @@ QED
 
         
 
-Triviality co_wf_imp_update_frame_exists:
+Theorem co_wf_imp_update_frame_exists[local]:
 ∀xdl pre_local pre_gscope_passed LASTcurr_local pre_passed_tslg pre_tsl LASTcurr_local_ts T_e.
 
 LENGTH pre_local ≥ 1 ∧
@@ -674,7 +674,7 @@ QED
 
 
 
-Triviality out_lval_consis_imp_lval:
+Theorem out_lval_consis_imp_lval[local]:
 ∀  i dl lol.
 i < LENGTH dl ∧
 is_d_out (EL i dl) ∧
@@ -696,7 +696,7 @@ QED
 
                                                  
 
-Triviality EL_exists_tri:
+Theorem EL_exists_tri[local]:
 ∀ i l b c .                 
 i < LENGTH l ∧            
 EL i (MAP (λ(a,b,c). c) (l)) = c ⇒
@@ -709,7 +709,7 @@ gvs[]
 QED
 
 
-Triviality mk_varn_EL:
+Theorem mk_varn_EL[local]:
 ∀ i l1 l2.
 i < LENGTH l1 ∧  
 mk_varn l1 = l2 ⇒
@@ -727,7 +727,7 @@ gvs[mk_varn_lemma2]
 QED
 
 
-Triviality EL_FST_P:
+Theorem EL_FST_P[local]:
 ∀ i l .
   i < LENGTH l ⇒
   EL i (MAP FST l) = FST (EL i l)
@@ -737,7 +737,7 @@ METIS_TAC[P_on_any_EL]
 QED
 
 
-Triviality ALOOKUP_LIST_index:
+Theorem ALOOKUP_LIST_index[local]:
 ∀ l i bc.
 i < LENGTH l ∧
 ALL_DISTINCT (MAP (λ(a,b,c). a) l) ∧
@@ -760,7 +760,7 @@ QED
 
 
 
-Triviality ALOOKUP_LIST_index2:
+Theorem ALOOKUP_LIST_index2[local]:
 ∀ l i b c.
 i < LENGTH l ∧
 ALL_DISTINCT (MAP (λ(a,b,c). a) l) ∧
@@ -777,7 +777,7 @@ QED
 
 
      
-Triviality lookup_map_index_distinct:
+Theorem lookup_map_index_distinct[local]:
 ∀ i (l:(varn#'a#'b) list) a b c.
   i < LENGTH l ∧
 ALL_DISTINCT (MAP (λ(a,b,c). a) l) ∧
@@ -811,7 +811,7 @@ QED
         
         
 (* TODO: remove many of the unneeded assumptions and also make a better version where t_funn_call and also txdl not there *)
-Triviality consistent_imp_wf_arg:
+Theorem consistent_imp_wf_arg[local]:
 ∀ curr_local pre_local curr_local_ts pre_tsl  T_e pre_gscope_passed pre_passed_tslg
   f delta_g passed_delta_b delta_x txdl xdl tau.
 
@@ -880,7 +880,7 @@ QED
    
 
 
-Triviality copyout_not_none:
+Theorem copyout_not_none[local]:
 ∀ curr_local pre_local curr_local_ts pre_tsl  T_e pre_gscope_passed pre_passed_tslg
   f delta_g passed_delta_b delta_x txdl xdl tau.
       LENGTH curr_local_ts ≥ 1

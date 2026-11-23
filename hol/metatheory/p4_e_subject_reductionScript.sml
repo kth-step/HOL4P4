@@ -129,7 +129,7 @@ End
 a value list where each member is a constant imples that
 the conversion back to an expression list hold
 *)
-Triviality vl_el_conv:
+Theorem vl_el_conv[local]:
 ! l l'.  (l = vl_of_el l')  /\ (is_consts l') ==>
          (l' = el_of_vl l)
 Proof
@@ -154,7 +154,7 @@ if an expression value (e_v v) is well typed,
 then that value v is also well typed with the same tau
 *)
 
-Triviality ev_types_v:
+Theorem ev_types_v[local]:
 ! v tau t_scope_list_g t_scope_list T_e .
   e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) (tau) F ==>
   v_typ (v) (tau) F
@@ -169,7 +169,7 @@ QED
 if the expression a constant, then the value of that expression
 should be able to be typed with the same tau
 *)
-Triviality e_types_v:
+Theorem e_types_v[local]:
 ! v e tau t_scope_list_g t_scope_list T_e .
   is_const(e) /\
   e_typ (t_scope_list_g,t_scope_list) T_e (e) (tau) F ==>
@@ -205,7 +205,7 @@ if the expression list contains only constant values,
 then those values of these expressions 
 should be able to be typed with the same tau at the same index of that expression
 *)
-Triviality evl_types_vl_F:
+Theorem evl_types_vl_F[local]:
 !l l' i t_scope_list_g t_scope_list T_e.
 (LENGTH l = LENGTH l') /\
 (i<LENGTH l) /\
@@ -291,7 +291,7 @@ QED
 (*
 The constant can never be typed as an lvalue
 *)
-Triviality value_is_lval:
+Theorem value_is_lval[local]:
 ∀v tau t_scope_list_g t_scope_list T_e.
        ~ e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) tau T
 Proof
@@ -635,7 +635,7 @@ QED
 
 
 
-Triviality varn_is_typed:
+Theorem varn_is_typed[local]:
 ! gsl gtsl sl tsl varn v tau .
           type_scopes_list gsl gtsl ∧
           type_scopes_list sl tsl ∧
@@ -678,7 +678,7 @@ QED
 if var star is not in the domain of the scope s,
 then it is not a member of that list
 *)
-Triviality star_MEM:
+Theorem star_MEM[local]:
 !s f.
 star_not_in_s (s) ==>  ~MEM (varn_star f) (MAP FST s)
 Proof
@@ -696,7 +696,7 @@ QED
 if star is not in any scope of scope lists l, then we should not
 find any index and value returned while searching in l's scopes
 *)
-Triviality star_not_in_s_implies_none:
+Theorem star_not_in_s_implies_none[local]:
 !l . EVERY (λs. star_not_in_s s) l  ==>
 !f . INDEX_FIND 0 (λsc. IS_SOME (ALOOKUP sc (varn_star f))) (l) = NONE
 Proof
@@ -833,7 +833,7 @@ QED
 
 
 
-Triviality lookup_glb_local_ctx:
+Theorem lookup_glb_local_ctx[local]:
 ! func_map delta_g func_map delta_b b_func_map s stmt_called
 xdl txdl ext_map delta_x tau.
 
@@ -917,7 +917,7 @@ QED
 
 
 
-Triviality t_lookup_funn_lemma_old:
+Theorem t_lookup_funn_lemma_old[local]:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn f delta_g [] [] /\
 dom_tmap_ei delta_g delta_b ==>
@@ -937,7 +937,7 @@ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`s`])) >> gvs[]
 QED
 
                                     
-Triviality t_lookup_funn_lemma:
+Theorem t_lookup_funn_lemma[local]:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn f delta_g [] delta_x /\
 dom_tmap_ei delta_g delta_b ==>
@@ -961,7 +961,7 @@ QED
 
                                     
 
-Triviality t_lookup_funn_blk_lemma:
+Theorem t_lookup_funn_blk_lemma[local]:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn (f) [] delta_b []  ==>
 (? tau' txdl' . ( SOME (txdl',tau') = t_lookup_funn f delta_g delta_b []) /\
@@ -995,7 +995,7 @@ QED
 
 
 
-Triviality WT_c_imp_global_or_local_lookup:
+Theorem WT_c_imp_global_or_local_lookup[local]:
 ! func_map delta_g func_map delta_b b_func_map s stmt_called
 xdl ext_map delta_x order t_scope_list_g pars_map tbl_map set_oracle_index get_oracle_index random_oracle stmt apply_table_f delta_t Prs_n.
 SOME (stmt,xdl) =
@@ -1203,7 +1203,7 @@ QED
 
 
 
-Triviality e_resulted_frame_is_WT:
+Theorem e_resulted_frame_is_WT[local]:
 ! (ec:'a ectx) gscope scopest e e' f_called stmt_called copied_in_scope i_opt
              t_scope_list_g t_scope_list order delta_g delta_b delta_x delta_t f (ty:'a itself) b tau
              apply_table_f ext_map func_map b_func_map pars_map tbl_map oracle_index random_oracle Prs_n.
@@ -1538,7 +1538,7 @@ QED
 
 
 
-Triviality out_is_val_imp_every:
+Theorem out_is_val_imp_every[local]:
 ! dl bl .
    out_is_lval dl bl ==>
    EVERY (\ (dir,b) . is_d_out dir ==> b ) (ZIP(dl, bl))
@@ -1571,7 +1571,7 @@ QED
 
 
 
-Triviality dir_list_lemma1:
+Theorem dir_list_lemma1[local]:
 ! dl bl i.
 i < LENGTH dl /\
 out_is_lval dl bl /\
@@ -1599,7 +1599,7 @@ QED
 
 
 
-Triviality unred_arg_index_details:
+Theorem unred_arg_index_details[local]:
 ! dl el i .
  unred_arg_index dl el = SOME i ⇒
           ((EL i dl = d_in ∨ EL i dl = d_none) ∧ ¬is_const (EL i el)) ∨
@@ -1681,7 +1681,7 @@ QED
 
 
                     
-Triviality unred_arg_index_in_range2:
+Theorem unred_arg_index_in_range2[local]:
 ∀dl el i. unred_arg_index dl el = SOME i ⇒ i < LENGTH dl
 Proof
 rpt strip_tac >>
@@ -1715,7 +1715,7 @@ QED
 
 
 
-Triviality dir_fun_delta_same:
+Theorem dir_fun_delta_same[local]:
 ! xdl txdl ftau f func_map b_func_map ext_map delta_g delta_b delta_x
 apply_table_f order t_scope_list_g pars_map tbl_map get_oracle_index
 set_oracle_index random_oracle delta_t  Prs_n. 
@@ -1737,7 +1737,7 @@ QED
 
 
 
-Triviality two_lookup_funn:
+Theorem two_lookup_funn[local]:
 ! f delta_g delta_b delta_x tau tau' txdl txdl'.
 SOME (txdl,tau) = t_lookup_funn (f) delta_g delta_b delta_x /\
 SOME (txdl',tau') = t_lookup_funn (f) delta_g delta_b delta_x ==>
@@ -1805,7 +1805,7 @@ QED
 (** context related theorems **)
 
 
-Triviality trans_names_imp:
+Theorem trans_names_imp[local]:
 ! l Prs_n . 
 literials_in_P_state l ["accept"; "reject"] ==>
 literials_in_P_state l (Prs_n ⧺ ["accept"; "reject"])
@@ -1820,7 +1820,7 @@ QED
 (*we need to show that the statement that we get is always extern
   the scope is well typed and it is always well typed*)
 
-Triviality funn_inst_ext_prod_ext_stmt:
+Theorem funn_inst_ext_prod_ext_stmt[local]:
 ! f s s' stmt xdl func_map b_func_map ext_map .
 (f = funn_inst s \/ f = (funn_ext s s')) /\
 SOME (stmt,xdl) = lookup_funn_sig_body (f) func_map b_func_map ext_map ==>
@@ -1874,7 +1874,7 @@ QED
 
 
 
-Triviality func_lookup_cases_eq:
+Theorem func_lookup_cases_eq[local]:
 ∀ func_map b_func_map ext_map stmt stmt' xdl xdl' s.
 ( lookup_funn_sig_body (funn_name s) func_map b_func_map ext_map = SOME (stmt,xdl) ∧
   ALOOKUP func_map s = SOME  (stmt',xdl') ∧ 
@@ -1896,7 +1896,7 @@ QED
 
            
 
-Triviality all_func_maps_contains_welltyped_body_min:
+Theorem all_func_maps_contains_welltyped_body_min[local]:
 ! xdl txdl el stmt tau f
   (ext_map:'a ext_map) func_map b_func_map order t_scope_list_g
             delta_g delta_b delta_x delta_t gscope Prs_n.
@@ -1985,7 +1985,7 @@ QED
 
 
 
-Triviality all_func_maps_contains_welltyped_body:
+Theorem all_func_maps_contains_welltyped_body[local]:
 ! xdl txdl stmt tau f apply_table_f  (ext_map: 'a ext_map) func_map b_func_map pars_map
        tbl_map order t_scope_list_g delta_g delta_b delta_x delta_t gscope Prs_n el .
 WT_c (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map)
@@ -2058,7 +2058,7 @@ End
 
 
 
-Triviality WF_arg_empty:
+Theorem WF_arg_empty[local]:
 !ss d x e i random_oracle.
    wf_arg d x e ss ⇒
     update_arg_for_newscope ss random_oracle (SOME ([], i)) (d,x,e) =
@@ -2084,7 +2084,7 @@ QED
 
 
 
-Triviality update_args_none:
+Theorem update_args_none[local]:
 ! dxel scope ss random_oracle.
 ~ (FOLDL (update_arg_for_newscope ss random_oracle) NONE (dxel) = SOME scope)
 Proof
@@ -2127,7 +2127,7 @@ QED
 
 
 
-Triviality wf_arg_list_normalization_imp2:
+Theorem wf_arg_list_normalization_imp2[local]:
 ! xl dl el x d e ss .
 (LENGTH dl = LENGTH xl) /\
 (LENGTH el = LENGTH xl) /\
@@ -2183,7 +2183,7 @@ QED
 
 
 
-Triviality wf_arg_none_single:
+Theorem wf_arg_none_single[local]:
 ! ss d s e random_oracle i.
  wf_arg d s e ss ==> 
    ~ (update_arg_for_newscope ss random_oracle (SOME ([], i)) (d,s,e) = NONE )
@@ -2216,7 +2216,7 @@ QED
 
 
 
-Triviality EL_domain_ci_same:
+Theorem EL_domain_ci_same[local]:
 !dxel scope ss i random_oracle.
 i < LENGTH scope /\
 LENGTH scope = LENGTH dxel /\
@@ -2267,7 +2267,7 @@ QED
 
 
 
-Triviality args_ci_scope_LENGTH:
+Theorem args_ci_scope_LENGTH[local]:
 ! dxel ss scope random_oracle.
 copyin_abstract (MAP (λ(d,x,e). x) (dxel))
                 (MAP (λ(d,x,e). d) (dxel))
@@ -2282,7 +2282,7 @@ QED
 
 
 
-Triviality args_ci_scope_LENGTH2:
+Theorem args_ci_scope_LENGTH2[local]:
 ! xl dl el ss scope random_oracle.
 LENGTH xl = LENGTH dl /\ LENGTH xl = LENGTH el /\
 copyin_abstract (xl) (dl) (el) ss scope random_oracle ==>
@@ -2295,7 +2295,7 @@ INST_FST [`0`]
 QED
 
 
-Triviality LOOKUP_LENGTH:
+Theorem LOOKUP_LENGTH[local]:
 ! l a x . ALOOKUP l a = SOME x ==> ~(LENGTH l = 0)
 Proof
 Induct >>
@@ -2304,7 +2304,7 @@ QED
 
 
 
-Triviality LOOKUP_EXISTS_EL:
+Theorem LOOKUP_EXISTS_EL[local]:
 ! l x a .
 LENGTH l > 0 /\
 ALOOKUP l x = SOME a ==>
@@ -2437,7 +2437,7 @@ QED
 
 
 
-Triviality copyin_abstract_single:
+Theorem copyin_abstract_single[local]:
 ! x d e ss scope random_oracle.
 copyin_abstract [x] [d] [e] ss [HD scope] random_oracle ==>
 (ALL_DISTINCT (MAP FST [HD scope]) /\
@@ -2467,7 +2467,7 @@ QED
 
 
 
-Triviality copyin_abstract_domain:
+Theorem copyin_abstract_domain[local]:
 !dxel ss scope random_oracle.
 copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel)
           (MAP (λ(d,x,e). e) dxel) ss scope random_oracle ==>
@@ -2540,7 +2540,7 @@ QED
 
 (* if all the domain is distict, then if we find something in there,
 it should notmbe as the tail of it *)
-Triviality copyin_abstract_distinct:
+Theorem copyin_abstract_distinct[local]:
 ! dxel ss x random_oracle.
  ALL_DISTINCT (MAP (λ(d,x,e). x) dxel) /\
  copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel)
@@ -2558,7 +2558,7 @@ QED
 
 
 
-Triviality copyin_abstract_distinct_app:
+Theorem copyin_abstract_distinct_app[local]:
 ! dxel ss x a random_oracle.
 ALL_DISTINCT ((MAP (λ(d,x,e). x) dxel) ++ [a] )/\
  copyin_abstract (MAP (λ(d,x,e). x) dxel) (MAP (λ(d,x,e). d) dxel)
@@ -2573,7 +2573,7 @@ gvs[mk_varn_lemma3, mk_varn_lemma]
 QED
 
 
-Triviality distinct_not_neg:
+Theorem distinct_not_neg[local]:
 ! l xl x v lval_op x'.
 LENGTH l = LENGTH xl /\
 ALOOKUP l (varn_name x) = SOME x' /\
@@ -2598,7 +2598,7 @@ QED
 
 
 
-Triviality distinct_not_neg_in_bound:
+Theorem distinct_not_neg_in_bound[local]:
 ! l x x'.
 ALOOKUP l (varn_name x) = SOME x' /\
 ALL_DISTINCT (MAP FST l ⧺ [varn_name x])
@@ -2777,7 +2777,7 @@ QED
 
 
 
-Triviality wf_arg_list_implied:
+Theorem wf_arg_list_implied[local]:
 !dxel d (x:string) e ci_scope ss random_oracle tmp i'.
  ALL_DISTINCT (MAP (λ(d,x,e). x) dxel ⧺ [x]) /\
  check_args_red (MAP (λ(d,x,e). d) dxel ⧺ [d])
@@ -2803,7 +2803,7 @@ QED
 
 
 
-Triviality wf_arg_list_normalize_imp1:
+Theorem wf_arg_list_normalize_imp1[local]:
 ! dxel d x e ss .
 (wf_arg_list (MAP (λ(d,x,e). d) dxel) (MAP (λ(d,x,e). x) dxel)
           (MAP (λ(d,x,e). e) dxel) ss /\
@@ -2830,7 +2830,7 @@ QED
 
 
 
-Triviality check_args_red_normalize:
+Theorem check_args_red_normalize[local]:
 ! dxel d e . 
 check_args_red (MAP (λ(d,x,e). d) dxel ⧺ [d])
                (MAP (λ(d,x,e). e) dxel ⧺ [e]) <=>
@@ -2851,7 +2851,7 @@ QED
 
 
 
-Triviality update_new_scope_wf_args:
+Theorem update_new_scope_wf_args[local]:
 ∀dxel ci_scope i' ss random_oracle i.
      ALL_DISTINCT (MAP (λ(d,x,e). x) dxel) /\
      check_args_red (MAP (λ(d,x,e). d) dxel)
@@ -2884,7 +2884,7 @@ QED
 
 
 
-Triviality all_update_new_scope_wf_args:
+Theorem all_update_new_scope_wf_args[local]:
 ∀e_x_d_list ci_scope i' ss i random_oracle.
      ALL_DISTINCT (MAP (λ(e_,x_,d_). x_) e_x_d_list) /\
      check_args_red (MAP (λ(e_,x_,d_). d_) e_x_d_list)
@@ -2911,7 +2911,7 @@ QED
 
 
 
-Triviality copyin_imp_wf_args2:
+Theorem copyin_imp_wf_args2[local]:
 ! e_x_d_list ci_scope gscope scopest i random_oracle.
 ALL_DISTINCT (MAP (λ(e_,x_,d_). x_) e_x_d_list) /\
 check_args_red (MAP (λ(e_,x_,d_). d_) e_x_d_list)
@@ -2941,7 +2941,7 @@ QED
 (****************************)
 (* further lemmas about the copyin and the typing*)
 
-Triviality star_not_in_varn_list:
+Theorem star_not_in_varn_list[local]:
 ! scope xl .
 MAP FST scope = mk_varn (xl) ==>
 star_not_in_sl [scope]
@@ -2957,7 +2957,7 @@ QED
 
 
 
-Triviality check_args_red_normalize2:
+Theorem check_args_red_normalize2[local]:
 ! e_x_d_list d e . 
 check_args_red (d::MAP (λ(e_,x_,d_). d_) e_x_d_list)
                (e::MAP (λ(e_,x_,d_). e_) e_x_d_list) ==>
@@ -3258,14 +3258,14 @@ Cases_on ‘l2’ >> gs[] >>
 Cases_on ‘l3’ >> gs[]
 QED
 
-Triviality init_typed:
+Theorem init_typed[local]:
 (! (ty:'a itself).
 (! v  . init_out_v_typed v ty) /\
 (! svl. init_out_svl_typed svl ty) /\
 (! sv . init_out_sv_tup_typed sv ty))
 Proof
 strip_tac >>
-Induct >> (
+Mutual.MUTUAL_INDUCT_TAC v_mutual_induction >> (
  fs[init_out_v_typed_def] >> 
  rpt strip_tac >>
  fs[Once v_typ_cases] >>
@@ -3600,7 +3600,7 @@ wf_arg_lookup d x e ss =
   (is_d_out d  ==> ?lval v. get_lval_of_e e = SOME lval /\ lookup_lval ss lval = SOME v))
 End
 
-Triviality out_dir_lookup_typed_lookup:
+Theorem out_dir_lookup_typed_lookup[local]:
 ! e tau lval T_e gscope t_g scopest t_sl b d (x:string).
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
@@ -3750,7 +3750,7 @@ gvs[] >| [
 ]
 QED
 
-Triviality out_dir_lookup_typed:
+Theorem out_dir_lookup_typed[local]:
 ! e tau lval T_e gscope t_g scopest t_sl b d (x:string).
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
@@ -3782,7 +3782,7 @@ QED
 
 
 
-Triviality CI_scope_WT_single:
+Theorem CI_scope_WT_single[local]:
 ! e gscope t_g scopest t_sl x d tau T_e scope' b t random_oracle.
 type_scopes_list gscope t_g /\
 type_scopes_list scopest t_sl /\
@@ -3869,7 +3869,7 @@ gvs[] >| [
 QED
 
 
-Triviality similar_normalize:
+Theorem similar_normalize[local]:
 ∀l vl tl t v R a.
        LENGTH vl = LENGTH tl ∧ similar R [a] (ZIP ([v],[t])) ∧
        similar R l (ZIP (vl,tl)) ⇒
@@ -3892,7 +3892,7 @@ QED
 
         
 
-Triviality CI_scope_list_typed:
+Theorem CI_scope_list_typed[local]:
 ! e_x_d_list scopest t_sl gscope t_g scope' e_tau_x_d_b_list T_e i random_oracle.
 (LENGTH e_tau_x_d_b_list = LENGTH e_x_d_list) /\
 type_scopes_list gscope t_g /\
@@ -4189,7 +4189,7 @@ QED
 
 
 
-Triviality lookup_parse_err_in_xdl:
+Theorem lookup_parse_err_in_xdl[local]:
 ∀ xdl tl.
 EVERY (λ(x,d). x ≠ "parseError") (MAP (λ(x_,d_). (x_,d_)) xdl) ⇒
 ALOOKUP (ZIP (mk_varn (MAP (λ(x_,d_). x_) xdl),tl))  (varn_name "parseError") = NONE
@@ -4205,7 +4205,7 @@ QED
 
 
         
-Triviality lookup_map_parse_err_in_xdl:
+Theorem lookup_map_parse_err_in_xdl[local]:
 ∀ xdl tl.        
 not_parseError_str (xdl) ⇒        
 lookup_map [ZIP (mk_varn (MAP FST xdl), tl)] (varn_name "parseError") = NONE
@@ -4307,7 +4307,7 @@ QED
 
                                         
 
-Triviality wf_arg_imp_lval_consistent_single_lemma:
+Theorem wf_arg_imp_lval_consistent_single_lemma[local]:
 ∀ d x e b ss.
 wf_arg d x e ss ∧
 (is_d_out d ⇒ b) ⇒
@@ -4353,7 +4353,7 @@ QED
 
 (* the otherside of the implications hold at lval_typ_imp_e_typ *)
 
-Triviality e_typ_imp_lval_typ:
+Theorem e_typ_imp_lval_typ[local]:
 ∀ e l tau t b T_e gtsl tsl. 
 e_typ (gtsl,tsl) T_e e (t_tau t) T ∧
 get_lval_of_e e = SOME l ⇒
@@ -4397,7 +4397,7 @@ QED
 
 
 
-Triviality wf_arg_imp_lval_typ:
+Theorem wf_arg_imp_lval_typ[local]:
 ∀ d b x e ss tslg tsl T_e tau lop.
 (is_d_out d ⇒ b) ∧
 wf_arg d x e ss ∧
@@ -4414,7 +4414,7 @@ Cases_on ‘e’ >> gvs[v_of_e_def, get_lval_of_e_def]
 QED
 
         
-Triviality wf_arg_imp_lval_typ_sinlge:
+Theorem wf_arg_imp_lval_typ_sinlge[local]:
 ∀ d b x e ss tslg tsl T_e tau lop t a.
 out_is_lval [d] [b] ∧
 wf_arg d x e ss ∧
@@ -4438,7 +4438,7 @@ QED
 
 
 
-Triviality wf_arg_imp_lval_typ_sinlge_list:
+Theorem wf_arg_imp_lval_typ_sinlge_list[local]:
 ∀ exdl tbl t lop T_e tslg tsl ss x.
 LENGTH exdl = LENGTH tbl ∧
 out_is_lval (MAP (λ(e,x,d). d) exdl) (MAP (λ(t,b). b) tbl) ∧
@@ -4553,7 +4553,7 @@ Theorem SR_e:
 Proof
 
 STRIP_TAC >>
-Induct >| [ 
+Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >| [
 
 (*****************)
 (*    values     *)
@@ -5986,13 +5986,31 @@ simp[Once e_typ_cases, clause_name_def]
 ,
 
 (**********************)
+(* sr_exp_list []     *)
+(**********************)
+
+fsrw_tac [] [sr_exp_list_def]
+
+,
+
+
+(**********************)
+(* sr_exp_list        *)
+(**********************)
+
+fsrw_tac [] [sr_exp_list_def] >>
+rpt strip_tac >>
+fs[]
+
+,
+
+(**********************)
 (* sr_strexp_list []  *)
 (**********************)
 
 fsrw_tac [] [sr_strexp_list_def]
 
 ,
-
 
 (**********************)
 (* sr_strexp_list     *)
@@ -6009,23 +6027,5 @@ PairCases_on `tup` >> fs[]
 (**********************)
 
 fsrw_tac [] [sr_strexp_tup_def]
-
-,
-
-(**********************)
-(* sr_exp_list []     *)
-(**********************)
-
-fsrw_tac [] [sr_exp_list_def]
-
-,
-
-(**********************)
-(* sr_exp_list        *)
-(**********************)
-
-fsrw_tac [] [sr_exp_list_def] >>
-rpt strip_tac >>
-fs[]
 ]
 QED

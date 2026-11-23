@@ -56,9 +56,10 @@ PairCases_on ‘x’ >>
 gs[]
 QED
 
+(* Stated as simp leaves e3_size (MAP SND l) *)
 Theorem e3_size_list:
 !l.
-e3_size (MAP SND l) <
+list_size (\x. e_size (SND x)) l <
  list_size (pair_size (list_size char_size) e_size) l + 1
 Proof
 Induct_on ‘l’ >> (
@@ -472,19 +473,6 @@ Definition bigstep_arch_exec'_def:
  (bigstep_arch_exec' _ _ _ = NONE)
 End
 
-Triviality e3_e1_size:
- !l. e3_size (MAP SND l) < e1_size l + 1
-Proof
-Induct_on ‘l’ >> (
- gs[e_size_def]
-) >>
-Induct_on ‘h’ >>
-gen_tac >>
-Cases_on ‘p_2’ >> (
- gs[e_size_def]
-)
-QED
-
 Theorem bigstep_e_exec_var_REWR:
 !scope_lists var n t' m v.
 bigstep_e_exec scope_lists (INL (e_var var)) n = SOME (t',m) <=>
@@ -773,7 +761,7 @@ Induct_on ‘t’ >- (
         list_size (pair_size (list_size char_size) e_size) l + 1’ by (
      gs[e3_size_list]
     ) >>
-    gs[e_size_def, e3_e1_size] >>
+    gs[e_size_def, e3_size_list] >>
     res_tac >>
     decide_tac
    )
@@ -932,11 +920,11 @@ Induct_on ‘t’ >- (
   gvs[bigstep_e_exec_struct_REWR] >- (
    imp_res_tac bigstep_e_exec_incr >>
    qpat_x_assum ‘!y. _’ (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-   gs[e_size_def, e3_e1_size]
+   gs[e_size_def, e3_size_list]
   ) >>
   imp_res_tac bigstep_e_exec_incr >>
   qpat_x_assum ‘!y. _’ (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-  gs[e_size_def, e3_e1_size] >>
+  gs[e_size_def, e3_size_list] >>
   ‘e3_size (MAP SND l) <
        list_size (pair_size (list_size char_size) e_size) l + 1’ by gs[e3_size_list] >>
   res_tac >>
@@ -982,8 +970,7 @@ imp_res_tac bigstep_e_exec_incr >>
 PAT_ASSUM “!y'. _” (fn thm => assume_tac (Q.SPECL [‘(INL h)’] thm)) >>
 gs[e_size_def] >>
 PAT_ASSUM “!y'.
-          (case y' of INL e => e_size e | INR e_l => e3_size e_l) <
-          e3_size y + (e_size h + 1) ==>
+          (case y' of INL e => e_size e | INR e_l => e3_size e_l) < _ ==>
           !t' scope_lists n.
             bigstep_e_exec scope_lists y' n = SOME (t',n) ==> y' = t'” (fn thm => assume_tac (Q.SPECL [‘(INR y)’] thm)) >>
 fs[e_size_def] >>
@@ -1086,7 +1073,7 @@ Induct_on ‘t’ >- (
   (* struct *)
   gs[bigstep_e_exec_struct_REWR] >>
   PAT_X_ASSUM “!y. _” (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-  gs[e_size_def, e3_e1_size] >>
+  gs[e_size_def, e3_size_list] >>
   imp_res_tac bigstep_e_exec_unchanged >>
   gvs[ZIP_MAP_FST_SND],
 
@@ -1130,8 +1117,7 @@ imp_res_tac bigstep_e_exec_incr >>
 PAT_ASSUM “!y'. _” (fn thm => assume_tac (Q.SPECL [‘(INL h)’] thm)) >>
 gs[e_size_def] >>
 PAT_ASSUM “!y'.
-          (case y' of INL e => e_size e | INR e_l => e3_size e_l) <
-          e3_size y + (e_size h + 1) ==>
+          (case y' of INL e => e_size e | INR e_l => e3_size e_l) < _ ==>
           !t'' scope_lists'.
             y' <> t'' ==> bigstep_e_exec scope_lists' y' 0 <> SOME (t'',0)” (fn thm => assume_tac (Q.SPECL [‘(INR y)’] thm)) >>
 gs[e_size_def] >>
@@ -1534,7 +1520,7 @@ Induct_on ‘t’ >- (
   ) >>
   gs[] >>
   PAT_X_ASSUM “!y. _” (fn thm => ASSUME_TAC (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
-  gs[e_size_def, e3_e1_size, e3_size_list] >>
+  gs[e_size_def, e3_size_list] >>
   res_tac >>
   PAT_X_ASSUM “!tbl_map random_oracle pars_map oracle_index func_map ext_map b_func_map apply_table_f. _” (fn thm => ASSUME_TAC (Q.SPECL [‘tbl_map’, ‘random_oracle’, ‘pars_map’, ‘oracle_index’, ‘func_map’, ‘ext_map’, ‘b_func_map’, ‘apply_table_f’] thm)) >>
   Cases_on ‘l’ >- (
@@ -3010,7 +2996,8 @@ Induct_on ‘t’ >- (
    qpat_x_assum ‘!y. _’ (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND ((h::t):(string # e) list)))’] thm)) >>
    gs[e_size_def] >>
    subgoal ‘e3_size (MAP SND (h::t)) < e1_size (h::t) + 1’ >- (
-    gs[e3_e1_size]
+    assume_tac $ Q.SPEC ‘h::t’ e3_size_list >>
+    gs[]
    ) >>
    ‘e3_size (MAP SND t) + (e_size (SND h) + 1) <
         list_size (pair_size (list_size char_size) e_size) t +
@@ -3045,7 +3032,7 @@ Induct_on ‘t’ >- (
   qpat_x_assum ‘!y. _’ (fn thm => assume_tac (Q.SPECL [‘(INR (MAP SND (l:(string # e) list)))’] thm)) >>
   gs[e_size_def] >>
   subgoal ‘e3_size (MAP SND l) < e1_size l + 1’ >- (
-   gs[e3_e1_size]
+   gs[e3_size_list]
   ) >>
   ‘e3_size (MAP SND l) <
     list_size (pair_size (list_size char_size) e_size) l + 1’ by (
@@ -4181,7 +4168,7 @@ Cases_on ‘h''''''1’ >> (
 )
 QED
 
-Triviality stmt_multi_exec'_NONE_status:
+Theorem stmt_multi_exec'_NONE_status[local]:
 !ctx n ascope g_scope_list frame_list status.
 status <> status_running ==>
 stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n = NONE
@@ -4189,7 +4176,7 @@ Proof
 metis_tac[stmt_multi_exec'_imp_NONE]
 QED
 
-Triviality stmt_multi_exec'_NONE_g_scope_list:
+Theorem stmt_multi_exec'_NONE_g_scope_list[local]:
 !ctx n ascope g_scope_list frame_list status.
 LENGTH g_scope_list <> 2 ==>
 stmt_multi_exec' ctx (ascope,g_scope_list,frame_list,status) n = NONE
@@ -4197,7 +4184,7 @@ Proof
 metis_tac[stmt_multi_exec'_imp_NONE]
 QED
 
-Triviality stmt_multi_exec'_NONE_frame_list:
+Theorem stmt_multi_exec'_NONE_frame_list[local]:
 !ctx n ascope g_scope_list frame_list status.
 ~(?funn stmt stmts scope_list.
   frame_list = [(funn,stmt::stmts,scope_list)]) ==>

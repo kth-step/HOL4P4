@@ -35,6 +35,11 @@ End
 
 val json_size_def = fetch "-" "json_size_def";
 
+(* json1_size: size of a (string # json) list
+ * json3_size: size of a json list *)
+Overload json1_size = “list_size (pair_size (list_size char_size) json_size)”
+Overload json3_size = “list_size json_size”
+
 Theorem json_size_MEM1:
   !l a. MEM a l ==> json_size a < json3_size l
 Proof

@@ -1514,6 +1514,9 @@ val check_args_red_def = Define `
 
 val v_size_def = DB.fetch "p4" "v_size_def";
 
+(* The size of a (string # v) list *)
+Overload v1_size = “list_size (pair_size (list_size char_size) v_size)”
+
 Theorem v1_size_append:
  !v_l1 v_l2. v1_size (v_l1 ++ v_l2) = (v1_size v_l1 + v1_size v_l2)
 Proof
@@ -1562,6 +1565,9 @@ End
 
 val tau_size_def = DB.fetch "p4" "tau_size_def";
 
+(* The size of a (string # tau) list *)
+Overload tau1_size = “list_size (pair_size (list_size char_size) tau_size)”
+
 Theorem tau1_size_append:
  !l1 l2. tau1_size (l1 ++ l2) = (tau1_size l1 + tau1_size l2)
 Proof
@@ -1575,17 +1581,6 @@ Theorem tau1_size_mem:
 Proof
  REPEAT STRIP_TAC >>
  fs [listTheory.MEM_SPLIT, tau1_size_append, tau_size_def]
-QED
-
-Theorem tau1_size_eq:
-!tau_l. tau1_size tau_l = list_size (pair_size (list_size char_size) tau_size) tau_l
-Proof
-Induct >- (
- gs[tau_size_def]
-) >>
-rpt strip_tac >>
-Cases_on ‘h’ >>
-gs[tau_size_def]
 QED
 
 (* Initialise values for a given type *)
@@ -1613,7 +1608,7 @@ Termination
 WF_REL_TAC ‘measure ( \ (a,b,c). tau_size c)’ >>
 rpt strip_tac >> (
  imp_res_tac tau1_size_mem >>
- gs[tau1_size_eq]
+ gs[]
 )
 End
 

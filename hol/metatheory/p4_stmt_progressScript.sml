@@ -64,7 +64,7 @@ End
 
 
       
-Triviality vl_of_el_ev:
+Theorem vl_of_el_ev[local]:
 ∀ vl .
 is_consts vl ⇒
 vl = MAP (λv_. e_v v_) (vl_of_el vl)
@@ -75,7 +75,7 @@ QED
 
         
 
-Triviality index_not_const_EL:
+Theorem index_not_const_EL[local]:
 ∀ el x .
   x < LENGTH el ∧ index_not_const el = SOME x ⇒
   ¬is_const (EL x el)
@@ -92,7 +92,7 @@ QED
 
 
 
-Triviality oDROP_exists:
+Theorem oDROP_exists[local]:
 ∀ sl i .
    LENGTH sl ≥ 3 ∧ i = LENGTH sl − 2 ⇒
    ∃l l'. SOME l = oDROP (i) sl
@@ -113,7 +113,7 @@ gvs[oDROP_def]
 QED
 
 
-Triviality oTAKE_exists:
+Theorem oTAKE_exists[local]:
 ∀ sl i .
    LENGTH sl ≥ 3 ∧ i = LENGTH sl − 2 ⇒
    ∃l l'. SOME l = oTAKE (i) sl
@@ -137,7 +137,7 @@ QED
 
 
 
-Triviality separate_exists:
+Theorem separate_exists[local]:
 ∀ sl.
  LENGTH sl ≥ 3 ⇒
  ∃ l l' . (SOME l , SOME l' ) = separate sl
@@ -153,7 +153,7 @@ QED
 
 
         
-Triviality lval_typ_imp_e_typ:
+Theorem lval_typ_imp_e_typ[local]:
 ∀ l tau gtsl tsl T_e .
   lval_typ (gtsl,tsl) T_e l (tau) ⇒
     ∃ e.  is_e_lval e ∧
@@ -198,7 +198,7 @@ QED
 
 
 
-Triviality lookup_lval_empty:
+Theorem lookup_lval_empty[local]:
 ∀ l .
 lookup_lval [] l = NONE
 Proof

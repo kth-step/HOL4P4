@@ -86,17 +86,12 @@ local
    val filtered_list =
     map snd $ filter (fn (name, thm) => filtered_thm_names name)
      (List.concat [thy_defs, thy_thms])
-   val _ = map (fn thm => computeLib.add_thms [thm] compset handle ERR => ()) filtered_list
   in
-   ()
+   foldl (fn (thm, cs) => computeLib.add_thms [thm] cs handle ERR => cs) compset filtered_list
   end;
 
  fun add_thy_list thys compset =
-  let
-   val _ = map (fn thy => add_thy thy compset) thys
-  in
-   ()
-  end
+  foldl (fn (thy, cs) => add_thy thy cs) compset thys
  ;
 
  fun add_definitions thy compset =
@@ -104,16 +99,15 @@ local
    val thy_defs =
     map snd $ filter (fn (name, thm) => filtered_thm_names name) (definitions thy)
    val thy_def_thms = map snd $ filter (fn (name, thm) => String.isSuffix "_def" name) (thms thy)
-   val _ = map (fn thm => computeLib.add_thms [thm] compset) (thy_def_thms)
   in
-   ()
+   foldl (fn (thm, cs) => computeLib.add_thms [thm] cs) compset thy_def_thms
   end
  ;
 
- val hol4p4_compset = reduceLib.num_compset ()
- val _ =
-  foldl (fn (f, compset) => let val _ = f compset in compset end)
-   hol4p4_compset
+ (* Compsets are immutable values: the current one is kept in a reference *)
+ val hol4p4_compset = ref $
+  foldl (fn (f, compset) => f compset)
+   (computeLib.copy reduceLib.num_compset)
    [pairLib.add_pair_compset, optionLib.OPTION_rws, (wordsLib.add_words_compset true),
     stringLib.add_string_compset, alistLib.add_alist_compset]
  (* n2v loops on free variables, so it is only evaluate on concrete numbers (put before add_thy_list) *)
@@ -122,14 +116,15 @@ local
   if numSyntax.is_numeral (rand tm)
   then REWR_CONV bitstringTheory.n2v_def tm
   else raise (mk_HOL_ERR "p4_convLib" "n2v_conv" "symbolic argument")
- val _ = List.app (fn cs => ((computeLib.scrub_const cs n2v_tm handle _ => ());
-                             computeLib.add_conv (n2v_tm, 1, n2v_conv) cs))
-                  [hol4p4_compset, computeLib.the_compset]
+ fun n2v_on_numerals cs =
+  computeLib.add_conv (n2v_tm, 1, n2v_conv) (computeLib.scrub_const cs n2v_tm handle _ => cs)
+ val _ = hol4p4_compset := n2v_on_numerals (!hol4p4_compset)
+ val _ = computeLib.upd_compset n2v_on_numerals
 
- val _ = add_thy_list list_of_thys hol4p4_compset
- val _ = computeLib.add_thms [alistTheory.AFUPDKEY_def] hol4p4_compset
+ val _ = hol4p4_compset := add_thy_list list_of_thys (!hol4p4_compset)
+ val _ = hol4p4_compset := computeLib.add_thms [alistTheory.AFUPDKEY_def] (!hol4p4_compset)
  (* TODO: Nice to have? *)
- val _ = computeLib.add_thms [sumTheory.INR_11, sumTheory.INL_11, sumTheory.INR_INL_11, sumTheory.INR_neq_INL] hol4p4_compset
+ val _ = hol4p4_compset := computeLib.add_thms [sumTheory.INR_11, sumTheory.INL_11, sumTheory.INR_INL_11, sumTheory.INR_neq_INL] (!hol4p4_compset)
 (* TODO: Not the name in Trindemossen?
  val _ = computeLib.scrub_const hol4p4_compset “conc_red”
 *)
@@ -174,9 +169,8 @@ local
   fun copy_compset_item_thms' old_thms new_transformations to_compset =
     let
      val new_thms = aggregate_thms [] new_transformations
-     val _ = computeLib.add_thms (filter_duplicate_thms old_thms new_thms) to_compset
-    in 
-     ()
+    in
+     computeLib.add_thms (filter_duplicate_thms old_thms new_thms) to_compset
     end
 
   fun copy_compset_item_thms to_compset_items (name, transformations) to_compset =
@@ -204,12 +198,12 @@ local
    val from_compset_items = filter (fn (name, transformations) => not $ exists (fn el => name = el) to_compset_entries) from_compset_items
 *)
   in
-   foldl (fn (item, ()) => copy_compset_item_thms to_compset_items item to_compset) ()
+   foldl (fn (item, cs) => copy_compset_item_thms to_compset_items item cs) to_compset
     (from_compset_items)
   end
  end
  (* TODO: Brute-force solution. Fix later. *)
- val _ = copy_compset_thms computeLib.the_compset hol4p4_compset
+ val _ = hol4p4_compset := copy_compset_thms (computeLib.the_compset ()) (!hol4p4_compset)
 
 
  (* Adding a theorem to a compset again duplicates its rules, so the theories are added once *)
@@ -220,15 +214,15 @@ in
    val _ =
     if !thys_in_the_compset
     then ()
-    else (add_thy_list list_of_thys the_compset; thys_in_the_compset := true)
+    else (computeLib.upd_compset (add_thy_list list_of_thys); thys_in_the_compset := true)
 
-   val _ = computeLib.add_thms thms_to_add hol4p4_compset
+   val _ = hol4p4_compset := computeLib.add_thms thms_to_add (!hol4p4_compset)
   in
-   computeLib.CBV_CONV hol4p4_compset
+   fn tm => computeLib.CBV_CONV (!hol4p4_compset) tm
   end
 
  (* Adds rules to the compset of HOL4P4_CONV; call once per theorem *)
- fun add_HOL4P4_thms thms = computeLib.add_thms thms hol4p4_compset
+ fun add_HOL4P4_thms thms = hol4p4_compset := computeLib.add_thms thms (!hol4p4_compset)
 end
 
 val HOL4P4_CONV = get_HOL4P4_CONV [];

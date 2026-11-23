@@ -335,7 +335,7 @@ val contract_thm = prove_contract ctx_data init_astate postcond;
 val _ =
  (prove_contract ctx_data init_astate “(\s. packet_has_port s 2):v1model_ascope astate -> bool”;
   raise Fail "a postcondition that fails for one ordering was accepted")
- handle HOL_ERR e => if #origin_function e = "EQT_ELIM" then () else raise HOL_ERR e;
+ handle HOL_ERR e => if top_function_of e = "EQT_ELIM" then () else raise HOL_ERR e;
 
 (* The precondition assumes that the ordering permutes the copies, before the initial state *)
 val s = mk_var ("s", type_of init_astate);
@@ -364,6 +364,6 @@ val _ = prove_contract (def_thm spec_ctx_def) init_astate “(\s. output_ports s
 val _ =
  (prove_contract (def_thm spec_ctx_def) init_astate “(\s. is_perm (output_ports s) [1; 2]):v1model_ascope astate -> bool”;
   raise Fail "a postcondition that fails when the copies are dropped was accepted")
- handle HOL_ERR e => if #origin_function e = "EQT_ELIM" then () else raise HOL_ERR e;
+ handle HOL_ERR e => if top_function_of e = "EQT_ELIM" then () else raise HOL_ERR e;
 
 val _ = save_thm ("multicast_contract", contract_thm);

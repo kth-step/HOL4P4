@@ -658,7 +658,7 @@ Definition v1model_wf_ordering_def[nocompute]:
  v1model_wf_ordering (f:num -> (num # num) list -> (num # num) list) <=> !i l. PERM (f i l) l
 End
 
-Triviality PERM_remove_first:
+Theorem PERM_remove_first[local]:
 !x l. MEM x l ==> PERM l (x::remove_first x l)
 Proof
 Induct_on ‘l’ >> (
@@ -695,7 +695,7 @@ qexists_tac ‘l2’ >>
 simp[PERM_remove_first]
 QED
 
-Triviality MEM_insert_all:
+Theorem MEM_insert_all[local]:
 !m n x. MEM (m ++ x::n) (insert_all x (m ++ n))
 Proof
 Induct_on ‘m’ >- (
