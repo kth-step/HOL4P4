@@ -199,5 +199,5 @@ val contract_thm = p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_
 val fuel_out_rejected =
  (p4_symb_exec_prove_contract debug_flag arch_ty ctx_data (fty_map, b_fty_map, pblock_action_names_map) const_actions_tables path_cond_defs init_astate stop_consts_rewr stop_consts_never [] path_cond end_point 10 “(\s. ~packet_has_port s 1):v1model_ascope astate -> bool” postcond_rewr_thms postcond_simpset;
   false)
- handle HOL_ERR e => String.isSubstring "did not reach the end point" (#message e);
+ handle HOL_ERR e => String.isSubstring "did not reach the end point" (message_of e);
 val _ = if fuel_out_rejected then () else raise mk_HOL_ERR "conditional" "fuel_out_rejected" "A path that ran out of fuel was accepted";

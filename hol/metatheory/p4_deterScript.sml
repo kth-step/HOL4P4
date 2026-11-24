@@ -125,7 +125,7 @@ End
 
 (********* lookup_funn_sig_body eq ************)
 
-Triviality fun_body_map_EQ:
+Theorem fun_body_map_EQ[local]:
 ! funn func_map b_func_map ext_map stmt (sdl') (sdl: (string # d) list).
 lookup_funn_sig_body funn func_map b_func_map ext_map = SOME (stmt, sdl ) /\
 lookup_funn_sig      funn func_map b_func_map ext_map = SOME (sdl') ==>
@@ -215,7 +215,7 @@ Theorem P4_exp_det:
 Proof
 
 STRIP_TAC >>
-Induct >|[
+Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >|[
 
 (*****************************)
 (*       e_v case            *)
@@ -523,6 +523,20 @@ gvs[Once e_sem_cases, same_frame_exp_def]
 ,
 
 (*****************************)
+(*   P2       []             *)
+(*****************************)
+FULL_SIMP_TAC list_ss [det_exp_list_def]
+,
+
+(*****************************)
+(*   P2       l              *)
+(*****************************)
+FULL_SIMP_TAC list_ss [det_exp_list_def] >>
+REPEAT STRIP_TAC >>
+rw []
+,
+
+(*****************************)
 (*   strexcp   []            *)
 (*****************************)
 FULL_SIMP_TAC list_ss [det_strexp_list_def]
@@ -566,20 +580,6 @@ FULL_SIMP_TAC list_ss [same_frame_exp_def]
 (*   str_exp_tup             *)
 (*****************************)
 FULL_SIMP_TAC list_ss [det_strexp_tup_def ]
-,
-
-(*****************************)
-(*   P2       []             *)
-(*****************************)
-FULL_SIMP_TAC list_ss [det_exp_list_def]
-,
-
-(*****************************)
-(*   P2       l              *)
-(*****************************)
-FULL_SIMP_TAC list_ss [det_exp_list_def] >>
-REPEAT STRIP_TAC >>
-rw []
 ]
 QED
 
@@ -814,7 +814,7 @@ QED
 
 
 
-Triviality ret_lemma1a:
+Theorem ret_lemma1a[local]:
 ! e v c g_scope_list funn scopes_stack ctrl stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
@@ -825,7 +825,7 @@ FULL_SIMP_TAC (srw_ss()) [Once stmt_sem_cases]
 QED
 
 
-Triviality ret_lemma1b:
+Theorem ret_lemma1b[local]:
 ! e v c g_scope_list funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
@@ -837,7 +837,7 @@ QED
 
 
 
-Triviality ret_lemma1c:
+Theorem ret_lemma1c[local]:
 ! e v c g_scope_list g_scope_list' funn scopes_stack scopes_stack' stmt' ascope.
 stmt_red c
           (ascope, g_scope_list,[(funn,[stmt_ret e],scopes_stack)],
@@ -852,7 +852,7 @@ QED
 
 
 
-Triviality not_ret_status:
+Theorem not_ret_status[local]:
 ! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v ascope.
 ~ stmt_red c
           (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
@@ -864,7 +864,7 @@ rfs[lemma_v_red_forall]
 QED
 
 
-Triviality is_ret_status:
+Theorem is_ret_status[local]:
 ! c g_scope_list g_scope_list' f stmt stmt' ss frame_list  ctrl  ctrl' v status ascope.
 stmt_red c
           (ascope, g_scope_list,[(f,[stmt_ret (e_v v)],ss)], status_running)
@@ -878,7 +878,7 @@ QED
 
 
 
-Triviality not_trans_status:
+Theorem not_trans_status[local]:
 ! c g_scope_list g_scope_list' f stmt stmt' ss frame_list v v' ascope.
 ~ stmt_red c
           (ascope, g_scope_list,[(f,[stmt_trans (e_v (v_str v'))],ss)], status_running)
@@ -891,7 +891,7 @@ QED
 
 
 
-Triviality not_ret_run_is_trans_or_error:
+Theorem not_ret_run_is_trans_or_error[local]:
 ! status.
 status ≠ status_running /\ notret status ==> ((?v. status = status_trans v))
 Proof
@@ -907,7 +907,7 @@ QED
 (**************************************************)
 (**************************************************)
 
-Triviality P4_frame_det:
+Theorem P4_frame_det[local]:
 ! frame ty. det_frame frame ty
 Proof
 Cases_on `frame` >>

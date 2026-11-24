@@ -102,7 +102,7 @@ QED
 
 
 
-Triviality topmost_map_concat_none:
+Theorem topmost_map_concat_none[local]:
 ! sl gsl v .
 topmost_map (sl ⧺ gsl) v = NONE <=>
 (topmost_map (sl) v = NONE /\
@@ -132,7 +132,7 @@ QED
 
 
 
-Triviality topmost_map_not_none:
+Theorem topmost_map_not_none[local]:
 ! l v x .
 topmost_map l v = SOME x ==>
 ~(ALOOKUP x v = NONE)
@@ -219,7 +219,7 @@ QED
 
 
 
-Triviality R_ALOOKUP_NONE_scopelist:
+Theorem R_ALOOKUP_NONE_scopelist[local]:
 ! R v x t scl tcl.
  similarl R tcl scl ==>
 ((NONE = find_topmost_map scl x)  <=>
@@ -519,7 +519,7 @@ QED
 
 
 
-Triviality FIND_in_typl_imp_rec:
+Theorem FIND_in_typl_imp_rec[local]:
 !l x0 tau s.
  FIND (λ(xm,tm). xm = s) (MAP (λ(x_,v_,tau_). (x_,tau_)) l) = SOME (x0,tau) ==>
     (∃v'. FIND (λ(k,v). k = s) (MAP (λ(x_,v_,tau_). (x_,v_)) l) = SOME (s,v') /\
@@ -623,7 +623,7 @@ val bv_bv_opl = map bv_bv_prog [ ``binop_mul``,  ``binop_add``,   ``binop_div``,
 
 
 
-Triviality bv_bv_prog:
+Theorem bv_bv_prog[local]:
 ! bitv bitv' oper.
 bs_width bitv > 0 /\ bs_width bitv <= 64 /\
 bs_width bitv = bs_width bitv' /\
@@ -651,7 +651,7 @@ QED
 
 
 
-Triviality bv_bv_bool_prog:
+Theorem bv_bv_bool_prog[local]:
 ! bitv bitv' op.
 bs_width bitv > 0 /\
 bs_width bitv <= 64 /\
@@ -686,7 +686,7 @@ QED
 
 
 
-Triviality not_const_unred_mem:
+Theorem not_const_unred_mem[local]:
 ! el .
 ¬is_consts el ==>
 (? i . i <LENGTH el /\ unred_mem_index el = SOME i)
@@ -705,7 +705,7 @@ QED
 
 
 
-Triviality unred_mem_is_const:
+Theorem unred_mem_is_const[local]:
 !l i. i < LENGTH l /\ unred_mem_index l = SOME i  ==>
 ~is_const (EL i (l))
 Proof
@@ -722,7 +722,7 @@ QED
 
 
 
-Triviality unred_arg_eq:
+Theorem unred_arg_eq[local]:
 ! dl el .  
 unred_arg_index dl el ≠ NONE <=>
 ? i . unred_arg_index dl el  = SOME i
@@ -737,7 +737,7 @@ QED
 
 
 
-Triviality correct_field_access:
+Theorem correct_field_access[local]:
 ! x_v_tau_list s tau' v boolv.
 correct_field_type (MAP (λ(x_,v_,tau_). (x_,tau_)) x_v_tau_list) s tau' /\
 (v = v_header boolv \/ v = v_struct )==>
@@ -755,7 +755,7 @@ QED
 
 
 
-Triviality e_T_get_lval:
+Theorem e_T_get_lval[local]:
 ! e gtsl tsl gscope scopest T_e tau .
 e_typ (gtsl,tsl) T_e e (tau) T ==>
 ? v . get_lval_of_e e = SOME (v)
@@ -773,7 +773,7 @@ QED
 
 
 
-Triviality is_get_lval:
+Theorem is_get_lval[local]:
 !e . is_e_lval e <=> ? lval . get_lval_of_e e = SOME lval
 Proof
 fs[is_e_lval_def] >>
@@ -816,7 +816,7 @@ QED
 
 
 
-Triviality FIND_same_list:
+Theorem FIND_same_list[local]:
 ! l s s' s'' v t .
 FIND (λ(k,v). k = s) (MAP (λ(x,v,t). (x,v)) l) =
         SOME (s',v) /\
@@ -845,7 +845,7 @@ QED
 
 
 
-Triviality var_lval_is_typed:
+Theorem var_lval_is_typed[local]:
 ! e v tau gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
 type_scopes_list gscope gtsl /\
@@ -1077,7 +1077,7 @@ QED
 
 
 (* A saved argument supplies its saved value *)
-Triviality saved_arg_wf:
+Theorem saved_arg_wf[local]:
 !e gtsl tsl T_e tau b ss.
 is_e_saved e /\
 e_typ (gtsl,tsl) T_e e tau b ==>
@@ -1092,7 +1092,7 @@ IMP_RES_TAC e_T_get_lval >>
 gvs[]
 QED
 
-Triviality wf_arg_single_implied:
+Theorem wf_arg_single_implied[local]:
 ! e d b x tau gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
 type_scopes_list gscope gtsl /\
@@ -1118,7 +1118,7 @@ QED
 
 
 
-Triviality wf_arg_single_implied_2:
+Theorem wf_arg_single_implied_2[local]:
 ! e d b x tau gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
 type_scopes_list gscope gtsl /\
@@ -1140,7 +1140,7 @@ QED
 
 
 
-Triviality wf_arg_normalization_new:
+Theorem wf_arg_normalization_new[local]:
 ! d dl x xl e el ss.
 wf_arg_list (d::dl) (x::xl) (e::el) ss <=>
 wf_arg d x e ss /\ wf_arg_list (dl) (xl) (el) ss
@@ -1184,7 +1184,7 @@ QED
 
 
 
-Triviality check_args_red_normalize2_new:
+Theorem check_args_red_normalize2_new[local]:
 ! dl el  d e . 
 check_args_red (d::dl) (e::el) <=>
 (check_args_red dl el /\
@@ -1198,7 +1198,7 @@ QED
 
 
 
-Triviality wf_arg_full_implied:
+Theorem wf_arg_full_implied[local]:
 ! e_tau_d_b_t_list gtsl gscope tsl scopest T_e .
 star_not_in_sl scopest /\
 type_scopes_list gscope gtsl /\
@@ -1279,7 +1279,7 @@ QED
 
 
 
-Triviality wf_arg_full_implied_2:
+Theorem wf_arg_full_implied_2[local]:
 ! xl bl el dl tl gtsl gscope tsl scopest T_e .
 LENGTH bl = LENGTH el /\
 LENGTH el = LENGTH xl /\
@@ -1328,7 +1328,7 @@ QED
 
 
 
-Triviality wf_imp_ci_abstract_single:
+Theorem wf_imp_ci_abstract_single[local]:
 !e d x ss random_oracle.
 wf_arg d x e ss ==>
 ?scope. copyin_abstract [x] [d] [e] ss scope random_oracle
@@ -1351,7 +1351,7 @@ QED
 
 
 
-Triviality wf_imp_new_vlval_list:
+Theorem wf_imp_new_vlval_list[local]:
 ! i dl xl el ss oracle_index random_oracle.
 (LENGTH xl = LENGTH dl) /\
 (LENGTH dl = LENGTH el) /\
@@ -1400,7 +1400,7 @@ QED
 
 
 
-Triviality wf_arg_list_NONE2:
+Theorem wf_arg_list_NONE2[local]:
 ! dl xl el ss oracle_index random_oracle.
 (LENGTH xl = LENGTH dl) /\
 (LENGTH dl = LENGTH el) /\
@@ -1433,7 +1433,7 @@ QED
 
 
 
-Triviality copyin_imp_rw:
+Theorem copyin_imp_rw[local]:
 ! xl dl el gscope scopest scope oracle_index random_oracle.
    (LENGTH xl = LENGTH dl) /\
    (LENGTH dl = LENGTH el) /\     
@@ -1479,7 +1479,7 @@ Theorem PROG_e:
 (! tup. prog_strexp_tup tup ty)
 Proof
 STRIP_TAC >>
-Induct >| [
+Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >| [
 
 (*****************)
 (*    values     *)
@@ -2370,13 +2370,31 @@ srw_tac [boolSimps.DNF_ss][clause_name_def]
 ,
 
 (**********************)
+(*  prog_exp_list []  *)
+(**********************)
+
+fsrw_tac [] [prog_exp_list_def]
+
+,
+
+
+(**********************)
+(* prog_exp_list      *)
+(**********************)
+
+fsrw_tac [] [prog_exp_list_def] >>
+REPEAT STRIP_TAC >>
+fs[]
+
+,
+
+(**********************)
 (* prog_strexp_list []*)
 (**********************)
 
 fsrw_tac [] [prog_strexp_list_def]
 
 ,
-
 
 (**********************)
 (* prog_strexp_list   *)
@@ -2393,23 +2411,5 @@ PairCases_on `tup` >> fs[]
 (**********************)
 
 fsrw_tac [] [prog_strexp_tup_def]
-
-,
-
-(**********************)
-(*  prog_exp_list []  *)
-(**********************)
-
-fsrw_tac [] [prog_exp_list_def]
-
-,
-
-(**********************)
-(* prog_exp_list      *)
-(**********************)
-
-fsrw_tac [] [prog_exp_list_def] >>
-REPEAT STRIP_TAC >>
-fs[]
 ]
 QED

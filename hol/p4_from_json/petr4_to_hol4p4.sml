@@ -5,6 +5,9 @@ open petr4_to_hol4p4Theory;
 
 open excluded petr4_to_hol4p4Syntax p4Syntax p4_vssLib p4_ebpfLib p4_v1modelLib;
 
+(* hol run starts without a current theory *)
+val _ = Lib.with_flag (Feedback.emit_MESG, false) new_theory "scratch";
+
 (* For EVAL *)
 (* ASCIInumbersLib is loaded for its side effect of adding the ASCII/number conversions to the EVAL compset *)
 local open ASCIInumbersLib in end;
@@ -1208,7 +1211,7 @@ fun format_for_hol4 (str: string) : string =
 *)
 
 (* The first argument ending in .json starts our arguments; anything before it
- * belongs to buildheap. *)
+ * belongs to hol. *)
 fun drop_until p [] = []
   | drop_until p (h::t) = if p h then h::t else drop_until p t;
 

@@ -136,7 +136,7 @@ gvs[]
 QED
 
         
-Triviality frame_to_multi_frame_transition1:
+Theorem frame_to_multi_frame_transition1[local]:
 ∀ c ascope ascope' gscope gscope' funn stmtl scope_list frame_list status status'. 
 stmt_red c (ascope , gscope , [(funn,stmtl,scope_list)], status)
            (ascope', gscope', frame_list               , status') ⇒
@@ -147,7 +147,7 @@ gvs[Once stmt_sem_cases] >> gvs[]
 QED
 
         
-Triviality frame_to_multi_frame_transition2:
+Theorem frame_to_multi_frame_transition2[local]:
 ∀ c ascope ascope' gscope gscope' funn stmtl scope_list frame_list status status'. 
 stmt_red c (ascope, gscope,[(funn,stmtl,scope_list)],status)
            (ascope',gscope',frame_list,status') ⇒
@@ -161,7 +161,7 @@ METIS_TAC []
 QED
 
 
-Triviality MAP_comp_quad_trio:
+Theorem MAP_comp_quad_trio[local]:
 ∀ l .
 MAP (λ(a,b,c,d). (a,b,c)) l  =
      ZIP(MAP (λ(a,b,c,d). a) l,
@@ -175,7 +175,7 @@ QED
 
 
 
-Triviality t_scopes_lookup_empty_ctx_lemma:
+Theorem t_scopes_lookup_empty_ctx_lemma[local]:
 ∀ delta_g delta_b e1 e2 s t_scope_list_g q r.
 ALOOKUP delta_g s = SOME (q,r) ∧
 dom_tmap_ei delta_g delta_b ∧
@@ -548,7 +548,7 @@ QED
 
 
 
-Triviality WT_state_imp_tl_tsll:
+Theorem WT_state_imp_tl_tsll[local]:
 ∀  ascope gscope status Prs_n order tslg tsll delta_g delta_b delta_x
        delta_t c funn stmt_stack scope_list t .
 WT_state c (ascope,gscope,(funn,stmt_stack,scope_list)::t,status) Prs_n order tslg tsll (delta_g,delta_b,delta_x,delta_t) ⇒
@@ -573,7 +573,7 @@ QED
 
          
 
-Triviality res_fr_typ_imp_typ_tsl:
+Theorem res_fr_typ_imp_typ_tsl[local]:
 ∀ T_e Prs_n tslg tsl gscope locale f stmtl func_map b_func_map tsl_fr.
 res_frame_typ T_e  Prs_n tslg tsl gscope [(f,stmtl,locale)] func_map b_func_map tsl_fr ⇒
 type_frame_tsl locale tsl
@@ -588,7 +588,7 @@ QED
 
 
 
-Triviality type_tsll_hd_l:
+Theorem type_tsll_hd_l[local]:
 ∀ s1 scl ts1 tsl .
 type_frame_tsl s1 ts1 ∧
 type_state_tsll scl tsl ⇒
@@ -604,7 +604,7 @@ gvs[EL_CONS, PRE_SUB1]
 QED
 
 
-Triviality type_tsll_hd_hd_l:
+Theorem type_tsll_hd_hd_l[local]:
 ∀ s1 s2 scl ts1 ts2 tsl .
 type_frame_tsl s1 ts1 ∧
 type_frame_tsl s2 ts2 ∧
@@ -623,7 +623,7 @@ QED
 
 
 
-Triviality EL_PRE:
+Theorem EL_PRE[local]:
 ∀i l t h. i > 0 ⇒
    EL i (h::t) = EL (i-1) (t)
 Proof
@@ -670,7 +670,7 @@ QED
 
 
 
-Triviality block_exit_implic:
+Theorem block_exit_implic[local]:
 ∀ ascope ascope' g_scope_list g_scope_list' funn stmtl stmtl' scope_list scope_list' status status' framel (c: 'a ctx).
                                                                    
 stmt_red c (ascope, g_scope_list,  [(funn,stmtl,scope_list)],               status)
@@ -763,7 +763,7 @@ QED
 
 
 
-Triviality WF_ft_order_called_f:
+Theorem WF_ft_order_called_f[local]:
 ∀ order f_called f fl delta_g delta_b delta_x.                                  
 order (order_elem_f f_called) (order_elem_f f) ∧
 WF_ft_order (f::fl) delta_g delta_b delta_x order ⇒
@@ -780,7 +780,7 @@ QED
          
 
          
-Triviality t_map_to_pass_twice:
+Theorem t_map_to_pass_twice[local]:
 ∀ f f_called delta_b passed_delta_b passed_delta_b' delta_g delta_x txdl txdl' tau tau'.
 SOME (txdl',tau') = t_lookup_funn f delta_g passed_delta_b delta_x ∧
 SOME (txdl,tau) = t_lookup_funn f_called delta_g passed_delta_b' delta_x ∧                
@@ -804,7 +804,7 @@ QED
 
         
 
-Triviality t_tbl_to_pass_twice:
+Theorem t_tbl_to_pass_twice[local]:
 ∀ f f_called delta_b passed_delta_b passed_delta_b' delta_t passed_delta_t passed_delta_t' delta_g delta_x txdl txdl' tau tau'.                                 
 SOME (txdl',tau') = t_lookup_funn f       delta_g passed_delta_b  delta_x ∧
 SOME (txdl ,tau) = t_lookup_funn f_called delta_g passed_delta_b' delta_x ∧
@@ -834,7 +834,7 @@ gvs[]
 QED
 
         
-Triviality t_scopes_to_pass_twice:
+Theorem t_scopes_to_pass_twice[local]:
 ∀ f f_called delta_b passed_delta_b passed_delta_b' delta_g delta_x txdl txdl' tau tau' tslg passed_tslg passed_tslg'.                                    
 SOME (txdl',tau') = t_lookup_funn f        delta_g passed_delta_b  delta_x ∧
 SOME (txdl,tau)  =  t_lookup_funn f_called delta_g passed_delta_b' delta_x ∧
@@ -866,7 +866,7 @@ QED
 
 
         
-Triviality scopes_to_pass_twice:
+Theorem scopes_to_pass_twice[local]:
 ∀ f f_called delta_b passed_delta_b passed_delta_b' delta_g delta_x txdl txdl' tau tau' func_map b_func_map b_func_map'
 gscope gscope' passed_gscope g_scope_list' .                              
 SOME (txdl', tau')  = t_lookup_funn f        delta_g passed_delta_b  delta_x ∧
@@ -927,7 +927,7 @@ QED
 
 
 
-Triviality retrived_scopes_can_be_passed:
+Theorem retrived_scopes_can_be_passed[local]:
 ∀ f txdl tau delta_g delta_b passed_delta_b func_map b_func_map delta_x gscope gscope' g_scope_list'.                                           
 SOME (txdl,tau) = t_lookup_funn f delta_g passed_delta_b delta_x ∧
 t_map_to_pass f delta_b = SOME passed_delta_b ∧
@@ -968,7 +968,7 @@ QED
 
 
 
-Triviality to_pass_same_as_retr:
+Theorem to_pass_same_as_retr[local]:
 ∀ f delta_g delta_b passed_delta_b delta_x func_map b_func_map tau txdl gscope gscope' passed_gscope.                                   
 dom_g_eq delta_g func_map ∧
 dom_b_eq delta_b b_func_map ∧
@@ -1018,7 +1018,7 @@ QED
 
 
 
-Triviality frame_typ_different_globals:
+Theorem frame_typ_different_globals[local]:
 ∀ gscope gscope' tslg tscl T_e Prs_n scl stmtl.
 type_scopes_list gscope' tslg ∧
 frame_typ (tslg,tscl) T_e Prs_n gscope scl stmtl ⇒
@@ -1031,7 +1031,7 @@ gvs[]
 QED
 
         
-Triviality frame_typ_different_globals_local:
+Theorem frame_typ_different_globals_local[local]:
 ∀ gscope gscope' tslg tscl T_e Prs_n scl scl' stmtl.
 type_scopes_list gscope' tslg ∧
 type_frame_tsl scl' tscl ∧
@@ -1045,7 +1045,7 @@ gvs[type_frame_tsl_def]
 QED
         
 
-Triviality WT_state_of_largest_possible_frame:
+Theorem WT_state_of_largest_possible_frame[local]:
 ∀ apply_table_f ext_map func_map b_func_map pars_map tbl_map passed_b_func_map passed_tbl_map get_oracle_index set_oracle_index random_oracle
 ascope gscope f stmt_stack scope_list t status Prs_n order tslg tsll delta_g delta_b delta_x delta_t
 passed_gscope passed_tslg passed passed_b_func_map passed_delta_b passed_tbl_map passed_delta_t
@@ -1196,7 +1196,7 @@ QED
 
 
 
-Triviality to_retr_same_as_pass:
+Theorem to_retr_same_as_pass[local]:
 ∀ delta_b delta_g func_map b_func_map gscope gscope' g_scope_list' g_scope_list'' tslg passed_tslg f .                                   
 dom_b_eq delta_b b_func_map ∧
 dom_g_eq delta_g func_map ∧
@@ -1249,7 +1249,7 @@ QED
   
         
 
-Triviality WT_state_of_frame_and_tl:
+Theorem WT_state_of_frame_and_tl[local]:
 ∀ apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope gscope
        f stmt_stack scope_list t status Prs_n order tslg tsll delta_g delta_b
        delta_x delta_t passed_tslg passed_b_func_map passed_delta_b
@@ -1346,7 +1346,7 @@ QED
 
 
 
-Triviality WT_state_of_blk_exit_and_tl:
+Theorem WT_state_of_blk_exit_and_tl[local]:
 ∀ f apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope gscope
        stmt_stack scope_list t status Prs_n order tslg tsll delta_g delta_b
        delta_x delta_t passed_b_func_map passed_tslg passed_delta_b passed_tbl_map
@@ -1448,7 +1448,7 @@ QED
 
 
 
-Triviality WT_state_of_copyout:
+Theorem WT_state_of_copyout[local]:
 ∀ funn funn' frame_list h stmt_stack' scope_list'' apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle gscope
        stmt_stack scope_list t Prs_n order tslg delta_g delta_b delta_x b_func_map'
        delta_t passed_tslg passed_delta_b passed_tbl_map passed_delta_t
@@ -1527,7 +1527,7 @@ QED
 
 
 
-Triviality WF_ft_order_imp_HD:
+Theorem WF_ft_order_imp_HD[local]:
 ∀ f f' fl delta_g delta_b delta_x order.
 WF_ft_order (f::f'::fl) delta_g delta_b delta_x order ⇒
 WF_ft_order (   f'::fl) delta_g delta_b delta_x order
@@ -1556,7 +1556,7 @@ val ret_status_typed_def = Define ‘
 
 
 
-Triviality t_lookup_funn_not_x:
+Theorem t_lookup_funn_not_x[local]:
 ! delta_g delta_b delta_x f txdl tau .
 SOME (txdl,tau) = t_lookup_funn f delta_g delta_b [] /\
 dom_tmap_ei delta_g delta_b ==>
@@ -1586,7 +1586,7 @@ fun EXP_IS_WT_IN_FRAME_TAC frm = OPEN_FRAME_TYP_TAC frm >>
 
 
          
-Triviality stmt_case_ret_stat_typed:
+Theorem stmt_case_ret_stat_typed[local]:
 ∀gscope scopest t_scope_list t_scope_list_g order delta_g delta_b delta_t
        delta_x f Prs_n c v tau txdl.
      WT_c c order t_scope_list_g delta_g delta_b delta_x delta_t Prs_n ∧
@@ -1611,7 +1611,7 @@ QED
                        
 
                    
-Triviality stmt_case_ext_stat_typed:
+Theorem stmt_case_ext_stat_typed[local]:
 ∀ascope ascope' gscope scopest scopest' t_scope_list t_scope_list_g order
        delta_g delta_b delta_t delta_x f Prs_n v tau txdl apply_table_f
        ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ext_fun.
@@ -1650,7 +1650,7 @@ QED
 
 
                        
-Triviality status_ret_in_stmt_typed_verbose:
+Theorem status_ret_in_stmt_typed_verbose[local]:
 ∀stmt stmtl ascope ascope' gscope gscope' scopest scopest' framel status
        t_scope_list t_scope_list_g order delta_g delta_b delta_t delta_x f
        Prs_n c v tau
@@ -1794,7 +1794,7 @@ QED
 
 
 
-Triviality status_ret_in_stmtl_typed:
+Theorem status_ret_in_stmtl_typed[local]:
 ∀stmtl stmtl' ascope ascope' gscope gscope' scopest scopest' framel 
        status' t_scope_list t_scope_list_g order delta_g delta_b delta_t
        delta_x f Prs_n c.
@@ -1816,7 +1816,7 @@ QED
 
 
 
-Triviality t_lookup_passed_b_lemma:
+Theorem t_lookup_passed_b_lemma[local]:
 ∀ f delta_b delta_g delta_x passed_delta_b tau tau' txdl txdl' . 
 t_map_to_pass f delta_b = SOME passed_delta_b ∧
 t_lookup_funn f delta_g passed_delta_b delta_x = SOME (txdl ,tau ) ∧
@@ -1831,7 +1831,7 @@ QED
 
 
 
-Triviality lookup_funn_sig_body_passed_lemma:
+Theorem lookup_funn_sig_body_passed_lemma[local]:
 ∀ f  func_map b_func_map b_func_map' ext_map stmt xdl.
 map_to_pass f b_func_map = SOME b_func_map' ∧
 SOME (stmt,xdl) = lookup_funn_sig_body f func_map b_func_map ext_map ⇒
@@ -1895,7 +1895,7 @@ QED
 
 
 
-Triviality ret_status_stmt_len_single_lemma:
+Theorem ret_status_stmt_len_single_lemma[local]:
 ∀ c ascope ascope' gscope gscope' f stmt stmt_stack v framel locale locale'.
 stmt_red c (ascope,gscope,[(f,[stmt],locale)],status_running)
            (ascope',gscope,[(f,stmt_stack,locale')], status_returnv v) ⇒
@@ -1930,7 +1930,7 @@ QED
 
                                       
 
-Triviality lval_typ_any_order_f:
+Theorem lval_typ_any_order_f[local]:
 ∀ order order' funn funn'  delta l tau  tslg tsl h.
 lval_typ (tslg,tsl) ( order , funn   , delta ) l (t_tau tau) ⇒
 lval_typ (tslg,tsl) ( order' , funn' , delta ) l (t_tau tau)
@@ -1971,7 +1971,7 @@ QED
 
 
 
-Triviality local_sc_same_stmt1:
+Theorem local_sc_same_stmt1[local]:
 ∀c ascope ascope' gscope funn stmt stmt_stack' scope_list scope_list' status
        status' copied_in_scope stmt_called f_called.
      stmt_red c (ascope,gscope,[(funn,[stmt],scope_list)],status)
@@ -1987,7 +1987,7 @@ METIS_TAC []
 QED
 
 
-Triviality local_sc_same_stmt2:
+Theorem local_sc_same_stmt2[local]:
 ∀c ascope ascope' gscope funn stmt stmt' scope_list scope_list' status
        status' copied_in_scope stmt_called f_called stmt_stack .
 stmt_red c (ascope,gscope,[(funn,[stmt],scope_list)],status_running)
@@ -2002,7 +2002,7 @@ METIS_TAC []
 QED
 
         
-Triviality local_sc_same_stmtl:
+Theorem local_sc_same_stmtl[local]:
 ∀ c ascope ascope' gscope funn stmtl stmtl' scope_list scope_list' status status'
 copied_in_scope stmt_called f_called. 
 stmt_red  c
@@ -2023,7 +2023,7 @@ QED
 
 
 
-Triviality frame_typ_tsll_lemma:
+Theorem frame_typ_tsll_lemma[local]:
 ∀ tslg tsll tsll' T_e Prs_n gscope scl stmtl' stmt_stack.
 frame_typ (tslg,tsll' ++ tsll) T_e  Prs_n gscope scl stmtl' ∧
 frame_typ (tslg,         tsll) T_e  Prs_n gscope scl stmt_stack ⇒
@@ -2054,7 +2054,7 @@ QED
 
 
         
-Triviality tsc_consistency_ci:
+Theorem tsc_consistency_ci[local]:
 ∀ delta_g delta_b delta_t delta_x passed_delta_b passed_delta_t passed_delta_b' passed_delta_t'
   tsll funn funnl f_called tslg passed_tslg passed_tslg' ci_tscl order .
 LENGTH tsll = LENGTH (funn::funnl) ∧ 
@@ -2099,7 +2099,7 @@ QED
 
 
         
-Triviality tsc_consistency_blk:
+Theorem tsc_consistency_blk[local]:
 ∀ funnl tsll f tslg deltas order tscl_block.     
 LENGTH (f::funnl) = LENGTH tsll ∧
 LENGTH (HD tsll) > 0 ∧
@@ -2141,7 +2141,7 @@ QED
 
 
 
-Triviality DROP_LAST1:
+Theorem DROP_LAST1[local]:
 ∀ h .
 LENGTH h > 1 ⇒
 LAST (DROP 1 h) = (LAST h)
@@ -2156,7 +2156,7 @@ QED
 
 
 
-Triviality tsc_consistency_blk_exit:
+Theorem tsc_consistency_blk_exit[local]:
 ∀ funnl tsll f tslg delta_g delta_b delta_x delta_t order tscl_block.          
 LENGTH (f::funnl) = LENGTH tsll ∧       
 LENGTH (HD tsll) > 1 ∧
@@ -2196,7 +2196,7 @@ QED
 
 
         
-Triviality tsc_consistency_comp2:
+Theorem tsc_consistency_comp2[local]:
 ∀ funnl tsll f f' tslg delta_g delta_b delta_x delta_t order h t.          
 t_scopes_consistent_list (f::f'::funnl) (h::t) tslg (delta_g,delta_b,delta_x,delta_t) order ⇒
 t_scopes_consistent_list (   f'::funnl)     t  tslg (delta_g,delta_b,delta_x,delta_t) order
@@ -2219,7 +2219,7 @@ QED
 
 
 
-Triviality lookup_sig_map_lemma:
+Theorem lookup_sig_map_lemma[local]:
 ∀   f func_map b_func_map ext_map b_func_map' stmt stmt' xdl xdl'.                                
 map_to_pass f b_func_map = SOME b_func_map' ∧
 SOME (stmt',xdl') = lookup_funn_sig_body f func_map b_func_map' ext_map ∧
@@ -2244,7 +2244,7 @@ QED
 
 
 
-Triviality oDROP_gscope_only:
+Theorem oDROP_gscope_only[local]:
 ∀ gscope scl n .        
 LENGTH gscope = 2 ∧
 LENGTH gscope + LENGTH scl = n  ⇒       
@@ -2258,7 +2258,7 @@ QED
 
 
 
-Triviality oTAKE_scl_only:
+Theorem oTAKE_scl_only[local]:
 ∀ scl tscl n gscope. 
 LENGTH scl + 2 =  n ∧
 type_frame_tsl scl tscl ⇒
@@ -2279,7 +2279,7 @@ QED
 
 
 
-Triviality t_sig_tsc_abstraction:
+Theorem t_sig_tsc_abstraction[local]:
 ∀ f delta_g delta_b delta_x txdl tau scl.
 t_lookup_funn f delta_g delta_b delta_x = SOME (txdl,tau) ∧    
 sig_tscope_consistent f delta_g delta_b delta_x scl ⇒
@@ -2326,7 +2326,7 @@ QED
 
 
 
-Triviality oTAKE_oDROP_l:
+Theorem oTAKE_oDROP_l[local]:
 ∀ l i a b .
 LENGTH l > 1 ∧
 LENGTH l − 2 = i ∧
@@ -2405,7 +2405,7 @@ Cases_on ‘scl’ >> gvs[]
 QED
 
 
-Triviality star_not_in_sl_LAST:
+Theorem star_not_in_sl_LAST[local]:
 ∀ scl.
 LENGTH  scl > 0 ∧   
 star_not_in_sl scl ⇒
@@ -2422,7 +2422,7 @@ QED
 
 
           
-Triviality type_frame_tsl_LAST:
+Theorem type_frame_tsl_LAST[local]:
 ∀ scl tsc .
 LENGTH  scl > 0 ∧ 
 type_frame_tsl scl tsc ⇒
@@ -2435,7 +2435,7 @@ QED
 
 
 
-Triviality lookup_map_LAST_typed:
+Theorem lookup_map_LAST_typed[local]:
 ∀ scl tsc varn v lval.
 LENGTH scl > 0 ∧
 type_frame_tsl scl tsc ∧
@@ -2455,7 +2455,7 @@ QED
 
 
 
-Triviality lookup_map_single_LENGTH:
+Theorem lookup_map_single_LENGTH[local]:
 ∀ l varn tup.
 lookup_map [l] varn = SOME tup ⇒
 LENGTH l > 0
@@ -2490,7 +2490,7 @@ QED
 
 
 
-Triviality oDROP_LENGTH:
+Theorem oDROP_LENGTH[local]:
 ∀ l i a.       
 SOME a = oDROP i l ⇒
 LENGTH a = LENGTH l - i
@@ -2502,7 +2502,7 @@ QED
 
 
 
-Triviality oTAKE_LENGTH:
+Theorem oTAKE_LENGTH[local]:
 ∀ l i a.       
 SOME a = oTAKE i l ⇒
 LENGTH a = i
@@ -2608,7 +2608,7 @@ QED
                 
  
    
-Triviality co_FOLDL_typed:
+Theorem co_FOLDL_typed[local]:
 ∀ xdl h h' T_e tslg n x curr_local pre_local gscope.
   LENGTH tslg = 2 ∧
    LENGTH curr_local > 0 ∧ LENGTH pre_local ≥ 1 ∧      
@@ -2685,7 +2685,7 @@ QED
 
 
 
-Triviality t_scopes_to_pass_len:
+Theorem t_scopes_to_pass_len[local]:
 ∀ f delta_g delta_b tslg passed_tslg .
 LENGTH tslg = 2 ∧
 t_scopes_to_pass f delta_g delta_b tslg = SOME passed_tslg ⇒
@@ -2701,7 +2701,7 @@ QED
 
 (* copy out is well typed
    passed_tslg here means the previous functions passed global scope *)
-Triviality co_is_welltyped:
+Theorem co_is_welltyped[local]:
 ∀ curr_local pre_local passed_gscope passed_tslg h t xdl co_local co_global T_e .         
 LENGTH curr_local > 0 ∧
 LENGTH pre_local ≥ 1 ∧

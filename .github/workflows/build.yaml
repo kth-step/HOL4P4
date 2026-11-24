@@ -42,7 +42,7 @@ jobs:
     strategy:
       matrix:
         polyml: ['5.7.1', '5.9.2']
-        hol4: ['trindemossen-2']
+        hol4: ['trindemossen-2-v10']
 
     env:
       POLYML_VERSION: ${{ matrix.polyml }}

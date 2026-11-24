@@ -20,7 +20,7 @@ val ERR = mk_HOL_ERR "p4_symb_exec"
 val p4_symb_arg_prefix = "a";
 
 (* Decides the oracle index comparisons of runs from a symbolic oracle index *)
-val _ = computeLib.add_thms [num_eq_add_numeral_F] computeLib.the_compset;
+val _ = computeLib.add_funs [num_eq_add_numeral_F];
 val _ = add_HOL4P4_thms [num_eq_add_numeral_F];
 
 fun get_b_func_map i ab_list pblock_map =
@@ -764,8 +764,6 @@ fun get_disj_thm bool_list =
 val p4_symb_exec_assertions = ref false;
 val _ = register_btrace ("p4_symb_exec_assertions", p4_symb_exec_assertions);
 
-val disj_list_sing = prove(“!b. disj_list [b] = b”, rw[disj_list_def]);
-
 (* The condition passed to assert or assume *)
 fun get_check_arg scope_list =
  dest_v_bool $ dest_some $ rhs $ concl $ HOL4P4_CONV (mk_lookup_lval (scope_list, mk_lval_varname "check"))
@@ -1296,7 +1294,7 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
  in
   res
  end
- handle (HOL_ERR exn) => raise (ERR "p4_should_branch" (String.concat ["Exception: ", #message exn, " in function ", #origin_function exn, " from structure ", #origin_structure exn, p4_should_branch_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_should_branch" (HOL_ERR exn)) *)
+ handle (HOL_ERR exn) => raise (ERR "p4_should_branch" (String.concat ["Exception: ", message_of exn, " in function ", top_function_of exn, " from structure ", top_structure_of exn, p4_should_branch_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_should_branch" (HOL_ERR exn)) *)
 ;
 
 
@@ -2403,7 +2401,7 @@ fun p4_regular_step (debug_flag, ctx_def, ctx, norewr_eval_ctxt, eval_ctxt, bigs
 	     else (HOL_ERR exn))
   end
  end
- handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (String.concat ["Exception: ", #message exn, " in function ", #origin_function exn, " from structure ", #origin_structure exn, p4_regular_step_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
+ handle (HOL_ERR exn) => raise (ERR "p4_regular_step" (String.concat ["Exception: ", message_of exn, " in function ", top_function_of exn, " from structure ", top_structure_of exn, p4_regular_step_get_err_msg step_thm])) (* (wrap_exn "p4_symb_exec" "p4_regular_step" (HOL_ERR exn)) *)
 ;
 
 (******************)

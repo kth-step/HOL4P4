@@ -135,6 +135,9 @@ QED
  * e1_size: size of a (string # e) list
  * e2_size: size of a string # e
  * e3_size: size of an e list *)
+Overload e1_size = “list_size (pair_size (list_size char_size) e_size)”
+Overload e2_size = “pair_size (list_size char_size) e_size”
+Overload e3_size = “list_size e_size”
 
 Theorem EL_pair_list:
 !i l.
@@ -192,6 +195,11 @@ Proof
  REPEAT STRIP_TAC >>
  fs [listTheory.MEM_SPLIT, e3_size_append, e_size_def]
 QED
+
+(* Induction principles with a predicate for each list and pair type nested in the datatype *)
+Theorem e_mutual_induction = legacyInduction.mutual_ind_from_ops e_induction
+Theorem v_mutual_induction = legacyInduction.mutual_ind_from_ops v_induction
+Theorem tau_mutual_induction = legacyInduction.mutual_ind_from_ops tau_induction
 
 Theorem index_find_length:
  !l i f j e. (INDEX_FIND i f l = SOME (j, e)) ==> (j - i < LENGTH l)
@@ -680,21 +688,21 @@ QED
 
 (********* lval and is_const lemmas ************)
 
-Triviality lemma_const_notlval:
+Theorem lemma_const_notlval[local]:
 !e. is_const e ==> ~ is_e_lval e
 Proof
 Cases_on `e` >>
 EVAL_TAC
 QED
 
-Triviality lemma_lval_notconst:
+Theorem lemma_lval_notconst[local]:
 !e. is_e_lval e ==> ~ is_const e
 Proof
 Cases_on `e` >>
 EVAL_TAC
 QED
 
-Triviality lemma_dir_EQ:
+Theorem lemma_dir_EQ[local]:
 !d. (¬is_d_out d = is_d_none_in d) /\ (is_d_out d = ¬is_d_none_in d)
 Proof
 Cases_on `d` >>
@@ -711,7 +719,7 @@ Q is ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
 show that P ==> not Q
 **************************)
 
-Triviality dir_const_imp1:
+Theorem dir_const_imp1[local]:
 ! d e.(is_d_none_in d ∧ ¬is_const e)
 	     ==> ~((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
 Proof
@@ -722,7 +730,7 @@ METIS_TAC[]
 QED
 
 
-Triviality dir_const_imp2:
+Theorem dir_const_imp2[local]:
 (∀y. (λ(d,e). is_d_none_in (d) ∧ ¬is_const (e)) y ⇒
              ($¬ ∘
               (λ(d,e).
@@ -736,7 +744,7 @@ QED
 
 
 
-Triviality dir_const_imp3:
+Theorem dir_const_imp3[local]:
 ! d e. ((is_d_none_in d ⇒ is_const e) ∧ (¬is_d_none_in d ⇒ is_e_lval e))
                      ==> ~(is_d_none_in d ∧ ¬is_const e)
 Proof
@@ -746,7 +754,7 @@ METIS_TAC[]
 QED
 
 
-Triviality dir_const_imp4:
+Theorem dir_const_imp4[local]:
 (∀y. (λ(d,e). ¬is_arg_red d e) y ⇒
              ¬(λ(d,e). is_arg_red d e) y)
 Proof
@@ -761,7 +769,7 @@ Show that
 INDEX_FIND 0 P l = SOME x ==> P(x)
 ****************************)
 
-Triviality index_some1:
+Theorem index_some1[local]:
 !l n. ((INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = SOME x)  ==> 
                (λ(d,e). is_d_none_in d ∧ ¬is_const e) (SND x)
 Proof
@@ -785,7 +793,7 @@ Show that
 (INDEX_FIND n P l = NONE) = ~ EXISTS P l
 ****************************)
 
-Triviality index_some2:
+Theorem index_some2[local]:
 ! l n. (( INDEX_FIND n (λ(d,e). is_d_none_in d ∧ ¬is_const e) l) = NONE) =
        ~(EXISTS (λ(d,e). is_d_none_in d ∧ ¬is_const e) l)
 Proof
@@ -807,7 +815,7 @@ Show that for a generic P (Lemma T4)
 (INDEX_FIND n P l = NONE) = ~ EXISTS P
 ****************************)
 
-Triviality index_none_not_exist:
+Theorem index_none_not_exist[local]:
 ! l  n P. (( INDEX_FIND n P l) = NONE) = ~(EXISTS (P) l)
 Proof
 Induct >|[
@@ -909,7 +917,7 @@ Show Lemma T2.1
 ****************************)
 
 
-Triviality P_Q_mono1:
+Theorem P_Q_mono1[local]:
 ! P Q l. ((! (x) . (P x ==>  Q x) ) ==>
 ((EXISTS P l) ==>
 (EXISTS Q l)))
@@ -1007,7 +1015,7 @@ QED
 
 
 (*******list of const and const thms  **************)
-Triviality not_exist_every:
+Theorem not_exist_every[local]:
 ! el . ~(EXISTS (\e. ~(is_const e)) el) = (EVERY (\e. is_const e ) el)
 Proof
 STRIP_TAC >>
@@ -1017,7 +1025,7 @@ fs[]
 QED
 
 
-Triviality lconst_every:
+Theorem lconst_every[local]:
 ! el . is_consts el = (EVERY (\e. is_const e ) el)
 Proof
 REWRITE_TAC[is_consts_def]>>
@@ -1091,7 +1099,7 @@ Induct >>
 RW_TAC list_ss [MAP]
 QED
 
-Triviality map_fst_snd_EQ:
+Theorem map_fst_snd_EQ[local]:
 !l. MAP (λx. FST (SND x)) l = (MAP SND (MAP (λx. (FST x,FST (SND x))) l))
 Proof
 Induct >>
@@ -1100,7 +1108,7 @@ QED
 
 
 
-Triviality mem_el_map1:
+Theorem mem_el_map1[local]:
 ! l i .
 MEM (EL i (MAP (λ(f_,e_). e_) l))
                (MAP (λ(f_,e_). e_) l) ==>
@@ -1465,7 +1473,7 @@ QED
 
 
 
-Triviality EL_not_prob_on_list:
+Theorem EL_not_prob_on_list[local]:
 ∀ l h P j.
 j < LENGTH l + 1 ∧  
 (∀j'. j' < j ⇒ ¬P (EL j' (h::l))) ⇒

@@ -31,3 +31,6 @@ petr4/
 ## Emacs
 *~
 \#*\#
+
+## Heaps dumped by HOL4 at a failed proof
+*.dumpedheap
