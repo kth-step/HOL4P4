@@ -2560,7 +2560,8 @@ Definition zero_val_from_tau_def:
   v_struct ((x0, zero_val_from_tau t0)::(MAP (λ(x,t). (x, zero_val_from_tau t)) xtl))) /\
  (zero_val_from_tau (tau_xtl struct_ty_header []) =  v_header F []) /\
  (zero_val_from_tau (tau_xtl struct_ty_header ((x0,t0)::xtl)) =
-   v_header F ((x0,zero_val_from_tau t0)::(MAP (λ(x,t). (x, zero_val_from_tau t)) xtl)))
+   v_header F ((x0,zero_val_from_tau t0)::(MAP (λ(x,t). (x, zero_val_from_tau t)) xtl))) /\
+ (zero_val_from_tau (tau_stack t n) = v_stack (REPLICATE n (zero_val_from_tau t)) 0)
 End
 
 Theorem bits_LENGTH:
@@ -2677,6 +2678,8 @@ p_tau =
  | p_tau_bot
  (* Note that structs can be type-parametrized *)
  | p_tau_xtl struct_ty ((x#p_tau) list)
+ (* Header stack of the given size *)
+ | p_tau_stack p_tau num_exp
  (* The string is the name of the extern object *)
  | p_tau_ext string
  (* The string is the name of the programmable block *)
@@ -2698,6 +2701,9 @@ Definition deparameterise_tau_def:
   | p_tau_xtl struct_ty fields =>
    deparameterise_x_taus fields >>= \fields'.
    SOME (tau_xtl struct_ty fields')
+  | p_tau_stack p_tau' num_exp =>
+   deparameterise_tau p_tau' >>= \tau.
+   SOME (tau_stack tau num_exp)
   | p_tau_ext ext_name => SOME tau_ext
   | p_tau_blk blk_name => NONE
   | p_tau_pkg pkg_name => NONE
@@ -2724,6 +2730,7 @@ Definition parameterise_tau_def:
   | tau_bot => p_tau_bot
   | tau_xtl struct_ty fields =>
    (p_tau_xtl struct_ty (parameterise_x_taus fields))
+  | tau_stack tau num_exp => p_tau_stack (parameterise_tau tau) num_exp
   | tau_ext => p_tau_ext "") /\
 (parameterise_x_taus [] = []) /\
 (parameterise_x_taus ((name, tau)::t) = ((name, parameterise_tau tau)::(parameterise_x_taus t)))
