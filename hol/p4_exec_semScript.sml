@@ -205,6 +205,34 @@ Definition e_exec_acc_def:
  (e_exec_acc _ = NONE)
 End
 
+(* The members size and lastIndex of a header stack *)
+Definition e_exec_stack_acc_def:
+ (e_exec_stack_acc ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, oracle_index, random_oracle):'a ectx) (e_acc (e_v (v_stack v_l i)) x) =
+  if x = "size"
+  then SOME (e_v (v_bit (fixwidth 32 (n2v (LENGTH v_l)), 32)), (NONE:num option))
+  else if x = "lastIndex"
+  then
+   (if 0 < i
+    then SOME (e_v (v_bit (fixwidth 32 (n2v (i - 1)), 32)), NONE)
+    else SOME (e_v (v_bit (get_oracle_calls 32 oracle_index random_oracle, 32)), SOME (oracle_index + 32)))
+  else NONE)
+  /\
+ (e_exec_stack_acc _ _ = NONE)
+End
+
+(* An element of a header stack; out of bounds, an unspecified value *)
+Definition e_exec_index_def:
+ (e_exec_index ((apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, oracle_index, random_oracle):'a ectx) (e_v (v_stack v_l i)) (e_v (v_bit (bl, n))) =
+  case oEL (v2n bl) v_l of
+  | SOME v => SOME (v, (NONE:num option))
+  | NONE =>
+   (case stack_el_oob v_l (v2n bl) oracle_index random_oracle of
+    | SOME (v, i') => SOME (v, SOME i')
+    | NONE => NONE))
+  /\
+ (e_exec_index _ _ _ = NONE)
+End
+
 Definition e_exec_select_def:
  (e_exec_select (e_v v) s_l_x_l x =
   case v of
@@ -299,7 +327,10 @@ Definition e_exec_def:
   then
    (case e_exec_acc (e_acc e_v_struct x) of
     | SOME v => SOME (v, ([], NONE))
-    | NONE => NONE)
+    | NONE =>
+     (case e_exec_stack_acc ectx (e_acc e_v_struct x) of
+      | SOME (v, i_opt) => SOME (v, ([], i_opt))
+      | NONE => NONE))
    else
     (case e_exec ectx g_scope_list scope_list e_v_struct of
      | SOME (e_v_struct', (frame_list, i_opt)) =>
@@ -327,9 +358,18 @@ Definition e_exec_def:
        | SOME i =>
         if is_d_out (EL i (MAP SND x_d_l))
         then
-         (case save_arg g_scope_list scope_list (EL i e_l) of
-          | SOME e' => SOME (e_call funn (LUPDATE e' i e_l), ([], NONE))
-          | NONE => NONE)
+         (case e_unred_index (EL i e_l) of
+          | SOME e'' =>
+           (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, oracle_index, random_oracle) g_scope_list scope_list e'' of
+            | SOME (e''', (frame_list, i_opt)) => SOME (e_call funn (LUPDATE (e_update_index (EL i e_l) e''') i e_l), (frame_list, i_opt))
+            | NONE => NONE)
+          | NONE =>
+           (case save_arg g_scope_list scope_list (EL i e_l) of
+            | SOME e' => SOME (e_call funn (LUPDATE e' i e_l), ([], NONE))
+            | NONE =>
+             (case save_arg_oob g_scope_list scope_list (EL i e_l) oracle_index random_oracle of
+              | SOME (e', i') => SOME (e_call funn (LUPDATE e' i e_l), ([], SOME i'))
+              | NONE => NONE)))
         else
          (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, oracle_index, random_oracle) g_scope_list scope_list (EL i e_l) of
           | SOME (e', (frame_list, i_opt)) => SOME (e_call funn (LUPDATE e' i e_l), (frame_list, i_opt))
@@ -440,6 +480,25 @@ Definition e_exec_def:
       | NONE => NONE))
    else NONE)
   /\
+ (************************)
+ (* Header stack element *)
+ (e_exec ectx g_scope_list scope_list (e_index e1 e2) =
+  if is_v e1
+  then
+   (if is_v e2
+    then
+     (case e_exec_index ectx e1 e2 of
+      | SOME (v, i_opt) => SOME (e_v v, ([], i_opt))
+      | NONE => NONE)
+    else
+     (case e_exec ectx g_scope_list scope_list e2 of
+      | SOME (e2', (frame_list, i_opt)) => SOME (e_index e1 e2', (frame_list, i_opt))
+      | NONE => NONE))
+  else
+   (case e_exec ectx g_scope_list scope_list e1 of
+    | SOME (e1', (frame_list, i_opt)) => SOME (e_index e1' e2, (frame_list, i_opt))
+    | NONE => NONE))
+  /\
  (******************)
  (* Saved argument *)
  (e_exec ectx g_scope_list scope_list (e_saved e v) = SOME (e_v v, ([], NONE)))
@@ -449,6 +508,12 @@ Termination
 WF_REL_TAC ‘measure e_state_size’ >>
 fs[e_state_size_def, e_size_def] >>
 rpt strip_tac >| [
+ IMP_RES_TAC unred_arg_index_in_range >>
+ IMP_RES_TAC rich_listTheory.EL_MEM >>
+ IMP_RES_TAC e3_size_mem >>
+ IMP_RES_TAC e_unred_index_size >>
+ fs[],
+
  IMP_RES_TAC unred_arg_index_in_range >>
  IMP_RES_TAC rich_listTheory.EL_MEM >>
  IMP_RES_TAC e3_size_mem >>
@@ -528,20 +593,30 @@ Definition stmt_exec_def:
  (**************)
  (* Assignment *)
  (stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, [stmt_ass lval e], scope_list)], status_running) =
-  if is_v e
-  then
-   (case stmt_exec_ass lval e (scope_list++g_scope_list) of
-    | SOME scope_list'' =>
-     (case separate scope_list'' of
-      | (SOME g_scope_list', SOME scope_list') =>
-       SOME (ascope, g_scope_list', [(funn, [stmt_empty], scope_list')], status_running)
-      | _ => NONE)
-    | NONE => NONE)
-  else
-   (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e of
-    | SOME (e', (frame_list, i_opt)) =>
-     SOME (set_oracle_index i_opt ascope, g_scope_list, frame_list++[(funn, [stmt_ass lval e'], scope_list)], status_running)
-    | _ => NONE))
+  case lval_unred_index lval of
+  | SOME e'' =>
+   (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e'' of
+    | SOME (e''', (frame_list, i_opt)) =>
+     SOME (set_oracle_index i_opt ascope, g_scope_list, frame_list++[(funn, [stmt_ass (lval_update_index lval e''') e], scope_list)], status_running)
+    | _ => NONE)
+  | NONE =>
+   if is_v e
+   then
+    (if lval_oob (scope_list++g_scope_list) lval
+     then SOME (ascope, g_scope_list, [(funn, [stmt_empty], scope_list)], status_running)
+     else
+      (case stmt_exec_ass lval e (scope_list++g_scope_list) of
+       | SOME scope_list'' =>
+        (case separate scope_list'' of
+         | (SOME g_scope_list', SOME scope_list') =>
+          SOME (ascope, g_scope_list', [(funn, [stmt_empty], scope_list')], status_running)
+         | _ => NONE)
+       | NONE => NONE))
+   else
+    (case e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e of
+     | SOME (e', (frame_list, i_opt)) =>
+      SOME (set_oracle_index i_opt ascope, g_scope_list, frame_list++[(funn, [stmt_ass lval e'], scope_list)], status_running)
+     | _ => NONE))
   /\
  (**************)
  (* Transition *)
@@ -749,6 +824,9 @@ rpt strip_tac >| [
   (* Slicing *)
   gvs[AllCaseEqs()],
 
+  (* Header stack element *)
+  gvs[AllCaseEqs()],
+
   (* Function call *)
   gvs[AllCaseEqs()],
 
@@ -760,6 +838,9 @@ rpt strip_tac >| [
  ],
 
  (* Slicing *)
+ gvs[AllCaseEqs()],
+
+ (* Header stack element *)
  gvs[AllCaseEqs()],
 
  (* Concatenation *)
@@ -786,13 +867,23 @@ Theorem exec_stmt_ass_SOME_REWRS:
 !apply_table_f ext_map func_map b_func_map pars_map tbl_map get_oracle_index set_oracle_index random_oracle ascope ascope' g_scope_list g_scope_list' funn lval e stmt_stack frame_list' scope_list status'.
 stmt_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle) (ascope, g_scope_list, [(funn, (stmt_ass lval e)::stmt_stack, scope_list)], status_running) =
         SOME (ascope', g_scope_list', frame_list', status') <=>
- (is_v e ==>
-  ?scope_list'' scope_list'.
-   (stmt_exec_ass lval e (scope_list++g_scope_list) = SOME scope_list'') /\
-   (separate scope_list'' = (SOME g_scope_list', SOME scope_list')) /\
+ (!e''. lval_unred_index lval = SOME e'' ==>
+  ?e''' frame_list'' i_opt.
+   (e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e'' = SOME (e''', frame_list'', i_opt)) /\
+   (g_scope_list' = g_scope_list) /\
+   (frame_list' = (frame_list''++[(funn, (stmt_ass (lval_update_index lval e''') e)::stmt_stack, scope_list)])) /\
+   ascope' = set_oracle_index i_opt ascope) /\
+ (lval_unred_index lval = NONE /\ is_v e ==>
+  ?scope_list'.
+   (if lval_oob (scope_list++g_scope_list) lval
+    then (g_scope_list' = g_scope_list /\ scope_list' = scope_list)
+    else
+     ?scope_list''.
+      (stmt_exec_ass lval e (scope_list++g_scope_list) = SOME scope_list'') /\
+      (separate scope_list'' = (SOME g_scope_list', SOME scope_list'))) /\
    (frame_list' = [(funn, (stmt_empty)::stmt_stack, scope_list')]) /\
     ascope' = ascope) /\
- (~is_v e ==>
+ (lval_unred_index lval = NONE /\ ~is_v e ==>
   ?e' frame_list'' i_opt.
    (e_exec (apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index ascope, random_oracle) g_scope_list scope_list e = SOME (e', frame_list'', i_opt)) /\
    (g_scope_list' = g_scope_list) /\
@@ -804,36 +895,60 @@ Proof
 rpt strip_tac >>
 Cases_on `scope_list` >> Cases_on `stmt_stack` >> (
  gs[stmt_exec_def]
-) >>
-Cases_on `is_v e` >> (
- fs[]
-) >| [
- gvs[AllCaseEqs()] >>
- metis_tac[],
-
- gvs[AllCaseEqs()] >>
- metis_tac[],
-
- Cases_on `stmt_exec_ass lval e ((h::t) ++ g_scope_list)` >> (
-  fs []
- ) >>
- Cases_on `separate x` >>  Cases_on `q` >>  Cases_on `r` >> (
+) >> (
+ Cases_on ‘lval_unred_index lval’ >> Cases_on `is_v e` >> (
   fs[]
- ) >>
- metis_tac[],
+ ) >| [
+  Cases_on ‘lval_oob (h::(t ++ g_scope_list)) lval’ >> (
+   fs[]
+  ) >- (
+   metis_tac[]
+  ) >>
+  Cases_on `stmt_exec_ass lval e (h::(t ++ g_scope_list))` >> (
+   fs []
+  ) >>
+  Cases_on `separate x` >>  Cases_on `q` >>  Cases_on `r` >> (
+   fs[]
+  ) >>
+  metis_tac[],
 
- Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
-              get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
-  fs[]
- ) >>
- PairCases_on `x` >>
- fs [] >>
- IMP_RES_TAC e_exec_new_frame >> (
-  fs []
- ) >> (
-  metis_tac []
- )
-]
+  Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+               get_oracle_index ascope,random_oracle) g_scope_list (h::t) e` >> (
+   fs[]
+  ) >>
+  PairCases_on `x` >>
+  fs [] >>
+  IMP_RES_TAC e_exec_new_frame >> (
+   fs []
+  ) >> (
+   metis_tac []
+  ),
+
+  Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+               get_oracle_index ascope,random_oracle) g_scope_list (h::t) x` >> (
+   fs[]
+  ) >>
+  PairCases_on `x'` >>
+  fs [] >>
+  IMP_RES_TAC e_exec_new_frame >> (
+   fs []
+  ) >> (
+   metis_tac []
+  ),
+
+  Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+               get_oracle_index ascope,random_oracle) g_scope_list (h::t) x` >> (
+   fs[]
+  ) >>
+  PairCases_on `x'` >>
+  fs [] >>
+  IMP_RES_TAC e_exec_new_frame >> (
+   fs []
+  ) >> (
+   metis_tac []
+  )
+ ]
+)
 QED
 
 Theorem exec_stmt_trans_SOME_REWRS:
@@ -1178,7 +1293,7 @@ Cases_on `stmt` >> PairCases_on ‘ctx’ >> (
 ) >| [
  (* Assign *)
  fs [exec_stmt_ass_SOME_REWRS] >>
- Cases_on `is_v e` >> (
+ Cases_on ‘lval_unred_index l’ >> Cases_on `is_v e` >> (
   fs []
  ),
 
@@ -1401,7 +1516,11 @@ rpt strip_tac >| [
 
  (* Assign *)
  fs [exec_stmt_ass_SOME_REWRS] >>
- metis_tac [e_exec_new_frame],
+ Cases_on ‘lval_unred_index lval’ >> Cases_on ‘is_v e’ >> (
+  fs []
+ ) >> (
+  metis_tac [e_exec_new_frame]
+ ),
 
 
  (* Return (stack case) *)
@@ -1465,7 +1584,11 @@ rpt strip_tac >| [
  PairCases_on ‘ctx’ >>
  rename1 ‘(apply_table_f, ext_map, func_map, b_func_map, pars_map, tbl_map, get_oracle_index, set_oracle_index, random_oracle)’ >>
  fs [exec_stmt_ass_SOME_REWRS] >>
- metis_tac [],
+ Cases_on ‘lval_unred_index lval’ >> Cases_on ‘is_v e’ >> (
+  fs []
+ ) >> (
+  metis_tac [e_exec_new_frame]
+ ),
 
  (* Extern (stack case) *)
  fs [] >>

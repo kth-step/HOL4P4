@@ -43,6 +43,7 @@ v =  (* value *)
  | v_str of x (* string literal *)
  | v_struct of (x#v) list (* struct *)
  | v_header of boolv => (x#v) list (* header *)
+ | v_stack of v list => i (* header stack with its nextIndex *)
  | v_ext_ref of i (* extern object reference *)
  | v_bot (* no value *)
 `;
@@ -121,6 +122,7 @@ e =  (* expression *)
  | e_binop of e => binop => e (* binary operation *)
  | e_concat of e => e (* concatenation of bit-strings *)
  | e_slice of e => e => e (* bit-slice *)
+ | e_index of e => e (* header stack element *)
  | e_call of funn => e list (* function or extern call *)
  | e_select of e => (s_list#x) list => x (* select *)
  | e_struct of (x#e) list (* struct *)
@@ -134,6 +136,7 @@ lval =
  | lval_null (* null variable *)
  | lval_field of lval => x (* field access *)
  | lval_slice of lval => e => e (* slice array *)
+ | lval_index of lval => e (* header stack element *)
  | lval_paren of lval
 `;
 
@@ -164,6 +167,7 @@ tau =  (* type *)
  | tau_varbit of num_exp (* variable-width bit-string *)
  | tau_bot (* no value *)
  | tau_xtl of struct_ty => (x#tau) list (* struct *)
+ | tau_stack of tau => num_exp (* header stack of the given size *)
  | tau_ext (* extern *)
 `;
 
@@ -1419,10 +1423,34 @@ val lookup_lval_def = Define `
      | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
      | _ => NONE
      ) /\
+ (lookup_lval (ss:scope list) (lval_index lval e) =
+    case lookup_lval ss lval of
+     | SOME (v_stack v_l i) =>
+      (case e of
+       | e_v (v_bit (bl, n)) => oEL (v2n bl) v_l
+       | _ => NONE)
+     | _ => NONE
+     ) /\
  (lookup_lval (ss:scope list) (lval_null) = NONE ) /\
  (lookup_lval (ss:scope list) (lval_paren lval) = lookup_lval ss lval) 
 
 `;
+
+(* A stack index of the l-value is out of bounds *)
+Definition lval_oob_def:
+ (lval_oob (ss:scope list) (lval_index lval e) =
+  (lval_oob ss lval \/
+   case lookup_lval ss lval of
+   | SOME (v_stack v_l i) =>
+    (case e of
+     | e_v (v_bit (bl, n)) => LENGTH v_l <= v2n bl
+     | _ => F)
+   | _ => F)) /\
+ (lval_oob ss (lval_field lval f) = lval_oob ss lval) /\
+ (lval_oob ss (lval_slice lval e1 e2) = lval_oob ss lval) /\
+ (lval_oob ss (lval_paren lval) = lval_oob ss lval) /\
+ (lval_oob ss _ = F)
+End
 
 (* TODO: This is ambiguous with regard to inout... *)
 val is_d_none_in_def = Define `
@@ -1453,9 +1481,60 @@ val get_lval_of_e_def = Define `
    case get_lval_of_e e of
    | SOME lval => SOME (lval_slice lval ev1 ev2)
    | NONE => NONE) /\
+  (get_lval_of_e (e_index e e') =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_index lval e')
+   | NONE => NONE) /\
   (get_lval_of_e (e_saved e v) = get_lval_of_e e) /\
   (get_lval_of_e _ = NONE)
 `;
+
+(* The first stack index of an l-value that is not a value *)
+Definition lval_unred_index_def:
+ (lval_unred_index (lval_index lval e) =
+  case lval_unred_index lval of
+  | SOME e' => SOME e'
+  | NONE => if is_const e then NONE else SOME e) /\
+ (lval_unred_index (lval_field lval f) = lval_unred_index lval) /\
+ (lval_unred_index (lval_slice lval e1 e2) = lval_unred_index lval) /\
+ (lval_unred_index (lval_paren lval) = lval_unred_index lval) /\
+ (lval_unred_index _ = NONE)
+End
+
+(* Replaces the first stack index that is not a value *)
+Definition lval_update_index_def:
+ (lval_update_index (lval_index lval e) e' =
+  case lval_unred_index lval of
+  | SOME e'' => lval_index (lval_update_index lval e') e
+  | NONE => lval_index lval e') /\
+ (lval_update_index (lval_field lval f) e' = lval_field (lval_update_index lval e') f) /\
+ (lval_update_index (lval_slice lval e1 e2) e' = lval_slice (lval_update_index lval e') e1 e2) /\
+ (lval_update_index (lval_paren lval) e' = lval_paren (lval_update_index lval e')) /\
+ (lval_update_index lval e' = lval)
+End
+
+(* The same for an expression that denotes an l-value *)
+Definition e_unred_index_def:
+ (e_unred_index (e_index e e') =
+  case e_unred_index e of
+  | SOME e'' => SOME e''
+  | NONE => if is_const e' then NONE else SOME e') /\
+ (e_unred_index (e_acc e x) = e_unred_index e) /\
+ (e_unred_index (e_slice e e1 e2) = e_unred_index e) /\
+ (e_unred_index (e_saved e v) = e_unred_index e) /\
+ (e_unred_index _ = NONE)
+End
+
+Definition e_update_index_def:
+ (e_update_index (e_index e e') e'' =
+  case e_unred_index e of
+  | SOME e''' => e_index (e_update_index e e'') e'
+  | NONE => e_index e e'') /\
+ (e_update_index (e_acc e x) e'' = e_acc (e_update_index e e'') x) /\
+ (e_update_index (e_slice e e1 e2) e'' = e_slice (e_update_index e e'') e1 e2) /\
+ (e_update_index (e_saved e v) e'' = e_saved (e_update_index e e'') v) /\
+ (e_update_index e e'' = e)
+End
 
 val is_e_saved_def = Define `
   (is_e_saved (e_saved e v) = T) /\
@@ -1557,6 +1636,12 @@ Definition init_out_v_def:
   in
    (v_header F (REVERSE x_v_l''), i''')
  ) /\
+ (init_out_v random_oracle i (v_stack v_l i') =
+  let
+   (v_l'', i''') = FOLDL ( \ (v_l', i'') v. let (v', i''') = init_out_v random_oracle i'' v in (v'::v_l', i''')) ([], i) v_l
+  in
+   (v_stack (REVERSE v_l'') 0, i''')
+ ) /\
  (init_out_v random_oracle i (v_ext_ref i') = (v_ext_ref i', i)) /\
  (init_out_v random_oracle i v_bot = (v_bot, i))
 Termination
@@ -1603,6 +1688,12 @@ Definition init_from_tau_def:
    (x_v_l', i''') = FOLDL ( \ (x_v_l, i') (x, tau). let (v, i'') = init_from_tau random_oracle i' tau in ((x, v)::x_v_l, i'')) ([], i) xtl
   in
    (v_header F (REVERSE x_v_l'), i''')
+ ) /\
+ (init_from_tau random_oracle i (tau_stack tau n) =
+  let
+   (v_l', i''') = FOLDL ( \ (v_l, i') tau'. let (v, i'') = init_from_tau random_oracle i' tau' in (v::v_l, i'')) ([], i) (REPLICATE n tau)
+  in
+   (v_stack (REVERSE v_l') 0, i''')
  )
 Termination
 WF_REL_TAC ‘measure ( \ (a,b,c). tau_size c)’ >>
@@ -1622,6 +1713,73 @@ val save_arg_def = Define `
      | NONE => NONE)
    | NONE => NONE
 `;
+
+(* As init_out_v, but the validity of a header is unspecified too *)
+Definition undef_v_def:
+ undef_v random_oracle i v =
+  case init_out_v random_oracle (i+1) v of
+  | (v_header boolv x_v_l, i') => (v_header (random_oracle i) x_v_l, i')
+  | (v', i') => (v', i')
+End
+
+(* The unspecified value of an out-of-bounds element n of a header stack *)
+Definition stack_el_oob_def:
+ stack_el_oob v_l n i random_oracle =
+  if n < LENGTH v_l
+  then NONE
+  else
+   (case v_l of
+    | (v::v_l') => SOME (undef_v random_oracle i v)
+    | [] => NONE)
+End
+
+(* As lookup_lval, but an out-of-bounds stack element reads as an unspecified value *)
+Definition read_lval_def:
+ (read_lval (ss:scope list) (lval_varname x) i random_oracle =
+  case lookup_v ss x of
+  | SOME v => SOME (v, i)
+  | NONE => NONE) /\
+ (read_lval ss (lval_field lval f) i random_oracle =
+  case read_lval ss lval i random_oracle of
+  | SOME (v, i') =>
+   (case acc_f v f of
+    | SOME v' => SOME (v', i')
+    | NONE => NONE)
+  | NONE => NONE) /\
+ (read_lval ss (lval_slice lval e1 e2) i random_oracle =
+  case read_lval ss lval i random_oracle of
+  | SOME (v_bit bitv, i') =>
+   (case slice_lval (v_bit bitv) e1 e2 of
+    | SOME v' => SOME (v', i')
+    | NONE => NONE)
+  | _ => NONE) /\
+ (read_lval ss (lval_index lval e) i random_oracle =
+  case read_lval ss lval i random_oracle of
+  | SOME (v_stack v_l i'', i') =>
+   (case e of
+    | e_v (v_bit (bl, n)) =>
+     (case oEL (v2n bl) v_l of
+      | SOME v => SOME (v, i')
+      | NONE => stack_el_oob v_l (v2n bl) i' random_oracle)
+    | _ => NONE)
+  | _ => NONE) /\
+ (read_lval ss lval_null i random_oracle = NONE) /\
+ (read_lval ss (lval_paren lval) i random_oracle = read_lval ss lval i random_oracle)
+End
+
+(* Saves the unspecified value of an argument with an out-of-bounds stack index *)
+Definition save_arg_oob_def:
+ save_arg_oob gsl ss e i random_oracle =
+  case get_lval_of_e e of
+  | SOME lval =>
+   (case lookup_lval (ss++gsl) lval of
+    | SOME v => NONE
+    | NONE =>
+     (case read_lval (ss++gsl) lval i random_oracle of
+      | SOME (v, i') => SOME (e_saved e v, i')
+      | NONE => NONE))
+  | NONE => NONE
+End
 
 (* Arguments of programmable blocks are not saved, so their value is looked up *)
 val arg_lval_v_def = Define `
@@ -1749,6 +1907,16 @@ val assign_def = Define `
                 | _ => NONE )
            | _ => NONE)
      | _ => NONE ) /\
+  (assign ss v (lval_index lval e) =
+    case lookup_lval ss lval of
+    | SOME (v_stack v_l i) =>
+      (case e of
+       | e_v (v_bit (bl, n)) =>
+         if v2n bl < LENGTH v_l
+         then assign ss (v_stack (LUPDATE v (v2n bl) v_l) i) lval
+         else NONE
+       | _ => NONE)
+    | _ => NONE) /\
   (assign ss v lval_null =
     SOME ss
   ) /\ (
@@ -1892,7 +2060,7 @@ val update_return_frame_def = Define `
            (case lookup_map ss_curr (varn_name x) of
             | SOME (v, str_opt) =>
               (case str_opt of
-               | SOME str => assign ss_temp v str
+               | SOME str => if lval_oob ss_temp str then SOME ss_temp else assign ss_temp v str
                | NONE => NONE)
             | _ => NONE)
           | NONE => NONE
@@ -2230,6 +2398,51 @@ Inductive e_sem:
  ==> 
 ( ( e_red ectx g_scope_list scope_list (e_acc (e_v (v_header boolv (f_v_list))) f) (e_v v)  ([], (NONE:num option))  )))
 
+[e_index_arg1:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (e':e) (e'':e) (e_red_res:e_red_res) .
+(clause_name "e_index_arg1") /\
+(( ( e_red ectx g_scope_list scope_list e e'' e_red_res )))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_index e e') (e_index e'' e') e_red_res )))
+
+[e_index_arg2:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (e:e) (e':e) (e_red_res:e_red_res) .
+(clause_name "e_index_arg2") /\
+(( ( e_red ectx g_scope_list scope_list e e' e_red_res )))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_index (e_v v) e) (e_index (e_v v) e') e_red_res )))
+
+[e_index_v:] (! (v_list:v list) (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (i:i) (bitv:bitv) (v:v) .
+(clause_name "e_index_v") /\
+(( (oEL (v2n (FST  bitv ))  (v_list)  = SOME  v ) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_index  ( (e_v (v_stack (v_list) i)) )  (e_v (v_bit bitv))) (e_v v)  ([], (NONE:num option))  )))
+
+[e_index_oob:] (! (v_list:v list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (i:i) (bitv:bitv) (v:v) (i_opt:i_opt) .
+(clause_name "e_index_oob") /\
+(( (?i_new. stack_el_oob  (v_list)  (v2n (FST  bitv ))  i'   random_oracle  = SOME ( v , i_new) /\  i_opt  = SOME i_new) ))
+ ==> 
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_index  ( (e_v (v_stack (v_list) i)) )  (e_v (v_bit bitv))) (e_v v)  (  ([]:frame list)   ,  i_opt )  )))
+
+[e_stack_size:] (! (v_list:v list) (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (i:i) (x:x) (bitv:bitv) .
+(clause_name "e_stack_size") /\
+(( ( x  = "size") ) /\
+( ( bitv  = (fixwidth 32 (n2v (LENGTH  (v_list) )), 32)) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_acc  ( (e_v (v_stack (v_list) i)) )  x) (e_v (v_bit bitv))  ([], (NONE:num option))  )))
+
+[e_stack_last_index:] (! (v_list:v list) (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (i:i) (x:x) (bitv:bitv) .
+(clause_name "e_stack_last_index") /\
+(( ( x  = "lastIndex") ) /\
+( (0 <  i  /\  bitv  = (fixwidth 32 (n2v ( i  - 1)), 32)) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_acc  ( (e_v (v_stack (v_list) i)) )  x) (e_v (v_bit bitv))  ([], (NONE:num option))  )))
+
+[e_stack_last_index_undef:] (! (v_list:v list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (i:i) (x:x) (bitv:bitv) (i_opt:i_opt) .
+(clause_name "e_stack_last_index_undef") /\
+(( ( x  = "lastIndex") ) /\
+( ( i  = 0 /\  bitv  = (get_oracle_calls 32  i'   random_oracle , 32) /\  i_opt  = SOME ( i'  + 32)) ))
+ ==> 
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_acc  ( (e_v (v_stack (v_list) i)) )  x) (e_v (v_bit bitv))  (  ([]:frame list)   ,  i_opt )  )))
+
 [e_sel_acc:] (! (s_list_x_list:(s_list#x) list) (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (x:x) (x':x) .
 (clause_name "e_sel_acc") /\
 (( x'  = sel  v   (s_list_x_list)   x ))
@@ -2509,6 +2722,32 @@ Inductive e_sem:
  ==> 
 ( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)))  ([], (NONE:num option))  )))
 
+[e_call_index:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (e_red_res:e_red_res) (i:i) (d:d) (e:e) (e'':e) (e''':e) (e':e) .
+(clause_name "e_call_index") /\
+(( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
+( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
+( ( d  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )  ) ) /\
+( (is_d_out  d ) ) /\
+( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
+( (e_unred_index  e  = SOME  e'' ) ) /\
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list e'' e''' e_red_res )) /\
+( ( e'  = e_update_index  e   e''' ) ) /\
+( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
+ ==> 
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list))) e_red_res )))
+
+[e_call_save_oob:] (! (e_e'_x_d_list:(e#e#x#d) list) (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (i':i) (random_oracle:random_oracle) (g_scope_list:g_scope_list) (scope_list:scope_list) (funn:funn) (i_opt:i_opt) (i:i) (d:d) (e:e) (e':e) .
+(clause_name "e_call_save_oob") /\
+(( (SOME  ((MAP (\(e_,e'_,x_,d_) . (x_,d_)) e_e'_x_d_list))  = lookup_funn_sig  funn   func_map   b_func_map   ext_map ) ) /\
+( (unred_arg_index   ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )     ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )   = SOME  i ) ) /\
+( ( d  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . d_) e_e'_x_d_list)) )  ) ) /\
+( (is_d_out  d ) ) /\
+( ( e  = EL  i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  ) ) /\
+( (?i_new. save_arg_oob  g_scope_list   scope_list   e   i'   random_oracle  = SOME ( e' , i_new) /\  i_opt  = SOME i_new) ) /\
+( (  ( ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)) )   =   (LUPDATE  e'   i    ( ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list)) )  )  ) ))
+ ==> 
+( ( e_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  i' ,  random_oracle )  g_scope_list scope_list (e_call funn ((MAP (\(e_,e'_,x_,d_) . e_) e_e'_x_d_list))) (e_call funn ((MAP (\(e_,e'_,x_,d_) . e'_) e_e'_x_d_list)))  (  ([]:frame list)   ,  i_opt )  )))
+
 [e_saved_v:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (e:e) (v:v) .
 (clause_name "e_saved_v")
  ==> 
@@ -2526,6 +2765,13 @@ Inductive stmt_sem:
 ( ( ( SOME  g_scope_list'  ,  SOME  scope_list''  ) = separate  scope_list'  ) ))
  ==> 
 ( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval (e_v v)))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list' ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list'' )   ])  ,  status_running )  )))
+
+[stmt_ass_oob:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (v:v) (scope_list:scope_list) .
+(clause_name "stmt_ass_oob") /\
+(( (lval_unred_index  lval  = NONE) ) /\
+( (lval_oob   (  ( scope_list  ++   (  g_scope_list  )  )  )    lval ) ))
+ ==> 
+( ( stmt_red ctx  ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval (e_v v)))]) )   ,  scope_list )   ])  ,  status_running )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([(stmt_empty)]) )   ,  scope_list )   ])  ,  status_running )  )))
 
 [stmt_seq1:] (! (ctx:'a ctx) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (stmt1:stmt) (stmt2:stmt) (scope_list:scope_list) (ascope':'a) (g_scope_list':g_scope_list) (frame_list:frame_list) (stmt_stack':stmt_stack) (stmt1':stmt) (scope_list':scope_list) .
 (clause_name "stmt_seq1") /\
@@ -2609,9 +2855,19 @@ Inductive stmt_sem:
  ==> 
 ( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ret e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ret e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
 
+[stmt_ass_lval:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (e:e) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (lval':lval) (e'':e) (ectx:'a ectx) (e''':e) .
+(clause_name "stmt_ass_lval") /\
+(( (lval_unred_index  lval  = SOME  e'' ) ) /\
+( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
+( ( e_red ectx g_scope_list scope_list e'' e'''  ( frame_list  ,  i_opt )  )) /\
+( ( lval'  = lval_update_index  lval   e''' ) ))
+ ==> 
+( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ass lval' e))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
+
 [stmt_ass_e:] (! (apply_table_f:'a apply_table_f) (ext_map:'a ext_map) (func_map:func_map) (b_func_map:b_func_map) (pars_map:pars_map) (tbl_map:tbl_map) (get_oracle_index:'a get_oracle_index) (set_oracle_index:'a set_oracle_index) (random_oracle:random_oracle) (ascope:'a) (g_scope_list:g_scope_list) (funn:funn) (lval:lval) (e:e) (scope_list:scope_list) (i_opt:i_opt) (frame_list:frame_list) (e':e) (ectx:'a ectx) .
 (clause_name "stmt_ass_e") /\
-(( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
+(( (lval_unred_index  lval  = NONE) ) /\
+( ( ectx  = get_ectx ( apply_table_f ,  ext_map ,  func_map ,  b_func_map ,  pars_map ,  tbl_map ,  get_oracle_index ,  set_oracle_index ,  random_oracle )  ascope ) ) /\
 ( ( e_red ectx g_scope_list scope_list e e'  ( frame_list  ,  i_opt )  )))
  ==> 
 ( ( stmt_red  ( apply_table_f ,  ext_map ,  func_map ,  b_func_map  ,  pars_map ,  tbl_map ,  get_oracle_index  ,  set_oracle_index  ,  random_oracle )   ( ascope ,  g_scope_list ,   ([   ( funn  ,   ( ([((stmt_ass lval e))]) )   ,  scope_list )   ])  ,  status_running )   (set_oracle_index  i_opt   ascope ,  g_scope_list ,   ( frame_list  ++   ([   ( funn  ,   ( ([((stmt_ass lval e'))]) )   ,  scope_list )   ])  )  ,  status_running )  )))
@@ -2804,6 +3060,25 @@ val bs_width_def = Define `
 val star_not_in_ts_def = Define `
 star_not_in_ts (s:t_scope) =
   ! f . (ALOOKUP s (varn_star f) = NONE)
+`;
+
+(* No header stack of size 0 in the type *)
+Definition tau_wf_def:
+ (tau_wf (tau_stack tau n) = (0 < n /\ tau_wf tau)) /\
+ (tau_wf (tau_xtl struct_ty x_tau_l) = EVERY tau_wf (MAP SND x_tau_l)) /\
+ (tau_wf _ = T)
+Termination
+WF_REL_TAC ‘measure tau_size’ >>
+rw[] >>
+gvs[listTheory.MEM_MAP] >>
+Cases_on ‘y’ >>
+imp_res_tac tau1_size_mem >>
+gs[]
+End
+
+val t_scope_wf_def = Define `
+t_scope_wf (s:t_scope) =
+  EVERY (\x. tau_wf (FST (SND x))) s
 `;
 
 val Err_not_in_ts_def = Define `
@@ -3111,6 +3386,13 @@ Inductive v_typ:
 (clause_name "v_typ_ext_ref")
  ==> 
 ( ( v_typ (v_ext_ref i) (t_tau tau_ext)  F  )))
+
+[v_typ_stack:] (! (v_list:v list) (i:i) (tau:tau) (w:i) .
+(clause_name "v_typ_stack") /\
+(( !i. (i< LENGTH   ( (v_list) )  ) ==> ( v_typ (EL i   ( (v_list) )  ) (t_tau  tau ) F ) ) /\
+( (LENGTH  (v_list)  =  w  /\ 0 <  w  /\  i  <=  w ) ))
+ ==> 
+( ( v_typ (v_stack (v_list) i) (t_tau (tau_stack tau  w ))  F  )))
 End
 (** definitions *)
 
@@ -3279,6 +3561,21 @@ Inductive e_typ:
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_acc e x) (t_tau tau)  b  )))
 
+[e_typ_index:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (e':e) (tau:tau) (b:b) (w':i) (w:i) (b':b) .
+(clause_name "e_typ_index") /\
+(( ( e_typ t_scopes_tup T_e e (t_tau (tau_stack tau  w' ))  b  )) /\
+( (0 <  w' ) ) /\
+( ( e_typ t_scopes_tup T_e e' (t_tau (tau_bit  w ))  b'  )))
+ ==> 
+( ( e_typ t_scopes_tup T_e (e_index e e') (t_tau tau)  b  )))
+
+[e_typ_stack_acc:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (x:x) (tau:tau) (w':i) (b:b) .
+(clause_name "e_typ_stack_acc") /\
+(( ( e_typ t_scopes_tup T_e e (t_tau (tau_stack tau  w' ))  b  )) /\
+( ( x  = "size" \/  x  = "lastIndex") ))
+ ==> 
+( ( e_typ t_scopes_tup T_e (e_acc e x) (t_tau (tau_bit  32 ))  F  )))
+
 [e_typ_concat:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (e':e) (w1:i) (w2:i) (b:b) (b':b) .
 (clause_name "e_typ_concat") /\
 (( ( e_typ t_scopes_tup T_e e (t_tau (tau_bit  w1 ))  b  )) /\
@@ -3363,6 +3660,7 @@ Inductive e_typ:
 [e_typ_saved:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (v:v) (t:t) .
 (clause_name "e_typ_saved") /\
 (( ( e_typ t_scopes_tup T_e e t  T  )) /\
+( (e_unred_index  e  = NONE) ) /\
 ( ( v_typ v t  F  )))
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_saved e v) t  T  )))
@@ -3394,6 +3692,14 @@ Inductive lval_typ:
 ( bits_length_check  w   w1   w2 ))
  ==> 
 ( ( lval_typ t_scopes_tup T_e (lval_slice lval (e_v (v_bit bitv)) (e_v (v_bit bitv'))) (t_tau (tau_bit  (   (   (   (   w1   -   w2   )   )   +   1   )   ) )) )))
+
+[lval_typ_index:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (lval:lval) (e:e) (tau:tau) (w':i) (w:i) (b:b) .
+(clause_name "lval_typ_index") /\
+(( ( lval_typ t_scopes_tup T_e lval (t_tau (tau_stack tau  w' )) )) /\
+( (0 <  w' ) ) /\
+( ( e_typ t_scopes_tup T_e e (t_tau (tau_bit  w ))  b  )))
+ ==> 
+( ( lval_typ t_scopes_tup T_e (lval_index lval e) (t_tau tau) )))
 End
 (** definitions *)
 
@@ -3431,6 +3737,7 @@ Inductive stmt_typ:
 (clause_name "stmt_typ_decl") /\
 (( ( lvalop_not_none  t_scope  ) ) /\
 ( (star_not_in_ts  t_scope ) ) /\
+( (t_scope_wf  t_scope ) ) /\
 ( ( stmt_typ  ( t_scope_list_g  ,   ( [  t_scope  ] ++  t_scope_list )  )  T_e Prs_n stmt )))
  ==> 
 ( ( stmt_typ  ( t_scope_list_g  ,  t_scope_list )  T_e Prs_n (stmt_block t_scope stmt) )))
@@ -3517,7 +3824,8 @@ val sig_tscope_consistent_def = Define ‘
 val t_scopes_consistent_def = Define ‘
     t_scopes_consistent T_e (t_scope_list_caller:t_scope_list) (t_scope_list_g: t_scope_list_g) (t_scope_list_called: t_scope_list) =
     ∀ x t lop. ALOOKUP (LAST t_scope_list_called) x = SOME (t, SOME lop) ⇒
-                       lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t)
+                       lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t) ∧
+                       lval_unred_index lop = NONE
 ’;
 
 (** definitions *)

@@ -150,7 +150,7 @@ Theorem fr_len_from_e_theorem:
 (! tup. fr_len_strexp_tup tup ty)
 Proof
 STRIP_TAC >>   
-Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >>
+Mutual.MUTUAL_INDUCT_TAC e_unred_index_mutual_induction >>
 fs[fr_len_exp_def] >>
 REPEAT STRIP_TAC >| [
  fs[Once e_sem_cases]
@@ -171,6 +171,8 @@ REPEAT STRIP_TAC >| [
  ,
  FR_LEN_IND_CASE “e_slice e e' e''” 
  ,
+ FR_LEN_IND_CASE “e_index e e'”
+ ,
  OPEN_EXP_RED_TAC “e_call f l” >>
  gvs[fr_len_exp_list_def] >>
 
@@ -180,6 +182,10 @@ REPEAT STRIP_TAC >| [
 
  gvs[EL_MEM] >>
  fs[fr_len_exp_def] >>      
+ RES_TAC >>
+ gvs[] >>
+ (* Header stack element *)
+ ‘MEM (EL i (MAP (λ(e_,e'_,x_,d_). e_) e_e'_x_d_list)) (MAP (λ(e_,e'_,x_,d_). e_) e_e'_x_d_list)’ by simp[EL_MEM] >>
  RES_TAC >>
  gvs[]
  ,
@@ -267,7 +273,13 @@ REPEAT GEN_TAC >>
 STRIP_TAC >| [
  fs[Once stmt_sem_cases]
  ,
- FR_LEN_STMT_IND_CASE “stmt_ass l e”
+ FR_LEN_STMT_IND_CASE “stmt_ass l e” >>
+ (* Header stack element *)
+ ASSUME_TAC fr_len_from_e_theorem >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty`])) >>
+ fs[fr_len_exp_def] >>
+ RES_TAC >>
+ gvs[]
  ,
  FR_LEN_STMT_IND_CASE “stmt_cond e stmt stmt'” 
  ,
@@ -390,6 +402,36 @@ fun INST_SR_EXP_FOR (e', tau, b) = FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [e
 
 
                                                                
+(* Replacing the unreduced stack index of an l-value preserves the type *)
+Theorem lval_update_index_typed:
+!lval e'' t_scopes_tup T_e t.
+lval_unred_index lval = SOME e'' /\
+lval_typ t_scopes_tup T_e lval t ==>
+?w b''. e_typ t_scopes_tup T_e e'' (t_tau (tau_bit w)) b'' /\
+ !e''' b'''. e_typ t_scopes_tup T_e e''' (t_tau (tau_bit w)) b''' ==>
+  lval_typ t_scopes_tup T_e (lval_update_index lval e''') t
+Proof
+Induct >> (
+ rpt strip_tac >>
+ gvs[lval_unred_index_def]
+) >> (
+ qpat_x_assum ‘lval_typ _ _ _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once lval_typ_cases]) >>
+ gvs[AllCaseEqs(), lval_update_index_def]
+) >~ [‘~is_const e’] >- (
+ first_assum $ irule_at Any >>
+ rpt strip_tac >>
+ simp[Once lval_typ_cases] >>
+ metis_tac[]
+) >> (
+ first_x_assum drule >>
+ strip_tac >>
+ first_assum $ irule_at Any >>
+ rpt strip_tac >>
+ simp[Once lval_typ_cases] >>
+ metis_tac[]
+)
+QED
+
 (* here we know that also the frame we create and trying to type is empty*)
 Theorem SR_stmt_newframe[local]:
 ∀ stmt stmtl ascope ascope' gscope gscope' (scopest:scope list) scopest' framel status status' t_scope_list t_scope_list_g T_e
@@ -412,7 +454,21 @@ REPEAT STRIP_TAC >| [
  IMP_RES_TAC fr_len_from_a_frame_theorem >| [
    (* if 1, then we also know that e made a reduction*)
    OPEN_ANY_STMT_RED_TAC >>
-   gvs[get_ectx_def] >>
+   gvs[get_ectx_def] >- (
+    (* Header stack element *)
+    EXP_IS_WT_IN_FRAME_TAC “[stmt_ass l e]” >>
+    gvs[lval_unred_index_def] >>
+    drule_all lval_update_index_typed >>
+    strip_tac >>
+    ASSUME_SR_EXP_FOR ‘e''’ >>
+    imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+    qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+    INST_SR_EXP_FOR (‘e'''’,‘t_tau (tau_bit w)’,‘b''’) >>
+    gvs[type_frame_tsl_def] >>
+    qexistsl_tac [‘t_scope_list_fr’] >>
+    drule frame_typ_imp_res_frame_single >>
+    gvs[]
+   ) >>
         
    (* we also know that e is well typed from frame typ *)  
    EXP_IS_WT_IN_FRAME_TAC “[stmt_ass l e]” >>
@@ -1117,6 +1173,8 @@ Theorem v_typ_deter:
 Proof
   
 STRIP_TAC >>
+‘(∀v. deter_v_typed v ty) ∧ (∀svl. deter_svl_typed svl ty) ∧
+ (∀sv. deter_sv_tup_typed sv ty) ∧ (∀vl. EVERY (λv. deter_v_typed v ty) vl)’ suffices_by simp[] >>
 Mutual.MUTUAL_INDUCT_TAC v_mutual_induction >>
 fs[deter_v_typed_def] >> 
 REPEAT STRIP_TAC >| [
@@ -1184,6 +1242,14 @@ REPEAT STRIP_TAC >| [
    (FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL[`(EL x (MAP (λ(x_,v_,tau_). v_) (x_v_tau_list' : (string # v # tau) list)))`])) >>
     rfs[EL_MEM] ) >>
  fs[deter_v_typed_def]
+ ,
+ (* Header stack *)
+ ntac 2 (OPEN_V_TYP_TAC “any v”) >>
+ Cases_on ‘vl’ >> (
+  gvs[]
+ ) >>
+ ntac 2 (first_x_assum (qspec_then ‘0’ assume_tac)) >>
+ gvs[]
  ,
  fs[Once v_typ_cases]
  ,
@@ -2141,7 +2207,7 @@ QED
 Theorem lval_typ_strct_lemma1[local]:
 ∀ tslg ts l T_e x_tau_list struct_ty.
 lval_typ (tslg,ts) T_e l (t_tau (tau_xtl struct_ty x_tau_list)) ⇒
-∃ varn lval x. l = lval_varname varn ∨ l = lval_field lval x
+∃ varn lval x e. l = lval_varname varn ∨ l = lval_field lval x ∨ l = lval_index lval e
 Proof
 fs[Once lval_typ_cases] >>
 REPEAT STRIP_TAC >>
@@ -2259,6 +2325,55 @@ QED
 
         
     
+(* The value of a well-typed l-value is well-typed *)
+Theorem lookup_lval_is_wt[local]:
+∀l v tau tslg tsl T_e gscope scopest.
+ type_scopes_list gscope tslg ∧
+ type_scopes_list scopest tsl ∧
+ star_not_in_sl scopest ∧
+ lval_typ (tslg,tsl) T_e l (t_tau tau) ∧
+ lookup_lval (scopest ⧺ gscope) l = SOME v ⇒
+  v_typ v (t_tau tau) F
+Proof
+Induct >>
+REPEAT STRIP_TAC >| [
+ IMP_RES_TAC lookup_lval_varn_is_wt
+ ,
+ fs[lookup_lval_def]
+ ,
+ OPEN_LVAL_TYP_TAC “lval_field l s” >>
+ gvs[lookup_lval_def, AllCaseEqs()] >>
+ first_x_assum drule_all >>
+ strip_tac >>
+ IMP_RES_TAC acc_struct_val_typed
+ ,
+ OPEN_LVAL_TYP_TAC “lval_slice l e0 e” >>
+ gvs[lookup_lval_def, AllCaseEqs()] >>
+ first_x_assum drule_all >>
+ strip_tac >>
+ fs[Once v_typ_cases] >>
+ PairCases_on ‘bitv’ >>
+ PairCases_on ‘bitv'’ >>
+ gvs[slice_lval_def] >>
+ gvs[bits_length_check_def] >>
+ gvs[slice_def] >>
+ gvs[bitv_bitslice_def] >>
+ gvs[vec_to_const_def, bs_width_def, clause_name_def]
+ ,
+ OPEN_LVAL_TYP_TAC “lval_index l e” >>
+ gvs[lookup_lval_def, AllCaseEqs()] >>
+ first_x_assum drule_all >>
+ strip_tac >>
+ OPEN_V_TYP_TAC “any” >>
+ gvs[oEL_EQ_EL]
+ ,
+ OPEN_LVAL_TYP_TAC “lval_paren l” >>
+ gvs[]
+]
+QED
+
+
+
 Theorem lookup_struct_is_wt[local]:
 ∀l v tslg ts x_tau_list T_e struct_ty tsl gscope scopest.
  type_scopes_list gscope tslg ∧                                   
@@ -2282,6 +2397,9 @@ IMP_RES_TAC lval_typ_strct_lemma1 >> gvs[] >| [
  [`x`, ‘tslg’, ‘x_tau_list'’, ‘T_e’, ‘struct_ty'’, ‘tsl’, ‘gscope’, ‘scopest’])) >> gvs[] >>
 
  IMP_RES_TAC acc_struct_val_typed 
+ ,
+ (* Header stack element *)
+ IMP_RES_TAC lookup_lval_is_wt
 ]
 QED
 
@@ -2471,6 +2589,9 @@ gvs[Once lval_typ_cases] >| [
  gvs[bitv_bitslice_def] >>
  gvs[vec_to_const_def, bs_width_def, clause_name_def]
  ,
+ (* Header stack element *)
+ IMP_RES_TAC lookup_lval_is_wt
+ ,
 
   OPEN_LVAL_TYP_TAC “lval_paren l” >> gvs[]
 
@@ -2614,6 +2735,22 @@ STRIP_TAC >| [
  gvs[] >>
 
  IMP_RES_TAC bit_slice_typed  >> gvs[]
+ ,
+
+ (* Header stack element *)
+ Q.PAT_X_ASSUM `lval_typ (tslg,tsl) T_e (lval_index l e) (t_tau tau)`
+               (STRIP_ASSUME_TAC o  SIMP_RULE (srw_ss()) [Once lval_typ_cases] ) >>
+ gvs[assign_def, AllCaseEqs()] >>
+ subgoal ‘v_typ (v_stack (LUPDATE v (v2n bl) v_l) i) (t_tau (tau_stack tau w')) F’ >- (
+  drule_all lookup_lval_is_wt >>
+  strip_tac >>
+  qpat_x_assum ‘v_typ (v_stack _ _) _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once v_typ_cases]) >>
+  simp[Once v_typ_cases, clause_name_def] >>
+  rw[EL_LUPDATE]
+ ) >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+ [‘scopest’, ‘tsl’,‘gscope’, ‘tslg’, ‘T_e’, ‘scopest'’, ‘gscope'’, ‘tau_stack tau w'’, ‘assigned_sl’, ‘v_stack (LUPDATE v (v2n bl) v_l) i’])) >>
+ gvs[]
  ,
 
  OPEN_LVAL_TYP_TAC “(lval_paren l)” >> rfs[]
@@ -2879,6 +3016,28 @@ STRIP_TAC >|  [
      IMP_RES_TAC assign_to_null_same_scl >>
      gvs[]            
     ]                 
+   ,
+   (* Out-of-bounds header stack element *)
+   SIMP_TAC list_ss [Once stmt_typ_cases] >>
+   gvs[clause_name_def] >>
+   fs[type_frame_tsl_def]
+   ,
+   (* Header stack element *)
+   OPEN_STMT_TYP_TAC “stmt_ass l e” >>
+   gvs[lval_unred_index_def, get_ectx_def] >>
+   drule_all lval_update_index_typed >>
+   strip_tac >>
+   ASSUME_SR_EXP_FOR ‘e''’ >>
+   imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+   qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+   INST_SR2_EXP_FOR (‘e'''’, ‘t_tau (tau_bit w)’, ‘b''’, ‘framel’) >>
+   SIMP_TAC list_ss [Once stmt_typ_cases] >>
+   gvs[clause_name_def, type_frame_tsl_def] >>
+   disj1_tac >>
+   qexistsl_tac [‘tau'’, ‘b’] >>
+   simp[] >>
+   first_x_assum irule >>
+   first_assum $ irule_at Any
    ,
    (* SR_e case*)
 
@@ -3318,6 +3477,7 @@ QED
 Definition init_from_tau_typed_def:
  init_from_tau_typed t (ty:'a itself) =
   !random_oracle i.
+  tau_wf t ==>
   v_typ (FST $ init_from_tau random_oracle i t) (t_tau t) F
 End
 
@@ -3585,6 +3745,28 @@ gs[ZIP_FRONT]
 QED
 
 
+Theorem FOLDL_init_from_tau_stack_typed[local]:
+!n acc i random_oracle tau.
+ (!random_oracle i. v_typ (FST $ init_from_tau random_oracle i tau) (t_tau tau) F) ==>
+ EVERY (\v. v_typ v (t_tau tau) F) acc ==>
+ ?acc' i'.
+  FOLDL (\(v_l, i') tau'. let (v, i'') = init_from_tau random_oracle i' tau' in (v::v_l, i'')) (acc, i) (REPLICATE n tau) = (acc', i') /\
+  LENGTH acc' = LENGTH acc + n /\
+  EVERY (\v. v_typ v (t_tau tau) F) acc'
+Proof
+Induct >> (
+ gs[]
+) >>
+rpt strip_tac >>
+Cases_on ‘init_from_tau random_oracle i tau’ >>
+gs[] >>
+‘v_typ q (t_tau tau) F’ by metis_tac[FST] >>
+first_x_assum (qspecl_then [‘q::acc’, ‘r’, ‘random_oracle’, ‘tau’] mp_tac) >>
+gs[] >>
+strip_tac >>
+gs[ADD1]
+QED
+
 Theorem init_from_tau_is_typed:
 !(ty:'a itself).
  (∀t. init_from_tau_typed t ty ) ∧
@@ -3598,7 +3780,7 @@ Mutual.MUTUAL_INDUCT_TAC tau_mutual_induction >~ [‘∀s. init_from_tau_typed (
  rpt strip_tac >>
  Cases_on ‘s’ >>
  Cases_on ‘l’ >>
- gvs[init_from_tau_def, Once v_typ_cases, clause_name_def] >| [
+ gvs[init_from_tau_def, Once v_typ_cases, clause_name_def, tau_wf_def] >| [
   (* struct case *)
 
   (* Step 1: The witness is the original list of IDs, zipped with the values from init_from_tau,
@@ -3724,6 +3906,7 @@ Mutual.MUTUAL_INDUCT_TAC tau_mutual_induction >~ [‘∀s. init_from_tau_typed (
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL (PRE i') t`])) >>
        subgoal ‘PRE i' < LENGTH t’ >- rfs[] >>
        subgoal ‘MEM (EL (PRE i') t) t’ >- gvs[EL_MEM] >>
+       subgoal ‘tau_wf (SND (EL (PRE i') t))’ >- gvs[EVERY_EL, EL_MAP] >>
        gvs[init_from_tau_typed_def] >>
        Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
        (* First, obtain that q is the first element, then grab the tail of the resulting
@@ -3871,6 +4054,7 @@ Mutual.MUTUAL_INDUCT_TAC tau_mutual_induction >~ [‘∀s. init_from_tau_typed (
        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`EL (PRE i') t`])) >>
        subgoal ‘PRE i' < LENGTH t’ >- rfs[] >>
        subgoal ‘MEM (EL (PRE i') t) t’ >- gvs[EL_MEM] >>
+       subgoal ‘tau_wf (SND (EL (PRE i') t))’ >- gvs[EVERY_EL, EL_MAP] >>
        gvs[init_from_tau_typed_def] >>
        Cases_on ‘init_from_tau random_oracle i h1’ >> gs[] >>
        (* First, obtain that q is the first element, then grab the tail of the resulting
@@ -3902,7 +4086,19 @@ Mutual.MUTUAL_INDUCT_TAC tau_mutual_induction >~ [‘∀s. init_from_tau_typed (
        metis_tac[FOLDL_init_from_tau_oracle_index]
        ]                              
    ]
- ] ) >> (
+ ] ) >~ [‘∀n. init_from_tau_typed (tau_stack t n) ty’] >- (
+ (* Header stack *)
+ gvs[init_from_tau_typed_def, tau_wf_def] >>
+ rpt strip_tac >>
+ gvs[] >>
+ drule FOLDL_init_from_tau_stack_typed >>
+ disch_then (qspecl_then [‘n’, ‘[]’, ‘i’, ‘random_oracle’] mp_tac) >>
+ simp[] >>
+ strip_tac >>
+ simp[init_from_tau_def, Once v_typ_cases, clause_name_def] >>
+ rpt strip_tac >>
+ gs[EVERY_EL, EL_REVERSE]
+) >> (
  TRY (
    gvs[init_stl_from_tau_typed_def, init_st_tup_from_tau_typed_def] >>
    REPEAT STRIP_TAC >> gvs[] ) >>
@@ -3918,7 +4114,7 @@ QED
                                                  
 
 Theorem declare_similar:
-  ∀l i random_oracle.   lvalop_not_none l ⇒
+  ∀l i random_oracle.   lvalop_not_none l ∧ t_scope_wf l ⇒
         similar (λ(v,lop1) (t,lop2). v_typ v (t_tau t) F ∧ lop1 = lop2) (FST $ declare_list_in_fresh_scope (l, i, random_oracle)) l
 Proof              
 Induct >> (
@@ -3926,7 +4122,7 @@ Induct >> (
  gvs[declare_list_in_fresh_scope_def, declare_list_in_scope_def, similar_def]
 ) >>
 qpat_x_assum ‘!i. _’ (assume_tac o Q.SPECL [‘i’, ‘random_oracle’]) >>
-gvs[lvalop_not_none_def] >>
+gvs[lvalop_not_none_def, t_scope_wf_def] >>
 PairCases_on ‘h’ >> gvs[] >>
 assume_tac init_from_tau_is_typed >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`ty` ])) >>
@@ -3950,7 +4146,7 @@ QED
         
         
 Theorem declare_typed:
-  ∀ l i random_oracle. lvalop_not_none l ⇒
+  ∀ l i random_oracle. lvalop_not_none l ∧ t_scope_wf l ⇒
         type_scopes_list [FST $ declare_list_in_fresh_scope (l, i, random_oracle)] [l]
 Proof
 gvs[type_scopes_list_def] >>

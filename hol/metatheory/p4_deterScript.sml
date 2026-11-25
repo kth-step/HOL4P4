@@ -137,6 +137,88 @@ QED
 
 
 
+(* An l-value with a stack index that is not a value has no value *)
+Theorem lval_unred_index_lookup_lval[local]:
+!lval e ss.
+lval_unred_index lval = SOME e ==>
+lookup_lval ss lval = NONE
+Proof
+Induct_on ‘lval’ >> (
+ rw[lval_unred_index_def, lookup_lval_def]
+) >> (
+ Cases_on ‘lval_unred_index lval’ >> (
+  gvs[]
+ ) >>
+ Cases_on ‘e’ >> (
+  gvs[is_const_def] >>
+  rpt CASE_TAC
+ )
+)
+QED
+
+Theorem lval_unred_index_read_lval[local]:
+!lval e ss i random_oracle.
+lval_unred_index lval = SOME e ==>
+read_lval ss lval i random_oracle = NONE
+Proof
+Induct_on ‘lval’ >> (
+ rw[lval_unred_index_def, read_lval_def]
+) >> (
+ Cases_on ‘lval_unred_index lval’ >> (
+  gvs[]
+ ) >>
+ Cases_on ‘e’ >> (
+  gvs[is_const_def] >>
+  rpt CASE_TAC
+ )
+)
+QED
+
+Theorem e_unred_index_get_lval_of_e[local]:
+!e e'' lval.
+e_unred_index e = SOME e'' /\
+get_lval_of_e e = SOME lval ==>
+?e'. lval_unred_index lval = SOME e'
+Proof
+recInduct e_unred_index_ind >>
+rw[e_unred_index_def, get_lval_of_e_def] >> (
+ gvs[AllCaseEqs(), lval_unred_index_def]
+) >>
+Cases_on ‘lval_unred_index lval'’ >> (
+ simp[]
+)
+QED
+
+Theorem e_unred_index_save_arg[local]:
+!e e'' gsl ss.
+e_unred_index e = SOME e'' ==>
+save_arg gsl ss e = NONE
+Proof
+rw[save_arg_def] >>
+Cases_on ‘get_lval_of_e e’ >> (
+ simp[]
+) >>
+imp_res_tac e_unred_index_get_lval_of_e >>
+imp_res_tac lval_unred_index_lookup_lval >>
+simp[]
+QED
+
+Theorem e_unred_index_save_arg_oob[local]:
+!e e'' gsl ss i random_oracle.
+e_unred_index e = SOME e'' ==>
+save_arg_oob gsl ss e i random_oracle = NONE
+Proof
+rw[save_arg_oob_def] >>
+Cases_on ‘get_lval_of_e e’ >> (
+ simp[]
+) >>
+imp_res_tac e_unred_index_get_lval_of_e >>
+imp_res_tac lval_unred_index_lookup_lval >>
+imp_res_tac lval_unred_index_read_lval >>
+simp[]
+QED
+
+
 (*determinism proof of expressions*)
 
 val det_call_newframe_tac =
@@ -206,6 +288,23 @@ IMP_RES_TAC lemma_MAP2 >>
 `i = i''` by METIS_TAC [ option_case_def]>> rw[] >> rfs[] >>
 gvs[same_frame_exp_def];
 
+(* An argument is saved in one way only, and not at all with an unreduced index *)
+val det_call_save_tac =
+det_call_same_index_tac >>
+imp_res_tac e_unred_index_save_arg >>
+imp_res_tac e_unred_index_save_arg_oob >>
+gvs[save_arg_def, save_arg_oob_def, AllCaseEqs()];
+
+(* Both reductions are of the unreduced index of the same argument *)
+val det_call_index_tac =
+det_call_same_index_tac >>
+imp_res_tac unred_arg_index_in_range >>
+imp_res_tac EL_MEM >>
+res_tac >>
+fs[det_exp_def] >>
+res_tac >>
+gvs[same_frame_exp_def];
+
 Theorem P4_exp_det:
  ! (ty:'a itself) .
 (!  e .          det_exp e ty) /\
@@ -215,7 +314,16 @@ Theorem P4_exp_det:
 Proof
 
 STRIP_TAC >>
-Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >|[
+(* Strengthened with the index that e_call_index reduces *)
+‘(!e. det_exp e ty /\ !e''. e_unred_index e = SOME e'' ==> det_exp e'' ty) /\
+ (!l1. det_exp_list l1 ty /\ !e e''. MEM e l1 /\ e_unred_index e = SOME e'' ==> det_exp e'' ty) /\
+ (!l2. det_strexp_list l2 ty) /\
+ (!tup. det_strexp_tup tup ty)’ suffices_by (
+ simp[]
+) >>
+Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >> (
+ fs[e_unred_index_def]
+) >|[
 
 (*****************************)
 (*       e_v case            *)
@@ -356,6 +464,25 @@ FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def]
 ,
 
 (*****************************)
+(*         e_index           *)
+(*****************************)
+reverse conj_tac >- (
+ rpt strip_tac >>
+ gvs[AllCaseEqs()]
+) >>
+NTAC 2 (SIMP_TAC (srw_ss()) [det_exp_def] >>
+REPEAT STRIP_TAC >>
+OPEN_EXP_RED_TAC ``e_index e e'`` >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >>
+RW_TAC (srw_ss()) []) >>
+FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall, same_frame_exp_def] >>
+RES_TAC >>
+FULL_SIMP_TAC (srw_ss()) [same_frame_exp_def] >> (
+ gvs[stack_el_oob_def, oEL_THM]
+)
+,
+
+(*****************************)
 (*    e_func_call            *)
 (*****************************) 
 SIMP_TAC (srw_ss()) [det_exp_def] >>
@@ -369,6 +496,8 @@ OPEN_EXP_RED_TAC ``(e_call s l)`` >>
 RW_TAC (srw_ss()) [] >| [
  det_call_newframe_tac,
  det_call_newframe_other_tac,
+ det_call_newframe_other_tac,
+ det_call_newframe_other_tac,
  det_call_newframe_other_tac
 ]
 ,
@@ -377,6 +506,8 @@ OPEN_EXP_RED_TAC ``(e_call s l)`` >>
 RW_TAC (srw_ss()) [] >| [
  det_call_newframe_other_tac,
  det_call_args_tac,
+ det_call_same_index_tac,
+ det_call_same_index_tac,
  det_call_same_index_tac
 ]
 ,
@@ -385,6 +516,28 @@ OPEN_EXP_RED_TAC ``(e_call s l)`` >>
 RW_TAC (srw_ss()) [] >| [
  det_call_newframe_other_tac,
  det_call_same_index_tac,
+ det_call_same_index_tac,
+ det_call_save_tac,
+ det_call_save_tac
+]
+,
+(* e'' by call_index *)
+OPEN_EXP_RED_TAC ``(e_call s l)`` >>
+RW_TAC (srw_ss()) [] >| [
+ det_call_newframe_other_tac,
+ det_call_same_index_tac,
+ det_call_save_tac,
+ det_call_index_tac,
+ det_call_save_tac
+]
+,
+(* e'' by call_save_oob *)
+OPEN_EXP_RED_TAC ``(e_call s l)`` >>
+RW_TAC (srw_ss()) [] >| [
+ det_call_newframe_other_tac,
+ det_call_same_index_tac,
+ det_call_save_tac,
+ det_call_save_tac,
  det_call_same_index_tac
 ]
 ]
@@ -533,7 +686,8 @@ FULL_SIMP_TAC list_ss [det_exp_list_def]
 (*****************************)
 FULL_SIMP_TAC list_ss [det_exp_list_def] >>
 REPEAT STRIP_TAC >>
-rw []
+rw [] >>
+res_tac
 ,
 
 (*****************************)
@@ -591,6 +745,81 @@ QED
 (**************************************************)
 (**************************************************)
 
+(* No assignment to an l-value with a stack index that is not a value *)
+Theorem lval_unred_index_assign[local]:
+!lval e ss v.
+lval_unred_index lval = SOME e ==>
+assign ss v lval = NONE
+Proof
+Induct_on ‘lval’ >> (
+ rw[lval_unred_index_def, assign_def]
+) >| [
+ imp_res_tac lval_unred_index_lookup_lval >>
+ simp[],
+
+ imp_res_tac lval_unred_index_lookup_lval >>
+ simp[] >>
+ CASE_TAC,
+
+ Cases_on ‘lval_unred_index lval’ >> (
+  gvs[]
+ ) >>
+ imp_res_tac lval_unred_index_lookup_lval >>
+ simp[],
+
+ Cases_on ‘lval_unred_index lval’ >> (
+  gvs[]
+ ) >- (
+  Cases_on ‘e’ >> (
+   gvs[is_const_def] >>
+   rpt CASE_TAC
+  )
+ ) >>
+ imp_res_tac lval_unred_index_lookup_lval >>
+ simp[]
+]
+QED
+
+Theorem lval_oob_lookup_lval[local]:
+!lval ss.
+lval_oob ss lval ==>
+lookup_lval ss lval = NONE
+Proof
+Induct_on ‘lval’ >> (
+ rw[lval_oob_def, lookup_lval_def]
+) >- (
+ res_tac >>
+ simp[]
+) >>
+rpt CASE_TAC >> (
+ gvs[oEL_THM]
+)
+QED
+
+Theorem lval_oob_assign[local]:
+!lval ss v.
+lval_oob ss lval ==>
+assign ss v lval = NONE
+Proof
+Induct_on ‘lval’ >> (
+ rw[lval_oob_def, assign_def]
+) >| [
+ imp_res_tac lval_oob_lookup_lval >>
+ simp[],
+
+ imp_res_tac lval_oob_lookup_lval >>
+ simp[] >>
+ CASE_TAC,
+
+ imp_res_tac lval_oob_lookup_lval >>
+ simp[],
+
+ rpt CASE_TAC >> (
+  gvs[]
+ )
+]
+QED
+
 Theorem P4_stmt_det:
  !stmt ty. det_stmt stmt ty
 Proof 
@@ -636,7 +865,11 @@ rw[] >>
 ASSUME_TAC P4_exp_det >>
 fs [det_exp_def]  >>
 RES_TAC >>
-fs [same_frame_exp_def]
+fs [same_frame_exp_def] >> (
+ imp_res_tac lval_oob_assign >>
+ imp_res_tac lval_unred_index_assign >>
+ gvs[]
+)
 
 ,
 

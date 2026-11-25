@@ -382,7 +382,8 @@ QED
 val co_wf_arg_def = Define ‘
 co_wf_arg d x (ts_curr_local: t_scope list) passed_tslg pre_ts T_e =                         
 (is_d_out d ⇒ ∃ t lval.  lookup_map ts_curr_local (varn_name x) = SOME (t, SOME lval) ∧
-                            lval_typ (passed_tslg,pre_ts) T_e lval (t_tau t) ) ’;
+                            lval_typ (passed_tslg,pre_ts) T_e lval (t_tau t) ∧
+                            lval_unred_index lval = NONE ) ’;
 
 
 
@@ -480,7 +481,7 @@ LENGTH ss > 0   ⇒
               case lookup_map [LAST curr_sc] (varn_name x) of
                 NONE => NONE
               | SOME (v5,NONE) => NONE
-              | SOME (v5,SOME str) => assign ss_temp v5 str)
+              | SOME (v5,SOME str) => if lval_oob ss_temp str then SOME ss_temp else assign ss_temp v5 str)
      (SOME (ss))
      (xdl) ≠ SOME []
 Proof
@@ -492,6 +493,9 @@ Cases_on ‘lookup_map [LAST curr_sc] (varn_name h0)’ >> gvs[] >>
 IMP_RES_TAC co_none >>
 PairCases_on ‘x’ >> gvs[]>>        
 Cases_on ‘x1’ >> gvs[] >- IMP_RES_TAC co_none >>
+Cases_on ‘lval_oob ss x’ >> (
+ gvs[]
+) >>
 Cases_on ‘assign ss x0 x’ >- IMP_RES_TAC co_none >>
 FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘x'’,‘curr_sc’])) >>
 gvs[] >> IMP_RES_TAC assign_re_LENGTH
@@ -631,6 +635,14 @@ Cases_on ‘is_d_none_in h1’ >> gvs[] >| [
       PairCases_on ‘t'’ >> gvs[]
       ) >> gvs[] >> 
               
+    (* Out-of-bounds header stack element *)
+    Cases_on ‘lval_oob (pre_local ⧺ pre_gscope_passed) lval’ >> (
+      gvs[]
+    ) >- (
+      FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘pre_local’, ‘pre_gscope_passed’, ‘LASTcurr_local’, ‘pre_passed_tslg’,
+                                                  ‘pre_tsl’, ‘LASTcurr_local_ts’, ‘T_e’])) >>
+      gvs[]
+    ) >>
 
      (* now we know that typying a value, is teh same as ttyping an expression value with respect to ANY typing scopes and T_e *)
 

@@ -191,6 +191,17 @@ REPEAT GEN_TAC >> STRIP_TAC >| [
  SIMP_TAC list_ss [Once e_typ_cases] >> gvs[clause_name_def] >>
  srw_tac [SatisfySimps.SATISFY_ss][]
  ,
+ (* Header stack element *)
+ OPEN_LVAL_TYP_TAC “lval_index l e” >>
+ gvs[] >>
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`t_tau (tau_stack tau' w')`, ‘gtsl’,‘tsl’,‘T_e’])) >>
+ gvs[] >>
+ Q.EXISTS_TAC ‘e_index e' e’ >>
+ gvs[get_lval_of_e_def, is_e_lval_def] >>
+ SIMP_TAC list_ss [Once e_typ_cases] >>
+ gvs[clause_name_def] >>
+ srw_tac [SatisfySimps.SATISFY_ss][]
+ ,
  OPEN_LVAL_TYP_TAC “(lval_paren l)”  >> gvs[] 
   ]
 QED
@@ -234,7 +245,9 @@ star_not_in_sl scopest ∧
 type_scopes_list gscope t_scope_list_g ∧
 type_scopes_list scopest t_scope_list  ∧                
 e_typ (t_scope_list_g,t_scope_list) T_e (e_v v) (t_tau tau) b ∧
-lval_typ (t_scope_list_g,t_scope_list) T_e  l (t_tau tau) ⇒
+lval_typ (t_scope_list_g,t_scope_list) T_e  l (t_tau tau) ∧
+lval_unred_index l = NONE ∧
+¬lval_oob (scopest ⧺ gscope) l ⇒
 
  ∃scopest' gscope' scope_list'.
           SOME scope_list' = assign (scopest ⧺ gscope) v l ∧
@@ -281,7 +294,7 @@ gvs[Once e_typ_cases]  >| [
  (*lval feild *)
 
 
- OPEN_LVAL_TYP_TAC “(lval_field l s)” >> gvs[] >>
+ OPEN_LVAL_TYP_TAC “(lval_field l s)” >> gvs[lval_unred_index_def, lval_oob_def] >>
           
  IMP_RES_TAC lval_typ_imp_e_typ >>
  ASSUME_TAC e_lval_WT >> gvs[] >>
@@ -356,7 +369,7 @@ gvs[Once e_typ_cases]  >| [
   ,
   (* slice *)
                      
-  OPEN_LVAL_TYP_TAC “(lval_slice l e0 e)” >> gvs[] >>
+  OPEN_LVAL_TYP_TAC “(lval_slice l e0 e)” >> gvs[lval_unred_index_def, lval_oob_def] >>
                     
        
   IMP_RES_TAC lval_typ_imp_e_typ >>
@@ -393,6 +406,37 @@ gvs[Once e_typ_cases]  >| [
     gvs[vec_to_const_def, bs_width_def]                     
     ]
   ,
+  (* Header stack element *)
+  OPEN_LVAL_TYP_TAC “(lval_index l e)” >>
+  gvs[lval_unred_index_def, lval_oob_def] >>
+  Cases_on ‘lval_unred_index l’ >> (
+   gvs[]
+  ) >>
+  Cases_on ‘e’ >> (
+   gvs[is_const_def]
+  ) >>
+  IMP_RES_TAC lval_typ_imp_e_typ >>
+  ASSUME_TAC e_lval_WT >>
+  gvs[] >>
+  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`e`, ‘t_tau (tau_stack tau w')’,‘t_scope_list_g’,‘gscope’,‘t_scope_list’, ‘scopest’, ‘T_e’])) >>
+  gvs[] >>
+  OPEN_V_TYP_TAC ‘anything’ >>
+  gvs[] >>
+  qpat_x_assum ‘e_typ _ _ (e_v v') _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once e_typ_cases]) >>
+  qpat_x_assum ‘v_typ v' _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once v_typ_cases]) >>
+  PairCases_on ‘bitv’ >>
+  gvs[assign_def] >>
+  gvs[Once e_typ_cases] >>
+  IMP_RES_TAC v_typ_always_lval >>
+  gvs[] >>
+  subgoal ‘v_typ (v_stack (LUPDATE v (v2n bitv0) v_list) i) (t_tau (tau_stack tau (LENGTH v_list))) F’ >- (
+   simp[Once v_typ_cases, clause_name_def] >>
+   rw[EL_LUPDATE]
+  ) >>
+  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [`scopest`, ‘gscope’,‘t_scope_list’,‘t_scope_list_g’, ‘tau_stack tau (LENGTH (v_list : v list))’, ‘F’, ‘v_stack (LUPDATE v (v2n bitv0) v_list) i’, ‘T_e’])) >>
+  gvs[] >>
+  srw_tac [SatisfySimps.SATISFY_ss][]
+  ,
 
    (*lval paren *)     
     OPEN_LVAL_TYP_TAC “(lval_paren l)” >> gvs[]
@@ -412,6 +456,18 @@ gvs[Once stmt_typ_cases]
    
                                                   
 
+(* The first stack index that is not a value is not a value *)
+Theorem lval_unred_index_not_const[local]:
+!lval e.
+lval_unred_index lval = SOME e ==>
+~is_const e
+Proof
+Induct >> (
+ rw[lval_unred_index_def] >>
+ gvs[AllCaseEqs()]
+)
+QED
+
 Theorem PROG_stmt:
   ∀ ty stmt. prog_stmt stmt ty
 Proof
@@ -426,6 +482,31 @@ REPEAT STRIP_TAC >| [
  (*****************************)
 
  SIMP_TAC list_ss [Once stmt_sem_cases] >> gvs[] >>
+ reverse (Cases_on ‘lval_unred_index l’) >- (
+  (* Header stack element *)
+  gvs[clause_name_def] >>
+  gvs[Once frame_typ_cases] >>
+  gvs[Once stmtl_typ_cases] >>
+  gvs[type_ith_stmt_def] >>
+  gvs[Once stmt_typ_cases, lval_unred_index_def] >>
+  drule_all lval_update_index_typed >>
+  strip_tac >>
+  imp_res_tac lval_unred_index_not_const >>
+  ‘prog_exp x ty’ by simp[PROG_e] >>
+  gvs[prog_exp_def] >>
+  PairCases_on ‘c’ >>
+  gvs[] >>
+  rename1 ‘(apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+            get_oracle_index,set_oracle_index,random_oracle)’ >>
+  gvs[get_ectx_def] >>
+  imp_res_tac $ GEN_ALL $ fst $ EQ_IMP_RULE $ SPEC_ALL WT_c_ec >>
+  qpat_x_assum ‘!oracle_index. _’ (fn thm => assume_tac $ Q.SPEC ‘get_oracle_index ascope’ thm) >>
+  ‘∃e' framel.
+    e_red (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+           get_oracle_index ascope,random_oracle) gscope scopest x e' framel’ by metis_tac[] >>
+  PairCases_on ‘framel’ >>
+  metis_tac[]
+ ) >>
  Cases_on `is_const e` >| [
 
    gvs[is_const_val_exsist, clause_name_def, lemma_v_red_forall] >>
@@ -440,9 +521,13 @@ REPEAT STRIP_TAC >| [
    ‘LENGTH t_scope_list_g = LENGTH gscope’ by ( IMP_RES_TAC type_scopes_list_LENGTH >> gvs[] ) >>
    ‘LENGTH scopest >= 1’ by ( METIS_TAC[type_scopes_list_LENGTH])   >| [
      gvs[clause_name_def] >>
+     Cases_on ‘lval_oob (scopest ⧺ gscope) l’ >- (
+      (* Out-of-bounds header stack element *)
+      srw_tac [boolSimps.DNF_ss][]
+     ) >>
      srw_tac [SatisfySimps.SATISFY_ss][assignment_scope_exists]        
      ,
-     gvs[assign_def] >>
+     gvs[assign_def, lval_oob_def] >>
      ‘LENGTH (scopest ⧺ gscope) >= 3 ’ by simp[] >>
      drule separate_exists >> REPEAT STRIP_TAC >> srw_tac [SatisfySimps.SATISFY_ss][]
       ]       

@@ -247,6 +247,18 @@ Proof
  fs [listTheory.EL_restricted]
 QED
 
+Theorem e_unred_index_size:
+!e e'.
+e_unred_index e = SOME e' ==>
+e_size e' < e_size e
+Proof
+recInduct e_unred_index_ind >>
+rw[e_unred_index_def, e_size_def] >>
+gvs[AllCaseEqs()] >>
+res_tac >>
+decide_tac
+QED
+
 Theorem unred_arg_index_in_range:
  !d_l e_l i. unred_arg_index d_l e_l = SOME i ==> i < LENGTH e_l
 Proof
@@ -2642,6 +2654,10 @@ Induct_on ‘lval’ >> (
  Cases_on ‘assign_to_slice p p' e0 e’ >> (
   fs[]
  ) >>
+ res_tac,
+
+ rpt strip_tac >>
+ gvs[AllCaseEqs()] >>
  res_tac,
 
  metis_tac[]

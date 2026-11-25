@@ -213,6 +213,19 @@ Cases_on `status` >> (
  fs[stmt_exec_def]
 ) >>
 fs[exec_stmt_ass_SOME_REWRS] >>
+reverse (Cases_on ‘lval_unred_index lval’) >> (
+ fs[]
+) >- (
+ (* stmt_ass_lval *)
+ Cases_on `stmt_stack` >| [
+  ALL_TAC,
+
+  irule (specl_stmt_block_exec ``stmt_ass lval e`` ``frame_list'':frame_list`` ``[stmt_ass (lval_update_index lval e''') e]``) >>
+  fs[clause_name_def]
+ ] >> (
+  metis_tac[((valOf o find_clause_stmt_red) "stmt_ass_lval"), clause_name_def, get_ectx_def, e_exec_sound_red, e_exec_sound]
+ )
+) >>
 Cases_on `is_v e` >> (
  fs[]
 ) >| [
@@ -227,6 +240,12 @@ Cases_on `is_v e` >> (
   irule (specl_stmt_block_exec ``stmt_ass lval (e_v v)`` ``[]:frame_list`` ``[stmt_empty]``) >>
   fs[clause_name_def]
  ] >> (
+  Cases_on ‘lval_oob (scope_list++g_scope_list) lval’ >> (
+   fs[]
+  ) >- (
+   irule ((valOf o find_clause_stmt_red) "stmt_ass_oob") >>
+   fs[clause_name_def]
+  ) >>
   irule ((valOf o find_clause_stmt_red) "stmt_ass_v") >>
   fs[clause_name_def]
  ),

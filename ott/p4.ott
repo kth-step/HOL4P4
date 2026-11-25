@@ -60,6 +60,8 @@ num_exp :: num_exp ::=
 {{ com expressions with numerals }}
 | 1 :: M :: one
   {{ hol 1 }}
+| 32 :: M :: thirtytwo
+  {{ hol 32 }}
 | i :: M :: i
   {{ hol [[i]] }}
 | n :: M :: n
@@ -116,6 +118,8 @@ v :: v_ ::=
   {{ com struct }}
 | header boolv { x1 = v1 ; ... ; xn = vn } :: :: header
   {{ com header }}
+| stack [ v1 , .. , vn ] i :: :: stack
+  {{ com header stack with its nextIndex }}
 %Error messages are now serialised as 32-bit 0, 1, 2, ... based on order of declaration.
 %| errmsg x :: :: err
 %  {{ com error message }}
@@ -364,6 +368,8 @@ e :: e_ ::=
 | e1 [ e2 : e3 ] :: :: slice
   %TODO: Should this instead have two values as 2nd and 3rd params?
   {{ com bit-slice }}
+| e1 [ e2 ] :: :: index
+  {{ com header stack element }}
 | call funn ( e1 , .. , en ) :: :: call
   {{ com function or extern call }}
 | select e { s_list1 : x1 ; ... ; s_listn : xn } x :: :: select
@@ -421,6 +427,8 @@ lval :: lval_ ::=
   {{ com field access }}
 | lval [ e1 : e2 ]  :: :: slice
   {{ com slice array }}  
+| lval [ e ] :: :: index
+  {{ com header stack element }}
 | ( lval ) :: X :: paren
   {{ hol ([[lval]]) }}
 
@@ -597,6 +605,8 @@ tau {{ tex \tau }} :: tau_ ::=
   {{ tex \bot}}
 | struct_ty [ x1 tau1 , .. , xn taun ] :: :: xtl
   {{ com struct }}
+| stack tau num_exp :: :: stack
+  {{ com header stack of the given size }}
 | ext :: :: ext
   {{ com extern }}
 
