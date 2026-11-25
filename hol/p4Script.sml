@@ -1618,6 +1618,38 @@ Definition get_oracle_calls_def:
  )
 End
 
+(* Struct, header or header stack value *)
+Definition v_composite_def:
+ (v_composite (v_struct x_v_l) = T) /\
+ (v_composite (v_header boolv x_v_l) = T) /\
+ (v_composite (v_stack v_l i) = T) /\
+ (v_composite _ = F)
+End
+
+(* Equality (==) of values: invalid headers are equal, nextIndex of a stack is not compared *)
+Definition v_eq_def:
+ (v_eq (v_varbit bitv w) (v_varbit bitv' w') = (bitv = bitv')) /\
+ (v_eq (v_struct x_v_l) (v_struct x_v_l') = v_eq_fields x_v_l x_v_l') /\
+ (v_eq (v_header boolv x_v_l) (v_header boolv' x_v_l') =
+  if boolv /\ boolv'
+  then v_eq_fields x_v_l x_v_l'
+  else (~boolv /\ ~boolv')) /\
+ (v_eq (v_stack v_l i) (v_stack v_l' i') = v_eq_list v_l v_l') /\
+ (v_eq v v' = (v = v')) /\
+ (v_eq_fields [] [] = T) /\
+ (v_eq_fields ((x, v)::x_v_l) ((x', v')::x_v_l') =
+  (x = x' /\ v_eq v v' /\ v_eq_fields x_v_l x_v_l')) /\
+ (v_eq_fields _ _ = F) /\
+ (v_eq_list [] [] = T) /\
+ (v_eq_list (v::v_l) (v'::v_l') = (v_eq v v' /\ v_eq_list v_l v_l')) /\
+ (v_eq_list _ _ = F)
+Termination
+WF_REL_TAC ‘measure ( \ x. case x of
+                            | INL (v, v') => v_size v
+                            | INR (INL (x_v_l, x_v_l')) => list_size (pair_size (list_size char_size) v_size) x_v_l
+                            | INR (INR (v_l, v_l')) => list_size v_size v_l)’
+End
+
 Definition init_out_v_def:
  (init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
@@ -2654,6 +2686,13 @@ Inductive e_sem:
  ==> 
 ( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_bool  b )) binop_neq (e_v (v_bool  b' ))) (e_v (v_bool  b'' ))  ([], (NONE:num option))  )))
 
+[e_neq_composite:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (v':v) (b:b) .
+(clause_name "e_neq_composite") /\
+(( (v_composite  v ) ) /\
+( (~(v_eq  v   v' ) <=>  b ) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_binop (e_v v) binop_neq (e_v v')) (e_v (v_bool  b ))  ([], (NONE:num option))  )))
+
 [e_eq:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (b:b) .
 (clause_name "e_eq") /\
 (( (( bitv  =  bitv' ) <=>  b ) ))
@@ -2671,6 +2710,13 @@ Inductive e_sem:
 (( ( b  =  b'  <=>  b'' ) ))
  ==> 
 ( ( e_red ectx g_scope_list scope_list (e_binop (e_v (v_bool  b )) binop_eq (e_v (v_bool  b' ))) (e_v (v_bool  b'' ))  ([], (NONE:num option))  )))
+
+[e_eq_composite:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (v:v) (v':v) (b:b) .
+(clause_name "e_eq_composite") /\
+(( (v_composite  v ) ) /\
+( (v_eq  v   v'  <=>  b ) ))
+ ==> 
+( ( e_red ectx g_scope_list scope_list (e_binop (e_v v) binop_eq (e_v v')) (e_v (v_bool  b ))  ([], (NONE:num option))  )))
 
 [e_and:] (! (ectx:'a ectx) (g_scope_list:g_scope_list) (scope_list:scope_list) (bitv:bitv) (bitv':bitv) (bitv'':bitv) .
 (clause_name "e_and") /\
@@ -3299,6 +3345,13 @@ is_eq_op (oper:binop) =
 (oper = binop_neq))
 End
 
+(* Struct, header or header stack type *)
+Definition tau_composite_def:
+ (tau_composite (tau_xtl struct_ty x_tau_l) = T) /\
+ (tau_composite (tau_stack tau n) = T) /\
+ (tau_composite _ = F)
+End
+
 (* returns true if the operation is conducted between two bools and returns bool*)
 val is_bool_op_def = Define `
 is_bool_op (oper:binop) =
@@ -3641,6 +3694,15 @@ Inductive e_typ:
 (( ( e_typ t_scopes_tup T_e e (t_tau (tau_varbit  w ))  b  )) /\
 ( ( e_typ t_scopes_tup T_e e' (t_tau (tau_varbit  w ))  b'  )) /\
 ( is_eq_op  binop ))
+ ==> 
+( ( e_typ t_scopes_tup T_e (e_binop e binop e') (t_tau tau_bool)  F  )))
+
+[e_typ_binop_composite_bool:] (! (t_scopes_tup:t_scopes_tup) (T_e:T_e) (e:e) (binop:binop) (e':e) (tau:tau) (b:b) (b':b) .
+(clause_name "e_typ_binop_composite_bool") /\
+(( ( e_typ t_scopes_tup T_e e (t_tau tau)  b  )) /\
+( ( e_typ t_scopes_tup T_e e' (t_tau tau)  b'  )) /\
+( is_eq_op  binop ) /\
+( (tau_composite  tau ) ))
  ==> 
 ( ( e_typ t_scopes_tup T_e (e_binop e binop e') (t_tau tau_bool)  F  )))
 

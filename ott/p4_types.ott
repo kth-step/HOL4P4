@@ -421,6 +421,13 @@ is_eq_op (oper:binop) =
 (oper = binop_neq))
 End
 
+(* Struct, header or header stack type *)
+Definition tau_composite_def:
+ (tau_composite (tau_xtl struct_ty x_tau_l) = T) /\
+ (tau_composite (tau_stack tau n) = T) /\
+ (tau_composite _ = F)
+End
+
 (* returns true if the operation is conducted between two bools and returns bool*)
 val is_bool_op_def = Define `
 is_bool_op (oper:binop) =
@@ -775,6 +782,14 @@ t_scopes_tup T_e |-  e   : ( varbit w , b )
 t_scopes_tup T_e |-  e'  : ( varbit w , b' )
 is_eq_op binop
 ------------------------------------ :: binop_varbit_bool
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
+t_scopes_tup T_e |-  e   : ( tau , b )
+t_scopes_tup T_e |-  e'  : ( tau , b' )
+is_eq_op binop
+tau_composite ( tau )
+------------------------------------ :: binop_composite_bool
 t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 

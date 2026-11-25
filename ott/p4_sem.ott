@@ -167,6 +167,14 @@ formula :: formula_ ::=
   {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
+| v_composite ( v ) :: M :: v_composite
+  {{ com struct, header or header stack value }}
+  {{ hol (v_composite [[v]]) }}
+| v_eq ( v , v' ) = b :: M :: v_eq
+  {{ com equality of struct, header and header stack values }}
+  {{ hol (v_eq [[v]] [[v']] <=> [[b]]) }}
+| v_neq ( v , v' ) = b :: M :: v_neq
+  {{ hol (~(v_eq [[v]] [[v']]) <=> [[b]]) }}
 | ( x EQ x' ) = b :: M :: eq_error
   {{ com equality over strings - used for errors }}
   {{ hol (([[x]] = [[x']]) = [[b]]) }}
@@ -694,6 +702,9 @@ formula :: formula_ ::=
   {{ hol is_bv_bool_op [[binop]]}}
 | is_eq_op binop :: :: is_eq_op
   {{ hol is_eq_op [[binop]]}}
+| tau_composite ( tau ) :: :: tau_composite
+  {{ com struct, header or header stack type }}
+  {{ hol (tau_composite [[tau]]) }}
 | is_bool_op binop :: :: is_bool_op   
   {{ hol is_bool_op [[binop]]}}
 | is_err_bool binop :: :: is_err_bool
@@ -2142,6 +2153,38 @@ Definition get_oracle_calls_def:
  )
 End
 
+(* Struct, header or header stack value *)
+Definition v_composite_def:
+ (v_composite (v_struct x_v_l) = T) /\
+ (v_composite (v_header boolv x_v_l) = T) /\
+ (v_composite (v_stack v_l i) = T) /\
+ (v_composite _ = F)
+End
+
+(* Equality (==) of values: invalid headers are equal, nextIndex of a stack is not compared *)
+Definition v_eq_def:
+ (v_eq (v_varbit bitv w) (v_varbit bitv' w') = (bitv = bitv')) /\
+ (v_eq (v_struct x_v_l) (v_struct x_v_l') = v_eq_fields x_v_l x_v_l') /\
+ (v_eq (v_header boolv x_v_l) (v_header boolv' x_v_l') =
+  if boolv /\ boolv'
+  then v_eq_fields x_v_l x_v_l'
+  else (~boolv /\ ~boolv')) /\
+ (v_eq (v_stack v_l i) (v_stack v_l' i') = v_eq_list v_l v_l') /\
+ (v_eq v v' = (v = v')) /\
+ (v_eq_fields [] [] = T) /\
+ (v_eq_fields ((x, v)::x_v_l) ((x', v')::x_v_l') =
+  (x = x' /\ v_eq v v' /\ v_eq_fields x_v_l x_v_l')) /\
+ (v_eq_fields _ _ = F) /\
+ (v_eq_list [] [] = T) /\
+ (v_eq_list (v::v_l) (v'::v_l') = (v_eq v v' /\ v_eq_list v_l v_l')) /\
+ (v_eq_list _ _ = F)
+Termination
+WF_REL_TAC ‘measure ( \ x. case x of
+                            | INL (v, v') => v_size v
+                            | INR (INL (x_v_l, x_v_l')) => list_size (pair_size (list_size char_size) v_size) x_v_l
+                            | INR (INR (v_l, v_l')) => list_size v_size v_l)’
+End
+
 Definition init_out_v_def:
  (init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
@@ -3200,6 +3243,11 @@ b NE b' = b''
 ----------------------------------- :: neq_bool
 ectx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 
+v_composite ( v )
+v_neq ( v , v' ) = b
+----------------------------------- :: neq_composite
+ectx g_scope_list scope_list ( v NE v' ) ~> ( b , empty )
+
 
 %%%%%%%%%%%%%
 %Equal
@@ -3215,6 +3263,11 @@ ectx g_scope_list scope_list ( varbit bitv w EQ varbit bitv' w' ) ~> ( b , empty
 b EQ b' = b''
 ----------------------------------- :: eq_bool
 ectx g_scope_list scope_list ( b EQ b' ) ~> ( b'' , empty )
+
+v_composite ( v )
+v_eq ( v , v' ) = b
+----------------------------------- :: eq_composite
+ectx g_scope_list scope_list ( v EQ v' ) ~> ( b , empty )
 
 
 %%%%%%%%%%%%%

@@ -360,13 +360,26 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [e_exec_def] >>
   rw []
  ) >>
+ (* Equality of struct, header and header stack values *)
+ Cases_on `v_composite v` >- (
+  Cases_on `e2` >> (
+   fs [is_v_def]
+  ) >>
+  gvs [e_exec_binop_def, AllCaseEqs()] >| [
+   irule ((valOf o find_clause_e_red) "e_neq_composite"),
+
+   irule ((valOf o find_clause_e_red) "e_eq_composite")
+  ] >> (
+   fs [clause_name_def]
+  )
+ ) >>
  (* Different concrete cases *)
  Cases_on `b` >> (
   Cases_on `e2` >> (
    fs [is_v_def]
   ) >>
   Cases_on `v` >> Cases_on `v'` >> (
-   fs [e_exec_binop_def, binop_exec_def]
+   fs [e_exec_binop_def, binop_exec_def, v_composite_def]
   ) >>
   rw []
  ) >| [

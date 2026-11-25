@@ -1899,7 +1899,7 @@ rpt strip_tac >>
    OPEN_V_TYP_TAC ``v`` >>
    OPEN_EXP_TYP_TAC ``(e_v v')`` >> gvs[] >>
    OPEN_V_TYP_TAC ``v'`` >>
-   fs[] >>
+   fs[tau_composite_def, v_composite_def] >>
 
    ASSUME_TAC bv_bv_bool_prog >> gvs[is_bv_bool_op_def]>>
    ASSUME_TAC bv_bv_prog >> gvs[is_bv_op_def]
@@ -1996,6 +1996,17 @@ rpt strip_tac >>
    LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
    [‘gscope’, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
     ‘t_tau (tau_varbit w)’, ‘b''’, ‘c’, ‘order’, ‘delta_g’,
+    ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >>
+   gvs[] >>
+   gvs[is_const_val_exsist] >>
+   srw_tac [SatisfySimps.SATISFY_ss][]
+   ,
+
+   (* both IH of is_eq_op b on structs, headers and header stacks *)
+   fs[prog_exp_def] >>
+   LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+   [‘gscope’, ‘scopest’, ‘t_scope_list’, ‘t_scope_list_g’,
+    ‘t_tau tau'’, ‘b''’, ‘c’, ‘order’, ‘delta_g’,
     ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f’, ‘Prs_n’])) >>
    gvs[] >>
    gvs[is_const_val_exsist] >>

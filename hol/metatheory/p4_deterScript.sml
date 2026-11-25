@@ -434,7 +434,7 @@ OPEN_EXP_RED_TAC ``(e_binop a b c)`` >>
 RW_TAC (srw_ss()) [] >>
 IMP_RES_TAC lemma_v_red_forall >>
 FULL_SIMP_TAC (srw_ss()) [det_exp_def,lemma_v_red_forall, same_frame_exp_def, option_case_def] >>
-FULL_SIMP_TAC (srw_ss()) [is_short_circuitable_def] )
+FULL_SIMP_TAC (srw_ss()) [is_short_circuitable_def, v_composite_def] )
 ,
 
 (*****************************)

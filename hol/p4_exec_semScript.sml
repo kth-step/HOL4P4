@@ -173,7 +173,14 @@ Definition binop_exec_def:
 End
 
 Definition e_exec_binop_def:
- (e_exec_binop (e_v v1) binop (e_v v2) = binop_exec binop v1 v2)
+ (e_exec_binop (e_v v1) binop (e_v v2) =
+  if v_composite v1
+  then
+   (case binop of
+    | binop_eq => SOME (v_bool (v_eq v1 v2))
+    | binop_neq => SOME (v_bool (~v_eq v1 v2))
+    | _ => NONE)
+  else binop_exec binop v1 v2)
   /\
  (e_exec_binop _ _ _ = NONE)
 End
