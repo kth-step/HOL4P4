@@ -113,6 +113,9 @@ fun dest_v_struct_fields strct =
  (map (snd o dest_pair)) $ fst $ dest_list $ dest_v_struct strct
 ;
 
+val (v_stack_tm, mk_v_stack, dest_v_stack, is_v_stack) =
+  syntax_fns2 "p4" "v_stack";
+
 val (v_header_tm, mk_v_header, dest_v_header, is_v_header) =
   syntax_fns2 "p4" "v_header";
 fun mk_v_header_list vbit x_v_l =
@@ -135,6 +138,15 @@ val mk_lval_varname = (#2 (syntax_fns1 "p4" "lval_varname")) o mk_varn_name o fr
 val (lval_field_tm, _, dest_lval_field, is_lval_field) =
   syntax_fns2 "p4" "lval_field";
 val mk_lval_field = (fn (e, f) => (#2 (syntax_fns2 "p4" "lval_field")) (e, fromMLstring f));
+
+val (lval_slice_tm, mk_lval_slice, dest_lval_slice, is_lval_slice) =
+  syntax_fns3 "p4" "lval_slice";
+
+val (lval_index_tm, mk_lval_index, dest_lval_index, is_lval_index) =
+  syntax_fns2 "p4" "lval_index";
+
+val (lval_paren_tm, mk_lval_paren, dest_lval_paren, is_lval_paren) =
+  syntax_fns1 "p4" "lval_paren";
 
 val lval_null_tm = prim_mk_const {Name="lval_null", Thy="p4"};
 fun is_lval_null tm = term_eq tm lval_null_tm;
@@ -211,6 +223,9 @@ val (e_concat_tm,  mk_e_concat, dest_e_concat, is_e_concat) =
 
 val (e_slice_tm,  mk_e_slice, dest_e_slice, is_e_slice) =
   syntax_fns3 "p4" "e_slice";
+
+val (e_index_tm,  mk_e_index, dest_e_index, is_e_index) =
+  syntax_fns2 "p4" "e_index";
 
 val (e_acc_tm, mk_e_acc_tmp, dest_e_acc, is_e_acc) =
   syntax_fns2 "p4" "e_acc";
@@ -296,6 +311,9 @@ val mk_tau_varbit =
   mk_tau_varbit_tmp o (fn n => term_of_int n);
 val dest_tau_varbit =
   int_of_term o dest_tau_varbit_tmp;
+
+val (tau_stack_tm, mk_tau_stack, dest_tau_stack, is_tau_stack) =
+  syntax_fns2 "p4" "tau_stack";
 
 val (tau_xtl_tm, mk_tau_xtl_tmp, dest_tau_xtl, is_tau_xtl) =
   syntax_fns2 "p4" "tau_xtl";

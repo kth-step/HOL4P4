@@ -224,6 +224,66 @@ fun get_funn_dirs funn (func_map, b_func_map, ext_fun_map) =
  end
 ;
 
+(* Selects the first stack index of an l-value that is not a value, as lval_unred_index does *)
+fun lval_unred_index_syntax_f lval =
+ if is_lval_index lval
+ then
+  let
+   val (lval', e) = dest_lval_index lval
+  in
+   (case lval_unred_index_syntax_f lval' of
+      SOME f => SOME (f o fst o dest_lval_index)
+    | NONE => if is_e_v e then NONE else SOME (snd o dest_lval_index))
+  end
+ else if is_lval_field lval
+ then
+  (case lval_unred_index_syntax_f (fst $ dest_lval_field lval) of
+     SOME f => SOME (f o fst o dest_lval_field)
+   | NONE => NONE)
+ else if is_lval_slice lval
+ then
+  (case lval_unred_index_syntax_f (#1 $ dest_lval_slice lval) of
+     SOME f => SOME (f o #1 o dest_lval_slice)
+   | NONE => NONE)
+ else if is_lval_paren lval
+ then
+  (case lval_unred_index_syntax_f (dest_lval_paren lval) of
+     SOME f => SOME (f o dest_lval_paren)
+   | NONE => NONE)
+ else NONE
+;
+
+(* Does the expression contain a header stack element access outside values? *)
+fun contains_e_index e =
+ if is_e_v e orelse is_e_var e
+ then false
+ else if is_e_index e
+ then true
+ else if is_e_acc e
+ then contains_e_index $ fst $ dest_e_acc e
+ else if is_e_cast e
+ then contains_e_index $ snd $ dest_e_cast e
+ else if is_e_unop e
+ then contains_e_index $ snd $ dest_e_unop e
+ else if is_e_binop e
+ then (contains_e_index $ #1 $ dest_e_binop e) orelse (contains_e_index $ #3 $ dest_e_binop e)
+ else if is_e_concat e
+ then (contains_e_index $ fst $ dest_e_concat e) orelse (contains_e_index $ snd $ dest_e_concat e)
+ else if is_e_slice e
+ then contains_e_index $ #1 $ dest_e_slice e
+ else if is_e_call e
+ then exists contains_e_index $ fst $ dest_list $ snd $ dest_e_call e
+ else if is_e_struct e
+ then exists contains_e_index $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e
+ else if is_e_header e
+ then exists contains_e_index $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e
+ else if is_e_select e
+ then contains_e_index $ #1 $ dest_e_select e
+ else if is_e_saved e
+ then contains_e_index $ fst $ dest_e_saved e
+ else false
+;
+
 fun is_arg_red (arg, dir) =
  if (is_d_out dir orelse is_d_inout dir)
  then is_e_saved arg (* Must be saved *)
@@ -349,6 +409,24 @@ fun e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e =
        SOME f => SOME (f o fst o dest_e_concat)
      | NONE => NONE)
   end
+ else if is_e_index e
+ then
+  let
+   val (e', e'') = dest_e_index e
+  in
+   if is_e_v e'
+   then
+    if is_e_v e''
+    then SOME (fn e => e)
+    else
+     (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e'' of
+        SOME f => SOME (f o snd o dest_e_index)
+      | NONE => NONE)
+   else
+    (case e_get_next_subexp_syntax_f (func_map, b_func_map, ext_fun_map) e' of
+       SOME f => SOME (f o fst o dest_e_index)
+     | NONE => NONE)
+  end
  else if is_e_slice e
  then
   let
@@ -465,9 +543,13 @@ fun stmt_get_next_e_syntax_f (func_map, b_func_map, ext_fun_map) stmt =
   let
    val (lval, e) = dest_stmt_ass stmt
   in
-   if is_e_v e
-   then NONE
-   else SOME (snd o dest_stmt_ass)
+   (* The stack indices of the l-value are reduced before the right-hand side *)
+   (case lval_unred_index_syntax_f lval of
+      SOME f => SOME (f o fst o dest_stmt_ass)
+    | NONE =>
+     if is_e_v e
+     then NONE
+     else SOME (snd o dest_stmt_ass))
   end
  else if is_stmt_cond stmt
  then
@@ -1258,6 +1340,10 @@ val (fty_map, b_fty_map) = preprocess_ftymaps (basic_ftymap, basic_blftymap)
       then SOME (approx_packet_in_extract fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "extract_varbit")
       then SOME (approx_packet_in_extract_varbit fv_index path_tm scope_list ascope)
+      else if (ext_obj = "packet_in") andalso (ext_method = "extract_next")
+      then approx_packet_in_extract_next fv_index path_tm scope_list ascope
+      else if (ext_obj = "packet_in") andalso (ext_method = "extract_varbit_next")
+      then approx_packet_in_extract_varbit_next fv_index path_tm scope_list ascope
       else if (ext_obj = "packet_in") andalso (ext_method = "lookahead")
       then SOME (approx_packet_in_lookahead fv_index path_tm scope_list ascope)
       else if (ext_obj = "packet_in") andalso (ext_method = "advance")
@@ -1382,6 +1468,18 @@ fun dbg_print_e_red (func_map, b_func_map, ext_fun_map) e =
    then
     if is_e_v e''
     then print (String.concat ["\nReducing bit-string concatenation...\n\n"])
+    else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e''
+   else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e'
+  end
+ else if is_e_index e
+ then
+  let
+   val (e', e'') = dest_e_index e
+  in
+   if is_e_v e'
+   then
+    if is_e_v e''
+    then print (String.concat ["\nReducing header stack element access...\n\n"])
     else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e''
    else dbg_print_e_red (func_map, b_func_map, ext_fun_map) e'
   end
@@ -1555,65 +1653,78 @@ datatype e_shortcut_data =
 
 (* TODO: Actually, both this and the bigstep semantics should be able
  * to look inside expressions that are not shortcuttable *)
-fun p4_e_is_shortcuttable e =
+fun p4_e_is_shortcuttable' e =
  (* Shortcuttable expressions *)
  if is_e_var e
  then e_shortcut
  else if is_e_acc e
  then
-  (case p4_e_is_shortcuttable $ fst $ dest_e_acc e of
+  (case p4_e_is_shortcuttable' $ fst $ dest_e_acc e of
      e_no_shortcut e' => e_no_shortcut e'
    | _ => e_shortcut)
  else if is_e_cast e
  then
-  (case p4_e_is_shortcuttable $ snd $ dest_e_cast e of
+  (case p4_e_is_shortcuttable' $ snd $ dest_e_cast e of
      e_no_shortcut e' => e_no_shortcut e'
    | _ => e_shortcut)
  else if is_e_unop e
  then
-  (case p4_e_is_shortcuttable $ snd $ dest_e_unop e of
+  (case p4_e_is_shortcuttable' $ snd $ dest_e_unop e of
      e_no_shortcut e' => e_no_shortcut e'
    | _ => e_shortcut)
  else if is_e_binop e
  then
-  (case p4_e_is_shortcuttable $ #1 $ dest_e_binop e of
+  (case p4_e_is_shortcuttable' $ #1 $ dest_e_binop e of
      e_no_shortcut e' => e_no_shortcut e'
    | e_shortcut => e_shortcut
    | e_fully_reduced =>
-    (case p4_e_is_shortcuttable $ #3 $ dest_e_binop e of
+    (case p4_e_is_shortcuttable' $ #3 $ dest_e_binop e of
        e_no_shortcut e' => e_no_shortcut e'
      | e_shortcut => e_shortcut
      | e_fully_reduced => e_shortcut))
  (* TODO: Fix concat and slicing *)
  else if is_e_concat e
- then p4_e_is_shortcuttable $ fst $ dest_e_concat e
+ then p4_e_is_shortcuttable' $ fst $ dest_e_concat e
  else if is_e_slice e
- then p4_e_is_shortcuttable $ #1 $ dest_e_slice e
+ then p4_e_is_shortcuttable' $ #1 $ dest_e_slice e
  (* Expressions with shortcuttable subexpressions *)
 (* TODO: Requires keeping track of argument direction in big-step semantics
  else if is_e_call e
- then p4_e_l_is_shortcuttable $ fst $ dest_list $ snd $ dest_e_call e
+ then p4_e_l_is_shortcuttable' $ fst $ dest_list $ snd $ dest_e_call e
 *)
  else if is_e_struct e
  then
-  (case p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e of
+  (case p4_e_l_is_shortcuttable' $ ((map (snd o dest_pair)) o fst o dest_list) $ dest_e_struct e of
      e_no_shortcut e' => e_no_shortcut e'
    | _ => e_shortcut)
  else if is_e_header e
  then
-  (case p4_e_l_is_shortcuttable $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e of
+  (case p4_e_l_is_shortcuttable' $ ((map (snd o dest_pair)) o fst o dest_list) $ snd $ dest_e_header e of
      e_no_shortcut e' => e_no_shortcut e'
    | _ => e_shortcut)
  else if is_e_select e
- then p4_e_is_shortcuttable $ #1 $ dest_e_select e
+ then p4_e_is_shortcuttable' $ #1 $ dest_e_select e
  else if is_e_v e
  then e_fully_reduced
  else (e_no_shortcut e)
-and p4_e_l_is_shortcuttable (h::t) =
+and p4_e_l_is_shortcuttable' (h::t) =
  if is_e_v h
- then p4_e_l_is_shortcuttable t
- else p4_e_is_shortcuttable h
-  | p4_e_l_is_shortcuttable [] = e_fully_reduced
+ then p4_e_l_is_shortcuttable' t
+ else p4_e_is_shortcuttable' h
+  | p4_e_l_is_shortcuttable' [] = e_fully_reduced
+;
+
+(* The big-step semantics does not reduce header stack element accesses *)
+fun p4_e_is_shortcuttable e =
+ if contains_e_index e
+ then e_no_shortcut e
+ else p4_e_is_shortcuttable' e
+;
+
+fun p4_e_l_is_shortcuttable e_l =
+ case List.find contains_e_index e_l of
+   SOME e => e_no_shortcut e
+ | NONE => p4_e_l_is_shortcuttable' e_l
 ;
 
 datatype stmt_shortcut_data =
@@ -1629,8 +1740,12 @@ fun p4_is_shortcuttable' stmt =
  if is_stmt_ass stmt
  then
   let
-   val e = snd $ dest_stmt_ass stmt
+   val (lval, e) = dest_stmt_ass stmt
   in
+   (* Big steps do not reduce the stack indices of an l-value *)
+   if isSome (lval_unred_index_syntax_f lval)
+   then stmt_no_shortcut_stmt stmt
+   else
    (case p4_e_is_shortcuttable e of
       e_no_shortcut e' => if is_e_call e then stmt_no_shortcut_e e' else stmt_no_shortcut_stmt stmt
     | _ => stmt_shortcut)
@@ -1785,6 +1900,11 @@ fun contains_e_call e =
  (* TODO: Fix concat and slicing *)
  else if is_e_concat e
  then contains_e_call $ fst $ dest_e_concat e
+ else if is_e_index e
+ then
+  if contains_e_call $ fst $ dest_e_index e
+  then true
+  else contains_e_call $ snd $ dest_e_index e
  else if is_e_slice e
  then contains_e_call $ #1 $ dest_e_slice e
  else if is_e_call e
@@ -1809,6 +1929,7 @@ and contains_e_call_list (h::t) =
 fun p4_is_f_arg_shortcuttable (func_map, b_func_map, ext_fun_map) e =
  (* TODO: Currently, nested calls are not handled by the bigstep semantics and must be ruled out here. *)
  if is_e_call e andalso (not $ contains_e_call_list $ fst $ dest_list $ snd $ dest_e_call e)
+    andalso (not $ contains_e_index e)
  then
   if next_arg_is_unsaved_out (func_map, b_func_map, ext_fun_map) e
   then res_f_args_shortcut

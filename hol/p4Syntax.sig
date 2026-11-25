@@ -55,6 +55,11 @@ val mk_v_struct_list : (term * term) list -> term
 
 val dest_v_struct_fields : term -> term list
 
+val dest_v_stack : term -> term * term
+val is_v_stack : term -> bool
+val mk_v_stack : term * term -> term
+val v_stack_tm : term
+
 val dest_v_header : term -> term * term
 val is_v_header : term -> bool
 val mk_v_header : term * term -> term
@@ -74,6 +79,21 @@ val dest_lval_field : term -> term * term
 val is_lval_field : term -> bool
 val lval_field_tm : term
 val mk_lval_field : term * string -> term
+
+val dest_lval_slice : term -> term * term * term
+val is_lval_slice : term -> bool
+val lval_slice_tm : term
+val mk_lval_slice : term * term * term -> term
+
+val dest_lval_index : term -> term * term
+val is_lval_index : term -> bool
+val lval_index_tm : term
+val mk_lval_index : term * term -> term
+
+val dest_lval_paren : term -> term
+val is_lval_paren : term -> bool
+val lval_paren_tm : term
+val mk_lval_paren : term -> term
 
 val lval_null_tm : term
 val is_lval_null : term -> bool
@@ -155,6 +175,11 @@ val binop_xor_tm : term
 val binop_or_tm : term
 val binop_bin_and_tm : term
 val binop_bin_or_tm : term
+
+val dest_e_index : term -> term * term
+val e_index_tm : term
+val is_e_index : term -> bool
+val mk_e_index : term * term -> term
 
 val dest_e_concat : term -> term * term
 val e_concat_tm : term
@@ -347,6 +372,11 @@ val dest_tau_varbit : term -> int
 val is_tau_varbit : term -> bool
 val mk_tau_varbit : int -> term
 val tau_varbit_tm : term
+
+val dest_tau_stack : term -> term * term
+val is_tau_stack : term -> bool
+val tau_stack_tm : term
+val mk_tau_stack : term * term -> term
 
 val dest_tau_xtl : term -> term * term
 val is_tau_xtl : term -> bool
