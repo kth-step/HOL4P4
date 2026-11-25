@@ -38,8 +38,16 @@ val vss_objectless_map =
 val vss_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], vss_packet_in_extract));
     ("extract_varbit", ([("this", d_in); ("headerLvalue", d_out); ("variableFieldSizeInBits", d_in)], vss_packet_in_extract_varbit));
+    ("extract_next", ([("this", d_in); ("headerLvalue", d_inout)], vss_packet_in_extract_next));
+    ("extract_varbit_next", ([("this", d_in); ("headerLvalue", d_inout); ("variableFieldSizeInBits", d_in)], vss_packet_in_extract_varbit_next));
     ("lookahead", ([("this", d_in); ("targ1", d_in)], vss_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], vss_packet_in_advance))]``;
+
+val vss_stack_map =
+ ``[("next_index", ([("this", d_in)], vss_stack_next_index));
+    ("last_index", ([("this", d_in)], vss_stack_last_index));
+    ("push_front", ([("this", d_inout); ("count", d_in)], stack_push_front));
+    ("pop_front", ([("this", d_inout); ("count", d_in)], stack_pop_front))]``;
 
 val vss_packet_out_map =
  ``[("emit", ([("this", d_in); ("data", d_in)], vss_packet_out_emit))]:vss_ascope ext_fun_map``;
@@ -82,6 +90,7 @@ val vss_Checksum16_map =
 val vss_ext_map =
  ``((^(inst [``:'a`` |-> ``:vss_ascope``] core_ext_map))
     ++ [("", (NONE, (^vss_objectless_map)));
+        ("stack", (NONE, (^vss_stack_map)));
         ("packet_in", (NONE, (^vss_packet_in_map)));
         ("packet_out", (NONE, (^vss_packet_out_map)));
         ("Checksum16", SOME ([("this", d_out)], Checksum16_construct), (^vss_Checksum16_map))]):vss_ascope ext_map``;

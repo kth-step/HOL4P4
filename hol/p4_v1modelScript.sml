@@ -74,6 +74,22 @@ Definition v1model_packet_in_extract_varbit_def:
  v1model_packet_in_extract_varbit = packet_in_extract_varbit_gen T v1model_ascope_lookup v1model_ascope_update v1model_ascope_update_v_map
 End
 
+Definition v1model_packet_in_extract_next_def:
+ v1model_packet_in_extract_next = packet_in_extract_next_gen v1model_packet_in_extract v1model_ascope_update_v_map
+End
+
+Definition v1model_packet_in_extract_varbit_next_def:
+ v1model_packet_in_extract_varbit_next = packet_in_extract_next_gen v1model_packet_in_extract_varbit v1model_ascope_update_v_map
+End
+
+Definition v1model_stack_next_index_def:
+ v1model_stack_next_index = stack_next_index_gen v1model_ascope_update_v_map
+End
+
+Definition v1model_stack_last_index_def:
+ v1model_stack_last_index = stack_last_index_gen v1model_ascope_update_v_map
+End
+
 Definition v1model_packet_in_lookahead_def:
  v1model_packet_in_lookahead = packet_in_lookahead_gen v1model_ascope_lookup v1model_ascope_update_v_map
 End

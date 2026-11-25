@@ -43,6 +43,22 @@ Definition ebpf_packet_in_extract_varbit_def:
  ebpf_packet_in_extract_varbit = packet_in_extract_varbit_gen F ebpf_ascope_lookup ebpf_ascope_update ebpf_ascope_update_v_map
 End
 
+Definition ebpf_packet_in_extract_next:
+ ebpf_packet_in_extract_next = packet_in_extract_next_gen ebpf_packet_in_extract ebpf_ascope_update_v_map
+End
+
+Definition ebpf_packet_in_extract_varbit_next:
+ ebpf_packet_in_extract_varbit_next = packet_in_extract_next_gen ebpf_packet_in_extract_varbit ebpf_ascope_update_v_map
+End
+
+Definition ebpf_stack_next_index:
+ ebpf_stack_next_index = stack_next_index_gen ebpf_ascope_update_v_map
+End
+
+Definition ebpf_stack_last_index:
+ ebpf_stack_last_index = stack_last_index_gen ebpf_ascope_update_v_map
+End
+
 Definition ebpf_packet_in_lookahead:
  ebpf_packet_in_lookahead = packet_in_lookahead_gen ebpf_ascope_lookup ebpf_ascope_update_v_map
 End

@@ -22,8 +22,16 @@ val ebpf_objectless_map =
 val ebpf_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], ebpf_packet_in_extract));
     ("extract_varbit", ([("this", d_in); ("headerLvalue", d_out); ("variableFieldSizeInBits", d_in)], ebpf_packet_in_extract_varbit));
+    ("extract_next", ([("this", d_in); ("headerLvalue", d_inout)], ebpf_packet_in_extract_next));
+    ("extract_varbit_next", ([("this", d_in); ("headerLvalue", d_inout); ("variableFieldSizeInBits", d_in)], ebpf_packet_in_extract_varbit_next));
     ("lookahead", ([("this", d_in); ("targ1", d_in)], ebpf_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], ebpf_packet_in_advance));]``;
+
+val ebpf_stack_map =
+ ``[("next_index", ([("this", d_in)], ebpf_stack_next_index));
+    ("last_index", ([("this", d_in)], ebpf_stack_last_index));
+    ("push_front", ([("this", d_inout); ("count", d_in)], stack_push_front));
+    ("pop_front", ([("this", d_inout); ("count", d_in)], stack_pop_front))]``;
 
 val ebpf_packet_out_map =
  ``[("emit", ([("this", d_in); ("data", d_in)], ebpf_packet_out_emit))]``;
@@ -56,6 +64,7 @@ val ebpf_CounterArray_map =
 val ebpf_ext_map =
  ``((^(inst [``:'a`` |-> ``:ebpf_ascope``] core_ext_map))
     ++ [("", (NONE, ^ebpf_objectless_map));
+        ("stack", (NONE, (^ebpf_stack_map)));
         ("packet_in", (NONE, (^ebpf_packet_in_map)));
         ("packet_out", (NONE, (^ebpf_packet_out_map)));
         ("CounterArray", SOME ([("this", d_out); ("max_index", d_none); ("sparse", d_none)], CounterArray_construct), (^ebpf_CounterArray_map))])``;
