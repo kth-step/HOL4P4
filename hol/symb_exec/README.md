@@ -99,6 +99,15 @@ A varbit extract (`extract_varbit`) needs a concrete size, otherwise the executo
 error; it takes the fixed fields of the header plus that many bits, and its other errors
 (`ParserInvalidArgument`, `HeaderTooShort`) follow by evaluation.
 
+The counter `nextIndex` of a header stack is a number in the stack value, and an extract into
+`hs.next` (`extract_next`, `extract_varbit_next`) needs it to be concrete: the extract takes the
+bits of the element at `nextIndex`, and on a full stack it rejects with `StackOutOfBounds` without
+a branch on the packet length. A parser loop over a stack is explored once per depth
+(`tests/stack_parserScript.sml`). Expressions and assignments with a stack element `hs[e]` are
+executed by small steps only, since the big-step semantics has no rule for them; they have only
+been tried with a concrete index. The well-formedness predicate of a decomposition does not cover
+header stacks.
+
 ## Contracts
 
 A contract is a theorem `p4_contract_at P ctx E Q` (`p4_symb_execScript.sml`): from every

@@ -39,8 +39,16 @@ val v1model_objectless_map =
 val v1model_packet_in_map =
  ``[("extract", ([("this", d_in); ("headerLvalue", d_out)], v1model_packet_in_extract));
     ("extract_varbit", ([("this", d_in); ("headerLvalue", d_out); ("variableFieldSizeInBits", d_in)], v1model_packet_in_extract_varbit));
+    ("extract_next", ([("this", d_in); ("headerLvalue", d_inout)], v1model_packet_in_extract_next));
+    ("extract_varbit_next", ([("this", d_in); ("headerLvalue", d_inout); ("variableFieldSizeInBits", d_in)], v1model_packet_in_extract_varbit_next));
     ("lookahead", ([("this", d_in); ("targ1", d_in)], v1model_packet_in_lookahead));
     ("advance", ([("this", d_in); ("bits", d_in)], v1model_packet_in_advance))]``;
+
+val v1model_stack_map =
+ ``[("next_index", ([("this", d_in)], v1model_stack_next_index));
+    ("last_index", ([("this", d_in)], v1model_stack_last_index));
+    ("push_front", ([("this", d_inout); ("count", d_in)], stack_push_front));
+    ("pop_front", ([("this", d_inout); ("count", d_in)], stack_pop_front))]``;
 
 val v1model_packet_out_map =
  ``[("emit", ([("this", d_in); ("data", d_in)], v1model_packet_out_emit))]``;
@@ -93,6 +101,7 @@ val v1model_ipsec_crypt_map =
 val v1model_ext_map =
  ``((^(inst [``:'a`` |-> v1model_arch_ty] core_ext_map))
     ++ [("", (NONE, (^v1model_objectless_map)));
+        ("stack", (NONE, (^v1model_stack_map)));
         ("packet_in", (NONE, (^v1model_packet_in_map)));
         ("packet_out", (NONE, (^v1model_packet_out_map)));
         ("register", SOME ([("this", d_out); ("size", d_none); ("targ1", d_in)], register_construct random_oracle), (^v1model_register_map));

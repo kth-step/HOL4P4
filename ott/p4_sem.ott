@@ -167,6 +167,14 @@ formula :: formula_ ::=
   {{ hol (([[bitv]] = [[bitv']]) <=> [[b]]) }}
 | b EQ b' = b'' :: M :: eq_bool
   {{ hol ([[b]] = [[b']] <=> [[b'']]) }}
+| v_composite ( v ) :: M :: v_composite
+  {{ com struct, header or header stack value }}
+  {{ hol (v_composite [[v]]) }}
+| v_eq ( v , v' ) = b :: M :: v_eq
+  {{ com equality of struct, header and header stack values }}
+  {{ hol (v_eq [[v]] [[v']] <=> [[b]]) }}
+| v_neq ( v , v' ) = b :: M :: v_neq
+  {{ hol (~(v_eq [[v]] [[v']]) <=> [[b]]) }}
 | ( x EQ x' ) = b :: M :: eq_error
   {{ com equality over strings - used for errors }}
   {{ hol (([[x]] = [[x']]) = [[b]]) }}
@@ -242,6 +250,44 @@ formula :: formula_ ::=
 | v = header boolv { x1 = v1 ; ... ; xn = vn } ( x ) :: M :: h_access
   {{ com access of field in header }}
   {{ hol (FIND (\(k, v). k = [[x]]) [[x1 v1 ... xn vn]] = SOME ([[x]], [[v]])) }}
+%Header stacks
+| v = stack_el ( [ v1 , .. , vn ] , bitv ) :: M :: stack_el
+  {{ com element of a header stack }}
+  {{ hol (oEL (v2n (FST [[bitv]])) [[v1 .. vn]] = SOME [[v]]) }}
+| ( v , i_opt ) = stack_el_oob ( [ v1 , .. , vn ] , bitv , i , random_oracle ) :: M :: stack_el_oob
+  {{ com unspecified value of an out-of-bounds element }}
+  {{ hol (?i_new. stack_el_oob [[v1 .. vn]] (v2n (FST [[bitv]])) [[i]] [[random_oracle]] = SOME ([[v]], i_new) /\ [[i_opt]] = SOME i_new) }}
+| x = "size" :: M :: is_size
+  {{ hol ([[x]] = "size") }}
+| x = "lastIndex" :: M :: is_last_index
+  {{ hol ([[x]] = "lastIndex") }}
+| bitv = stack_size ( [ v1 , .. , vn ] ) :: M :: stack_size
+  {{ hol ([[bitv]] = (fixwidth 32 (n2v (LENGTH [[v1 .. vn]])), 32)) }}
+| bitv = stack_last_index ( i ) :: M :: stack_last_index
+  {{ hol (0 < [[i]] /\ [[bitv]] = (fixwidth 32 (n2v ([[i]] - 1)), 32)) }}
+| ( bitv , i_opt ) = stack_last_index_undef ( i , i' , random_oracle ) :: M :: stack_last_index_undef
+  {{ hol ([[i]] = 0 /\ [[bitv]] = (get_oracle_calls 32 [[i']] [[random_oracle]], 32) /\ [[i_opt]] = SOME ([[i']] + 32)) }}
+| e = lval_unred_index ( lval ) :: M :: lval_unred_index
+  {{ com first stack index of the l-value that is not a value }}
+  {{ hol (lval_unred_index [[lval]] = SOME [[e]]) }}
+| lval_red ( lval ) :: M :: lval_red
+  {{ com all stack indices of the l-value are values }}
+  {{ hol (lval_unred_index [[lval]] = NONE) }}
+| lval' = lval_update_index ( lval , e ) :: M :: lval_update_index
+  {{ hol ([[lval']] = lval_update_index [[lval]] [[e]]) }}
+| e' = e_unred_index ( e ) :: M :: e_unred_index
+  {{ com first stack index of the l-value expression that is not a value }}
+  {{ hol (e_unred_index [[e]] = SOME [[e']]) }}
+| e_lval_red ( e ) :: M :: e_lval_red
+  {{ com all stack indices of the l-value expression are values }}
+  {{ hol (e_unred_index [[e]] = NONE) }}
+| e' = e_update_index ( e , e'' ) :: M :: e_update_index
+  {{ hol ([[e']] = e_update_index [[e]] [[e'']]) }}
+| lval_oob ( scope_list , lval ) :: M :: lval_oob
+  {{ com a stack index of the l-value is out of bounds }}
+  {{ hol (lval_oob [[scope_list]] [[lval]]) }}
+| ( e' , i_opt ) = save_arg_oob ( g_scope_list , scope_list , e , i' , random_oracle ) :: M :: save_arg_oob
+  {{ hol (?i_new. save_arg_oob [[g_scope_list]] [[scope_list]] [[e]] [[i']] [[random_oracle]] = SOME ([[e']], i_new) /\ [[i_opt]] = SOME i_new) }}
 | e = e_list [ i ] :: M :: args_index
   {{ hol ([[e]] = EL [[i]] [[e_list]]) }}
 | e = hd e_list :: M :: args_hd
@@ -615,8 +661,16 @@ formula :: formula_ ::=
 |  v_list : ( taul , false )  :: :: type_all_v
   {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau ( EL i [[taul]] )) F ) }}
   {{ tex [[v_list]] : ( [[taul]] , \bot ) }}
-%|  v1 , .. , vm : ( tau , b )  :: :: type_all_v_one_t
-%  {{ hol !i. (i< LENGTH [[v1 .. vm]]) ==> ( v_typ (EL i [[v1 .. vm]]) (t_tau [[tau]]) [[b]] ) }}    
+|  v_list :' ( tau , false )  :: :: type_all_v_one_t
+  {{ hol !i. (i< LENGTH [[v_list]]) ==> ( v_typ (EL i [[v_list]]) (t_tau [[tau]]) F ) }}
+  {{ tex [[v_list]] : ( [[tau]] , \bot ) }}
+| stack_wf ( [ v1 , .. , vn ] , i , w ) :: :: stack_wf
+  {{ com w elements, w positive and nextIndex at most w }}
+  {{ hol (LENGTH [[v1 .. vn]] = [[w]] /\ 0 < [[w]] /\ [[i]] <= [[w]]) }}
+| positive ( w ) :: :: positive
+  {{ hol (0 < [[w]]) }}
+| stack_member x :: :: stack_member
+  {{ hol ([[x]] = "size" \/ [[x]] = "lastIndex") }}
 | t_scopes_tup T_e |-  ( e1 , .. , em ) : ( [ tau1 , .. , taun ] , false )  :: :: type_all_e
   {{ hol !i. (i< LENGTH [[e1 .. em]]) ==> ( e_typ [[t_scopes_tup]] [[T_e]] (EL i [[e1 .. em]]) (EL i [[tau1 .. taun]]) F ) }}
 | ( s_list1 , .. , s_listn ) : [ s_t_list1 , .. , s_t_listm ]  :: :: type_all_s
@@ -648,6 +702,9 @@ formula :: formula_ ::=
   {{ hol is_bv_bool_op [[binop]]}}
 | is_eq_op binop :: :: is_eq_op
   {{ hol is_eq_op [[binop]]}}
+| tau_composite ( tau ) :: :: tau_composite
+  {{ com struct, header or header stack type }}
+  {{ hol (tau_composite [[tau]]) }}
 | is_bool_op binop :: :: is_bool_op   
   {{ hol is_bool_op [[binop]]}}
 | is_err_bool binop :: :: is_err_bool
@@ -725,6 +782,9 @@ formula :: formula_ ::=
 %  {{ hol ( parseError_in_gs [[t_scope_list_g]] [[t_scope_list1 .. t_scope_listn]] ) }}
 | star_not_in_ts t_scope :: :: star_not_in_ts
   {{ hol (star_not_in_ts [[t_scope]]) }}  
+| t_scope_wf t_scope :: :: t_scope_wf
+  {{ com no declared type has a header stack of size 0 }}
+  {{ hol (t_scope_wf [[t_scope]]) }}
 | f_in_apply_tbl tbl_map apply_table_f :: :: f_in_apply_tbl
   {{ hol ( f_in_apply_tbl [[tbl_map]] [[apply_table_f]] ) }}
 | star_not_in_sl scope_list :: :: star_not_in_sl
@@ -1895,10 +1955,34 @@ val lookup_lval_def = Define `
      | SOME (v_bit (v, bl)) => (slice_lval (v_bit (v, bl)) e1 e2)
      | _ => NONE
      ) /\
+ (lookup_lval (ss:scope list) (lval_index lval e) =
+    case lookup_lval ss lval of
+     | SOME (v_stack v_l i) =>
+      (case e of
+       | e_v (v_bit (bl, n)) => oEL (v2n bl) v_l
+       | _ => NONE)
+     | _ => NONE
+     ) /\
  (lookup_lval (ss:scope list) (lval_null) = NONE ) /\
  (lookup_lval (ss:scope list) (lval_paren lval) = lookup_lval ss lval) 
 
 `;
+
+(* A stack index of the l-value is out of bounds *)
+Definition lval_oob_def:
+ (lval_oob (ss:scope list) (lval_index lval e) =
+  (lval_oob ss lval \/
+   case lookup_lval ss lval of
+   | SOME (v_stack v_l i) =>
+    (case e of
+     | e_v (v_bit (bl, n)) => LENGTH v_l <= v2n bl
+     | _ => F)
+   | _ => F)) /\
+ (lval_oob ss (lval_field lval f) = lval_oob ss lval) /\
+ (lval_oob ss (lval_slice lval e1 e2) = lval_oob ss lval) /\
+ (lval_oob ss (lval_paren lval) = lval_oob ss lval) /\
+ (lval_oob ss _ = F)
+End
 
 (* TODO: This is ambiguous with regard to inout... *)
 val is_d_none_in_def = Define `
@@ -1930,9 +2014,60 @@ val get_lval_of_e_def = Define `
    case get_lval_of_e e of
    | SOME lval => SOME (lval_slice lval ev1 ev2)
    | NONE => NONE) /\
+  (get_lval_of_e (e_index e e') =
+   case get_lval_of_e e of
+   | SOME lval => SOME (lval_index lval e')
+   | NONE => NONE) /\
   (get_lval_of_e (e_saved e v) = get_lval_of_e e) /\
   (get_lval_of_e _ = NONE)
 `;
+
+(* The first stack index of an l-value that is not a value *)
+Definition lval_unred_index_def:
+ (lval_unred_index (lval_index lval e) =
+  case lval_unred_index lval of
+  | SOME e' => SOME e'
+  | NONE => if is_const e then NONE else SOME e) /\
+ (lval_unred_index (lval_field lval f) = lval_unred_index lval) /\
+ (lval_unred_index (lval_slice lval e1 e2) = lval_unred_index lval) /\
+ (lval_unred_index (lval_paren lval) = lval_unred_index lval) /\
+ (lval_unred_index _ = NONE)
+End
+
+(* Replaces the first stack index that is not a value *)
+Definition lval_update_index_def:
+ (lval_update_index (lval_index lval e) e' =
+  case lval_unred_index lval of
+  | SOME e'' => lval_index (lval_update_index lval e') e
+  | NONE => lval_index lval e') /\
+ (lval_update_index (lval_field lval f) e' = lval_field (lval_update_index lval e') f) /\
+ (lval_update_index (lval_slice lval e1 e2) e' = lval_slice (lval_update_index lval e') e1 e2) /\
+ (lval_update_index (lval_paren lval) e' = lval_paren (lval_update_index lval e')) /\
+ (lval_update_index lval e' = lval)
+End
+
+(* The same for an expression that denotes an l-value *)
+Definition e_unred_index_def:
+ (e_unred_index (e_index e e') =
+  case e_unred_index e of
+  | SOME e'' => SOME e''
+  | NONE => if is_const e' then NONE else SOME e') /\
+ (e_unred_index (e_acc e x) = e_unred_index e) /\
+ (e_unred_index (e_slice e e1 e2) = e_unred_index e) /\
+ (e_unred_index (e_saved e v) = e_unred_index e) /\
+ (e_unred_index _ = NONE)
+End
+
+Definition e_update_index_def:
+ (e_update_index (e_index e e') e'' =
+  case e_unred_index e of
+  | SOME e''' => e_index (e_update_index e e'') e'
+  | NONE => e_index e e'') /\
+ (e_update_index (e_acc e x) e'' = e_acc (e_update_index e e'') x) /\
+ (e_update_index (e_slice e e1 e2) e'' = e_slice (e_update_index e e'') e1 e2) /\
+ (e_update_index (e_saved e v) e'' = e_saved (e_update_index e e'') v) /\
+ (e_update_index e e'' = e)
+End
 
 val is_e_saved_def = Define `
   (is_e_saved (e_saved e v) = T) /\
@@ -2018,6 +2153,38 @@ Definition get_oracle_calls_def:
  )
 End
 
+(* Struct, header or header stack value *)
+Definition v_composite_def:
+ (v_composite (v_struct x_v_l) = T) /\
+ (v_composite (v_header boolv x_v_l) = T) /\
+ (v_composite (v_stack v_l i) = T) /\
+ (v_composite _ = F)
+End
+
+(* Equality (==) of values: invalid headers are equal, nextIndex of a stack is not compared *)
+Definition v_eq_def:
+ (v_eq (v_varbit bitv w) (v_varbit bitv' w') = (bitv = bitv')) /\
+ (v_eq (v_struct x_v_l) (v_struct x_v_l') = v_eq_fields x_v_l x_v_l') /\
+ (v_eq (v_header boolv x_v_l) (v_header boolv' x_v_l') =
+  if boolv /\ boolv'
+  then v_eq_fields x_v_l x_v_l'
+  else (~boolv /\ ~boolv')) /\
+ (v_eq (v_stack v_l i) (v_stack v_l' i') = v_eq_list v_l v_l') /\
+ (v_eq v v' = (v = v')) /\
+ (v_eq_fields [] [] = T) /\
+ (v_eq_fields ((x, v)::x_v_l) ((x', v')::x_v_l') =
+  (x = x' /\ v_eq v v' /\ v_eq_fields x_v_l x_v_l')) /\
+ (v_eq_fields _ _ = F) /\
+ (v_eq_list [] [] = T) /\
+ (v_eq_list (v::v_l) (v'::v_l') = (v_eq v v' /\ v_eq_list v_l v_l')) /\
+ (v_eq_list _ _ = F)
+Termination
+WF_REL_TAC ‘measure ( \ x. case x of
+                            | INL (v, v') => v_size v
+                            | INR (INL (x_v_l, x_v_l')) => list_size (pair_size (list_size char_size) v_size) x_v_l
+                            | INR (INR (v_l, v_l')) => list_size v_size v_l)’
+End
+
 Definition init_out_v_def:
  (init_out_v random_oracle i (v_bool boolv) = (v_bool $ random_oracle i, i+1)) /\
  (init_out_v random_oracle i (v_bit (bl, n)) = (v_bit (get_oracle_calls n i random_oracle, n), i+n)) /\
@@ -2035,6 +2202,12 @@ Definition init_out_v_def:
    (x_v_l'', i''') = FOLDL ( \ (x_v_l', i') (x, v). let (v', i'') = init_out_v random_oracle i' v in ((x, v')::x_v_l', i'')) ([], i) x_v_l
   in
    (v_header F (REVERSE x_v_l''), i''')
+ ) /\
+ (init_out_v random_oracle i (v_stack v_l i') =
+  let
+   (v_l'', i''') = FOLDL ( \ (v_l', i'') v. let (v', i''') = init_out_v random_oracle i'' v in (v'::v_l', i''')) ([], i) v_l
+  in
+   (v_stack (REVERSE v_l'') 0, i''')
  ) /\
  (init_out_v random_oracle i (v_ext_ref i') = (v_ext_ref i', i)) /\
  (init_out_v random_oracle i v_bot = (v_bot, i))
@@ -2082,6 +2255,12 @@ Definition init_from_tau_def:
    (x_v_l', i''') = FOLDL ( \ (x_v_l, i') (x, tau). let (v, i'') = init_from_tau random_oracle i' tau in ((x, v)::x_v_l, i'')) ([], i) xtl
   in
    (v_header F (REVERSE x_v_l'), i''')
+ ) /\
+ (init_from_tau random_oracle i (tau_stack tau n) =
+  let
+   (v_l', i''') = FOLDL ( \ (v_l, i') tau'. let (v, i'') = init_from_tau random_oracle i' tau' in (v::v_l, i'')) ([], i) (REPLICATE n tau)
+  in
+   (v_stack (REVERSE v_l') 0, i''')
  )
 Termination
 WF_REL_TAC ‘measure ( \ (a,b,c). tau_size c)’ >>
@@ -2103,6 +2282,73 @@ val save_arg_def = Define `
      | NONE => NONE)
    | NONE => NONE
 `;
+
+(* As init_out_v, but the validity of a header is unspecified too *)
+Definition undef_v_def:
+ undef_v random_oracle i v =
+  case init_out_v random_oracle (i+1) v of
+  | (v_header boolv x_v_l, i') => (v_header (random_oracle i) x_v_l, i')
+  | (v', i') => (v', i')
+End
+
+(* The unspecified value of an out-of-bounds element n of a header stack *)
+Definition stack_el_oob_def:
+ stack_el_oob v_l n i random_oracle =
+  if n < LENGTH v_l
+  then NONE
+  else
+   (case v_l of
+    | (v::v_l') => SOME (undef_v random_oracle i v)
+    | [] => NONE)
+End
+
+(* As lookup_lval, but an out-of-bounds stack element reads as an unspecified value *)
+Definition read_lval_def:
+ (read_lval (ss:scope list) (lval_varname x) i random_oracle =
+  case lookup_v ss x of
+  | SOME v => SOME (v, i)
+  | NONE => NONE) /\
+ (read_lval ss (lval_field lval f) i random_oracle =
+  case read_lval ss lval i random_oracle of
+  | SOME (v, i') =>
+   (case acc_f v f of
+    | SOME v' => SOME (v', i')
+    | NONE => NONE)
+  | NONE => NONE) /\
+ (read_lval ss (lval_slice lval e1 e2) i random_oracle =
+  case read_lval ss lval i random_oracle of
+  | SOME (v_bit bitv, i') =>
+   (case slice_lval (v_bit bitv) e1 e2 of
+    | SOME v' => SOME (v', i')
+    | NONE => NONE)
+  | _ => NONE) /\
+ (read_lval ss (lval_index lval e) i random_oracle =
+  case read_lval ss lval i random_oracle of
+  | SOME (v_stack v_l i'', i') =>
+   (case e of
+    | e_v (v_bit (bl, n)) =>
+     (case oEL (v2n bl) v_l of
+      | SOME v => SOME (v, i')
+      | NONE => stack_el_oob v_l (v2n bl) i' random_oracle)
+    | _ => NONE)
+  | _ => NONE) /\
+ (read_lval ss lval_null i random_oracle = NONE) /\
+ (read_lval ss (lval_paren lval) i random_oracle = read_lval ss lval i random_oracle)
+End
+
+(* Saves the unspecified value of an argument with an out-of-bounds stack index *)
+Definition save_arg_oob_def:
+ save_arg_oob gsl ss e i random_oracle =
+  case get_lval_of_e e of
+  | SOME lval =>
+   (case lookup_lval (ss++gsl) lval of
+    | SOME v => NONE
+    | NONE =>
+     (case read_lval (ss++gsl) lval i random_oracle of
+      | SOME (v, i') => SOME (e_saved e v, i')
+      | NONE => NONE))
+  | NONE => NONE
+End
 
 (* Arguments of programmable blocks are not saved, so their value is looked up *)
 val arg_lval_v_def = Define `
@@ -2231,6 +2477,16 @@ val assign_def = Define `
                 | _ => NONE )
            | _ => NONE)
      | _ => NONE ) /\
+  (assign ss v (lval_index lval e) =
+    case lookup_lval ss lval of
+    | SOME (v_stack v_l i) =>
+      (case e of
+       | e_v (v_bit (bl, n)) =>
+         if v2n bl < LENGTH v_l
+         then assign ss (v_stack (LUPDATE v (v2n bl) v_l) i) lval
+         else NONE
+       | _ => NONE)
+    | _ => NONE) /\
   (assign ss v lval_null =
     SOME ss
   ) /\ (
@@ -2374,7 +2630,7 @@ val update_return_frame_def = Define `
            (case lookup_map ss_curr (varn_name x) of
             | SOME (v, str_opt) =>
               (case str_opt of
-               | SOME str => assign ss_temp v str
+               | SOME str => if lval_oob ss_temp str then SOME ss_temp else assign ss_temp v str
                | NONE => NONE)
             | _ => NONE)
           | NONE => NONE
@@ -2725,6 +2981,44 @@ v = header boolv { f1 = v1 ; ... ; fn = vn } ( f )
 ----------------------------------- :: h_acc
 ectx g_scope_list scope_list ( header boolv { f1 = v1 ; ... ; fn = vn } . f ) ~> ( v ,  empty )
 
+%%%%%% header stack operations
+
+ectx g_scope_list scope_list ( e ) ~> ( e'' , e_red_res )
+----------------------------------- :: index_arg1
+ectx g_scope_list scope_list ( e [ e' ] ) ~> ( e'' [ e' ] , e_red_res )
+
+ectx g_scope_list scope_list ( e ) ~> ( e' , e_red_res )
+----------------------------------- :: index_arg2
+ectx g_scope_list scope_list ( v [ e ] ) ~> ( v [ e' ] , e_red_res )
+
+%Header stack element
+v = stack_el ( [ v1 , .. , vn ] , bitv )
+----------------------------------- :: index_v
+ectx g_scope_list scope_list ( ( stack [ v1 , .. , vn ] i ) [ bitv ] ) ~> ( v , empty )
+
+%An out-of-bounds element reads as an unspecified value
+( v , i_opt ) = stack_el_oob ( [ v1 , .. , vn ] , bitv , i' , random_oracle )
+----------------------------------- :: index_oob
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( ( stack [ v1 , .. , vn ] i ) [ bitv ] ) ~> ( v , ( empty , i_opt ) )
+
+%Size of a header stack
+x = "size"
+bitv = stack_size ( [ v1 , .. , vn ] )
+----------------------------------- :: stack_size
+ectx g_scope_list scope_list ( ( stack [ v1 , .. , vn ] i ) . x ) ~> ( bitv , empty )
+
+%Index of the last element of a header stack
+x = "lastIndex"
+bitv = stack_last_index ( i )
+----------------------------------- :: stack_last_index
+ectx g_scope_list scope_list ( ( stack [ v1 , .. , vn ] i ) . x ) ~> ( bitv , empty )
+
+%With nextIndex 0, the index of the last element is an unspecified value
+x = "lastIndex"
+( bitv , i_opt ) = stack_last_index_undef ( i , i' , random_oracle )
+----------------------------------- :: stack_last_index_undef
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( ( stack [ v1 , .. , vn ] i ) . x ) ~> ( bitv , ( empty , i_opt ) )
+
 %Case select lookup
 x' = { s_list1 : x1 ; ... ; s_listn : xn } x v
 ----------------------------------- :: sel_acc
@@ -2949,6 +3243,11 @@ b NE b' = b''
 ----------------------------------- :: neq_bool
 ectx g_scope_list scope_list ( b NE b' ) ~> ( b'' , empty )
 
+v_composite ( v )
+v_neq ( v , v' ) = b
+----------------------------------- :: neq_composite
+ectx g_scope_list scope_list ( v NE v' ) ~> ( b , empty )
+
 
 %%%%%%%%%%%%%
 %Equal
@@ -2964,6 +3263,11 @@ ectx g_scope_list scope_list ( varbit bitv w EQ varbit bitv' w' ) ~> ( b , empty
 b EQ b' = b''
 ----------------------------------- :: eq_bool
 ectx g_scope_list scope_list ( b EQ b' ) ~> ( b'' , empty )
+
+v_composite ( v )
+v_eq ( v , v' ) = b
+----------------------------------- :: eq_composite
+ectx g_scope_list scope_list ( v EQ v' ) ~> ( b , empty )
 
 
 %%%%%%%%%%%%%
@@ -3024,6 +3328,30 @@ e' = save_arg ( g_scope_list , scope_list , e )
 ----------------------------------- :: call_save
 ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , empty )
 
+%Reduction of a stack index of an out- or inout-directed argument, before it is saved
+[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
+unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+d = [ d1 , .. , dn ] [ i ]
+is_d_out d
+e = [ e1 , .. , en ] [ i ]
+e'' = e_unred_index ( e )
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( e'' ) ~> ( e''' , e_red_res )
+e' = e_update_index ( e , e''' )
+[ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+----------------------------------- :: call_index
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , e_red_res )
+
+%An argument with an out-of-bounds stack index is saved with an unspecified value
+[ ( x1 , d1 ) , .. , ( xn , dn ) ] = lookup_funn_sig ( funn , func_map , b_func_map , ext_map )
+unred_arg_index [ d1 , .. , dn ] [ e1 , .. , en ] = i
+d = [ d1 , .. , dn ] [ i ]
+is_d_out d
+e = [ e1 , .. , en ] [ i ]
+( e' , i_opt ) = save_arg_oob ( g_scope_list , scope_list , e , i' , random_oracle )
+[ e'1 , .. , e'n ] =' update ( e' , i , [ e1 , .. , en ] )
+----------------------------------- :: call_save_oob
+( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , i' , random_oracle ) g_scope_list scope_list ( call funn ( e1 , .. , en ) ) ~> ( call funn ( e'1 , .. , e'n ) , ( empty , i_opt ) )
+
 %A saved argument outside an out- or inout-directed position reads as its value
 ----------------------------------- :: saved_v
 ectx g_scope_list scope_list ( saved ( e , v ) ) ~> ( v , empty )
@@ -3048,6 +3376,12 @@ by
   ( g_scope_list' , scope_list'' ) = separate scope_list'
   ----------------------------------- :: ass_v
   ctx ( ascope , g_scope_list , [ ( funn , [ assign lval v ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list' , [ ( funn , [ empty_stmt ] , scope_list'' ) ] , Running )
+
+%An assignment through an out-of-bounds stack index has no effect
+  lval_red ( lval )
+  lval_oob ( ( scope_list ++ g_scope_list ) , lval )
+  ----------------------------------- :: ass_oob
+  ctx ( ascope , g_scope_list , [ ( funn , [ assign lval v ] , scope_list ) ] , Running ) -> ( ascope , g_scope_list , [ ( funn , [ empty_stmt ] , scope_list ) ] , Running )
 
 
 %%%%%%%%%%%%%%
@@ -3142,7 +3476,16 @@ by
   ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , [ return e ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ return e' ] , scope_list ) ] , Running )
 
 
+%Reduction step of a stack index of the assigned l-value
+  e'' = lval_unred_index ( lval )
+  ectx = get_ectx ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ascope
+  ectx g_scope_list scope_list ( e'' ) ~> ( e''' , ( frame_list , i_opt ) )
+  lval' = lval_update_index ( lval , e''' )
+  ----------------------------------- :: ass_lval
+  ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ( ascope , g_scope_list , [ ( funn , [ assign lval e ] , scope_list ) ] , Running ) -> ( set_oracle_index i_opt ascope , g_scope_list , frame_list ++ [ ( funn , [ assign lval' e ] , scope_list ) ] , Running )
+
 %Reduction step of assign expression
+  lval_red ( lval )
   ectx = get_ectx ( apply_table_f , ext_map , func_map , b_func_map , pars_map , tbl_map , get_oracle_index , set_oracle_index , random_oracle ) ascope
   ectx g_scope_list scope_list ( e ) ~> ( e' , ( frame_list , i_opt ) )
   ----------------------------------- :: ass_e

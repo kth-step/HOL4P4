@@ -48,12 +48,21 @@ Definition size_in_bits_def:
  (size_in_bits (v_varbit (bl, n) w) = SOME n) /\
  (size_in_bits (v_struct x_v_l) = fields_size_in_bits x_v_l) /\
  (size_in_bits (v_header valid_bit x_v_l) = fields_size_in_bits x_v_l) /\
+ (size_in_bits (v_stack v_l i) = elements_size_in_bits v_l) /\
  (size_in_bits _ = NONE) /\
  (fields_size_in_bits [] = SOME 0) /\
  (fields_size_in_bits ((x:x, v)::t) =
   case size_in_bits v of
   | SOME num =>
    (case fields_size_in_bits t of
+    | SOME num' => SOME (num + num')
+    | NONE => NONE)
+  | NONE => NONE) /\
+ (elements_size_in_bits [] = SOME 0) /\
+ (elements_size_in_bits (v::t) =
+  case size_in_bits v of
+  | SOME num =>
+   (case elements_size_in_bits t of
     | SOME num' => SOME (num + num')
     | NONE => NONE)
   | NONE => NONE)
@@ -96,6 +105,91 @@ Definition header_set_invalid_def:
    (case assign scope_list (v_header F x_v_l) (lval_varname (varn_name "this")) of
     | SOME scope_list' =>             
      SOME (ascope, scope_list', status_returnv v_bot)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(************************)
+(* Header stack methods *)
+(************************)
+
+Definition lookup_lval_bit32_def:
+ (lookup_lval_bit32 ss bit32_lval =
+  case lookup_lval ss bit32_lval of
+   | SOME (v_bit (bitv, 32)) => SOME (v2n bitv)
+   | _ => NONE
+ )
+End
+
+(* The index of hs.next: nextIndex, or StackOutOfBounds if it is not below the size *)
+Definition stack_next_index_gen_def:
+ (stack_next_index_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_stack v_l i) =>
+   if i < LENGTH v_l
+   then SOME (ascope, scope_list, status_returnv (v_bit (fixwidth 32 (n2v i), 32)))
+   else
+    (* NOTE: Serialisation of errors is assumed here - "StackOutOfBounds" -> 3 *)
+    SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 3), 32)), scope_list, status_trans "reject")
+  | _ => NONE
+ )
+End
+
+(* The index of hs.last: nextIndex - 1, or StackOutOfBounds if nextIndex is below 1 or above the size *)
+Definition stack_last_index_gen_def:
+ (stack_last_index_gen ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_stack v_l i) =>
+   if 1 <= i /\ i <= LENGTH v_l
+   then SOME (ascope, scope_list, status_returnv (v_bit (fixwidth 32 (n2v (i - 1)), 32)))
+   else
+    (* NOTE: Serialisation of errors is assumed here - "StackOutOfBounds" -> 3 *)
+    SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 3), 32)), scope_list, status_trans "reject")
+  | _ => NONE
+ )
+End
+
+Definition header_invalidate_def:
+ (header_invalidate (v_header valid_bit x_v_l) = v_header F x_v_l) /\
+ (header_invalidate v = v)
+End
+
+(* hs.push_front(count): the pseudocode of the specification, element j of the result by j *)
+Definition stack_push_front_def:
+ (stack_push_front (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_stack v_l i) =>
+   (case lookup_lval_bit32 scope_list (lval_varname (varn_name "count")) of
+    | SOME n =>
+     let
+      v_l' = GENLIST (\j. if j >= n then EL (j - n) v_l else header_invalidate (EL j v_l)) (LENGTH v_l);
+      i' = if i + n > LENGTH v_l then LENGTH v_l else i + n
+     in
+      (case assign scope_list (v_stack v_l' i') (lval_varname (varn_name "this")) of
+       | SOME scope_list' =>
+        SOME (ascope, scope_list', status_returnv v_bot)
+       | NONE => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(* hs.pop_front(count): the pseudocode of the specification, element j of the result by j *)
+Definition stack_pop_front_def:
+ (stack_pop_front (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "this")) of
+  | SOME (v_stack v_l i) =>
+   (case lookup_lval_bit32 scope_list (lval_varname (varn_name "count")) of
+    | SOME n =>
+     let
+      v_l' = GENLIST (\j. if j + n < LENGTH v_l then EL (j + n) v_l else header_invalidate (EL j v_l)) (LENGTH v_l);
+      i' = if i >= n then i - n else 0
+     in
+      (case assign scope_list (v_stack v_l' i') (lval_varname (varn_name "this")) of
+       | SOME scope_list' =>
+        SOME (ascope, scope_list', status_returnv v_bot)
+       | NONE => NONE)
     | NONE => NONE)
   | _ => NONE
  )
@@ -182,7 +276,8 @@ Definition set_v_def:
  (set_v (v_varbit bitv w) packet_in = NONE) /\
  (set_v (v_bool b)        packet_in = SOME (set_bool packet_in)) /\
  (set_v (v_struct x_v_l)  packet_in = (set_struct x_v_l packet_in)) /\
- (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in))
+ (set_v (v_header validity x_v_l) packet_in = (set_header x_v_l packet_in)) /\
+ (set_v _ packet_in = NONE)
 End
 
 (* The symbolic executor stops evaluation at this function and branches *)
@@ -254,14 +349,6 @@ End
 (* Advance
    https://p4.org/p4-spec/docs/P4-16-v1.2.4.html#sec-skip-bits
 *)
-
-Definition lookup_lval_bit32_def:
- (lookup_lval_bit32 ss bit32_lval =
-  case lookup_lval ss bit32_lval of
-   | SOME (v_bit (bitv, 32)) => SOME (v2n bitv)
-   | _ => NONE
- )
-End
 
 (* With byte_aligned, an advance by a non-multiple of 8 bits fails, as spec 13.8.4 allows *)
 Definition packet_in_advance_gen_def:
@@ -343,6 +430,35 @@ Definition packet_in_extract_varbit_gen_def:
         | NONE => NONE)
       | NONE => NONE)
     | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(* extract into hs.next: StackOutOfBounds on a full stack, else extract_f on element nextIndex, then increment *)
+Definition packet_in_extract_next_gen_def:
+ (packet_in_extract_next_gen extract_f ascope_update_v_map (ascope:'a, g_scope_list:g_scope_list, scope_list) =
+  case lookup_lval scope_list (lval_varname (varn_name "headerLvalue")) of
+  | SOME (v_stack v_l i) =>
+   if i < LENGTH v_l
+   then
+    (case assign scope_list (EL i v_l) (lval_varname (varn_name "headerLvalue")) of
+     | SOME scope_list' =>
+      (case extract_f (ascope, g_scope_list, scope_list') of
+       | SOME (ascope', scope_list'', status_returnv v) =>
+        (case lookup_lval scope_list'' (lval_varname (varn_name "headerLvalue")) of
+         | SOME header =>
+          (case assign scope_list'' (v_stack (LUPDATE header i v_l) (i + 1)) (lval_varname (varn_name "headerLvalue")) of
+           | SOME scope_list''' =>
+            SOME (ascope', scope_list''', status_returnv v)
+           | NONE => NONE)
+         | NONE => NONE)
+       | SOME (ascope', scope_list'', status) =>
+        SOME (ascope', scope_list, status)
+       | NONE => NONE)
+     | NONE => NONE)
+   else
+    (* NOTE: Serialisation of errors is assumed here - "StackOutOfBounds" -> 3 *)
+    SOME (ascope_update_v_map ascope "parseError" (v_bit (fixwidth 32 (n2v 3), 32)), scope_list, status_trans "reject")
   | _ => NONE
  )
 End
@@ -429,7 +545,23 @@ Definition header_fields_bits_def:
  )
 End
 
-(* Emitting a struct emits its valid headers; other member types are not allowed *)
+(* Emitting a header stack emits its valid elements in order *)
+Definition stack_elements_bits_def:
+ (stack_elements_bits [] = SOME []) /\
+ (stack_elements_bits (h::t) =
+  case h of
+  | v_header validity x_v_l =>
+   (case (if validity then header_fields_bits x_v_l else SOME []) of
+    | SOME bl =>
+     (case stack_elements_bits t of
+      | SOME bl' => SOME (bl++bl')
+      | NONE => NONE)
+    | NONE => NONE)
+  | _ => NONE
+ )
+End
+
+(* Emitting a struct emits its valid headers and its header stacks; other member types are not allowed *)
 Definition struct_members_bits_def:
  (struct_members_bits [] = SOME []) /\
  (struct_members_bits (h::t) =
@@ -444,11 +576,12 @@ Definition struct_members_bits_def:
   case v of
   | v_header validity x_v_l => if validity then header_fields_bits x_v_l else SOME []
   | v_struct x_v_l => struct_members_bits x_v_l
+  | v_stack v_l i => stack_elements_bits v_l
   | _ => NONE
  )
 End
 
-(* TODO: Should also support emission from: header stack and header union *)
+(* TODO: Should also support emission from: header union *)
 Definition packet_out_emit_gen_def:
  (packet_out_emit_gen (ascope_lookup:'a -> num -> (core_v_ext + 'b) option) ascope_update (ascope:'a, g_scope_list:g_scope_list, scope_list) =
   case lookup_lval scope_list (lval_varname (varn_name "this")) of
@@ -464,6 +597,11 @@ Definition packet_out_emit_gen_def:
         | NONE => NONE)
       | SOME (v_struct x_v_l) =>
        (case struct_members_bits x_v_l of
+        | SOME bl =>
+         SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
+        | NONE => NONE)
+      | SOME (v_stack v_l n) =>
+       (case stack_elements_bits v_l of
         | SOME bl =>
          SOME (update_ascope_gen ascope_update ascope i ((INL (core_v_ext_packet (packet_out_bl++bl))):(core_v_ext, 'b) sum), scope_list, status_returnv v_bot)
         | NONE => NONE)

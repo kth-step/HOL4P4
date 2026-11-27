@@ -230,19 +230,52 @@ fun approx_packet_in_extract fv_index path_cond_tm scope_list ascope =
 ;
 
 (* Takes the header with its varbit field set to the concrete size *)
-fun approx_packet_in_extract_varbit fv_index path_cond_tm scope_list ascope =
+fun approx_extract_varbit name fv_index path_cond_tm scope_list ascope hdr =
  let
   val (bits, _) = dest_pair $ dest_v_bit $ lookup_var "variableFieldSizeInBits" scope_list
   val n_tm = rhs $ concl $ EVAL (mk_v2n bits)
-  val _ = if is_numeral n_tm then () else raise (ERR "approx_packet_in_extract_varbit" "The varbit size is not concrete")
-  val (valid_bit, x_v_l) = dest_v_header $ lookup_var "headerLvalue" scope_list
+  val _ = if is_numeral n_tm then () else raise (ERR name "The varbit size is not concrete")
+  val (valid_bit, x_v_l) = dest_v_header hdr
   val set_res = rhs $ concl $ EVAL (mk_set_varbit_width (n_tm, x_v_l))
-  val _ = if is_some set_res then () else raise (ERR "approx_packet_in_extract_varbit" "The header has no varbit field")
+  val _ = if is_some set_res then () else raise (ERR name "The header has no varbit field")
   val x_v_l' = snd $ dest_pair $ dest_some set_res
  in
   approx_packet_in_take fv_index path_cond_tm (lookup_packet scope_list ascope)
-   (get_size "approx_packet_in_extract_varbit" (mk_v_header (valid_bit, x_v_l')))
+   (get_size name (mk_v_header (valid_bit, x_v_l')))
  end
+;
+
+fun approx_packet_in_extract_varbit fv_index path_cond_tm scope_list ascope =
+ approx_extract_varbit "approx_packet_in_extract_varbit" fv_index path_cond_tm scope_list ascope
+  (lookup_var "headerLvalue" scope_list)
+;
+
+(* The element at nextIndex of the header stack headerLvalue; NONE if the stack is full *)
+fun next_element name scope_list =
+ let
+  val (v_l, i) = dest_v_stack $ lookup_var "headerLvalue" scope_list
+  val _ = if is_numeral i then () else raise (ERR name "The nextIndex of the header stack is not concrete")
+  val elems = fst $ dest_list v_l
+  val n = int_of_term i
+ in
+  if n < length elems then SOME (el (n + 1) elems) else NONE
+ end
+;
+
+(* A full stack rejects without taking bits from the packet *)
+fun approx_packet_in_extract_next fv_index path_cond_tm scope_list ascope =
+ case next_element "approx_packet_in_extract_next" scope_list of
+   SOME hdr =>
+    SOME (approx_packet_in_take fv_index path_cond_tm (lookup_packet scope_list ascope)
+           (get_size "approx_packet_in_extract_next" hdr))
+ | NONE => NONE
+;
+
+fun approx_packet_in_extract_varbit_next fv_index path_cond_tm scope_list ascope =
+ case next_element "approx_packet_in_extract_varbit_next" scope_list of
+   SOME hdr =>
+    SOME (approx_extract_varbit "approx_packet_in_extract_varbit_next" fv_index path_cond_tm scope_list ascope hdr)
+ | NONE => NONE
 ;
 
 fun approx_packet_in_lookahead fv_index path_cond_tm scope_list ascope =

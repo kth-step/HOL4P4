@@ -204,6 +204,57 @@ Cases_on `is_v_bit e1` >> (
 ]
 QED
 
+Theorem e_index_exec_sound_red:
+!type e1 e2.
+e_exec_sound type e1 ==>
+e_exec_sound type e2 ==>
+e_exec_sound type (e_index e1 e2)
+Proof
+fs [e_exec_sound] >>
+rpt strip_tac >>
+fs [e_exec_def] >>
+Cases_on `is_v e1` >> (
+ fs []
+) >| [
+ Cases_on `is_v e2` >> (
+  fs []
+ ) >| [
+  PairCases_on ‘ctx’ >>
+  Cases_on `e1` >> Cases_on `e2` >> (
+   fs [is_v_def]
+  ) >>
+  Cases_on `v` >> Cases_on `v'` >> (
+   fs [e_exec_index_def]
+  ) >>
+  PairCases_on ‘p’ >>
+  gvs[e_exec_index_def, AllCaseEqs()] >| [
+   irule ((valOf o find_clause_e_red) "e_index_oob"),
+
+   irule ((valOf o find_clause_e_red) "e_index_v")
+  ] >> (
+   fs [clause_name_def]
+  ),
+
+  Cases_on `e_exec ctx g_scope_list scopes_stack e2` >> (
+   fs []
+  ) >>
+  PairCases_on ‘x’ >>
+  gvs[] >>
+  Cases_on `e1` >> (
+   fs [is_v_def]
+  ) >>
+  metis_tac[((valOf o find_clause_e_red) "e_index_arg2"), clause_name_def]
+ ],
+
+ Cases_on `e_exec ctx g_scope_list scopes_stack e1` >> (
+  fs []
+ ) >>
+ PairCases_on ‘x’ >>
+ gvs[] >>
+ metis_tac[((valOf o find_clause_e_red) "e_index_arg1"), clause_name_def]
+]
+QED
+
 Theorem e_acc_exec_sound_red:
 !type e x.
 e_exec_sound type e ==>
@@ -217,6 +268,23 @@ Cases_on `is_v e` >> (
 ) >| [
  Cases_on `e_exec_acc (e_acc e x)` >> (
   fs []
+ ) >- (
+  (* Header stack members *)
+  PairCases_on ‘ctx’ >>
+  Cases_on ‘e’ >> (
+   fs[is_v_def]
+  ) >>
+  Cases_on ‘v’ >> (
+   gvs[e_exec_stack_acc_def, AllCaseEqs()]
+  ) >| [
+   irule ((valOf o find_clause_e_red) "e_stack_size"),
+
+   irule ((valOf o find_clause_e_red) "e_stack_last_index"),
+
+   irule ((valOf o find_clause_e_red) "e_stack_last_index_undef")
+  ] >> (
+   fs[clause_name_def]
+  )
  ) >>
  Cases_on `e` >> (
   fs [is_v_def]
@@ -292,13 +360,26 @@ Cases_on `is_v e1` >> Cases_on `is_v e2` >| [
   fs [e_exec_def] >>
   rw []
  ) >>
+ (* Equality of struct, header and header stack values *)
+ Cases_on `v_composite v` >- (
+  Cases_on `e2` >> (
+   fs [is_v_def]
+  ) >>
+  gvs [e_exec_binop_def, AllCaseEqs()] >| [
+   irule ((valOf o find_clause_e_red) "e_neq_composite"),
+
+   irule ((valOf o find_clause_e_red) "e_eq_composite")
+  ] >> (
+   fs [clause_name_def]
+  )
+ ) >>
  (* Different concrete cases *)
  Cases_on `b` >> (
   Cases_on `e2` >> (
    fs [is_v_def]
   ) >>
   Cases_on `v` >> Cases_on `v'` >> (
-   fs [e_exec_binop_def, binop_exec_def]
+   fs [e_exec_binop_def, binop_exec_def, v_composite_def]
   ) >>
   rw []
  ) >| [
@@ -583,6 +664,7 @@ QED
 Theorem e_call_exec_sound_red:
 !type f l.
 l_sound type l ==>
+(!e e''. MEM e l /\ e_unred_index e = SOME e'' ==> e_exec_sound type e'') ==>
 e_exec_sound type (e_call f l)
 Proof
 fs[e_exec_sound] >>
@@ -611,9 +693,65 @@ Cases_on `unred_arg_index (MAP SND x1) l` >> (
  Cases_on ‘is_d_out (EL x (MAP SND x1))’ >> (
   fs[]
  ) >- (
+  reverse (Cases_on ‘e_unred_index (EL x l)’) >> (
+   fs[]
+  ) >- (
+   (* e_call_index *)
+   Cases_on `e_exec (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,oracle_index,random_oracle) g_scope_list scopes_stack x'` >> (
+    fs []
+   ) >>
+   PairCases_on ‘x''’ >>
+   gvs[] >>
+   Q.SUBGOAL_THEN `((MAP (\(a_,b_,c_,d_). a_) (ZIP (l,ZIP (LUPDATE (e_update_index (EL x l) x''0) x l,x1))) = l) /\
+                   (MAP (\(a_,b_,c_,d_). b_) (ZIP (l,ZIP (LUPDATE (e_update_index (EL x l) x''0) x l,x1))) = LUPDATE (e_update_index (EL x l) x''0) x l) /\
+                   (MAP (\(a_,b_,c_,d_). c_) (ZIP (l,ZIP (LUPDATE (e_update_index (EL x l) x''0) x l,x1))) = MAP FST x1) /\
+                   (MAP (\(a_,b_,c_,d_). d_) (ZIP (l,ZIP (LUPDATE (e_update_index (EL x l) x''0) x l,x1))) = MAP SND x1) /\
+                   (MAP (\(a_,b_,c_,d_). (c_,d_)) (ZIP (l,ZIP (LUPDATE (e_update_index (EL x l) x''0) x l,x1))) = x1))` (
+    fn thm => (irule (SIMP_RULE (srw_ss()) [thm] (ISPEC ``ZIP (l:e list, ZIP ((LUPDATE (e_update_index (EL x l) x''0) x l), x1:(string # d) list))``
+                                                    ((valOf o find_clause_e_red) "e_call_index")) ))
+   ) >- (
+    subgoal `LENGTH l = LENGTH (ZIP (LUPDATE (e_update_index (EL x l) x''0) x l,x1))` >- (
+     fs[LENGTH_ZIP]
+    ) >>
+    subgoal `LENGTH (LUPDATE (e_update_index (EL x l) x''0) x l) = LENGTH x1` >- (
+     fs[]
+    ) >>
+    fs[map_quad_zip112]
+   ) >>
+   gvs[clause_name_def, lookup_funn_sig_def] >>
+   first_x_assum irule >>
+   simp[] >>
+   qexists_tac ‘EL x l’ >>
+   imp_res_tac unred_arg_index_in_range >>
+   simp[EL_MEM]
+  ) >>
   (* e_call_save *)
   Cases_on ‘save_arg g_scope_list scopes_stack (EL x l)’ >> (
    fs []
+  ) >- (
+   (* e_call_save_oob *)
+   Cases_on ‘save_arg_oob g_scope_list scopes_stack (EL x l) oracle_index random_oracle’ >> (
+    fs []
+   ) >>
+   PairCases_on ‘x'’ >>
+   gvs[] >>
+   Q.SUBGOAL_THEN `((MAP (\(a_,b_,c_,d_). a_) (ZIP (l,ZIP (LUPDATE x'0 x l,x1))) = l) /\
+                   (MAP (\(a_,b_,c_,d_). b_) (ZIP (l,ZIP (LUPDATE x'0 x l,x1))) = LUPDATE x'0 x l) /\
+                   (MAP (\(a_,b_,c_,d_). c_) (ZIP (l,ZIP (LUPDATE x'0 x l,x1))) = MAP FST x1) /\
+                   (MAP (\(a_,b_,c_,d_). d_) (ZIP (l,ZIP (LUPDATE x'0 x l,x1))) = MAP SND x1) /\
+                   (MAP (\(a_,b_,c_,d_). (c_,d_)) (ZIP (l,ZIP (LUPDATE x'0 x l,x1))) = x1))` (
+    fn thm => (irule (SIMP_RULE (srw_ss()) [thm] (ISPEC ``ZIP (l:e list, ZIP ((LUPDATE x'0 x l), x1:(string # d) list))``
+                                                    ((valOf o find_clause_e_red) "e_call_save_oob")) ))
+   ) >- (
+    subgoal `LENGTH l = LENGTH (ZIP (LUPDATE x'0 x l,x1))` >- (
+     fs[LENGTH_ZIP]
+    ) >>
+    subgoal `LENGTH (LUPDATE x'0 x l) = LENGTH x1` >- (
+     fs[]
+    ) >>
+    fs[map_quad_zip112]
+   ) >>
+   gvs[clause_name_def, lookup_funn_sig_def]
   ) >>
   gvs[] >>
   Q.SUBGOAL_THEN `((MAP (\(a_,b_,c_,d_). a_) (ZIP (l,ZIP (LUPDATE x' x l,x1))) = l) /\
@@ -756,37 +894,68 @@ Theorem e_exec_sound_red:
 !type e. e_exec_sound type e
 Proof
 strip_tac >>
-‘(!e. e_exec_sound type e) /\ (!l. l_sound type l) /\ (!l. x_e_l_exec_sound type l) /\ (!p. x_e_exec_sound type p)’ suffices_by (
+(* Strengthened with the index that e_call_index reduces *)
+‘(!e. e_exec_sound type e /\ !e''. e_unred_index e = SOME e'' ==> e_exec_sound type e'') /\
+ (!l. l_sound type l /\ !e e''. MEM e l /\ e_unred_index e = SOME e'' ==> e_exec_sound type e'') /\
+ (!t. x_e_l_exec_sound type t) /\ (!h. x_e_exec_sound type h)’ suffices_by (
  fs[]
 ) >>
-irule e_mutual_induction >>
-rpt strip_tac >| [
- (* e list: base case *)
- fs [l_sound],
+Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >> (
+ fs[e_unred_index_def]
+) >| [
+ (* Constant value: Irreducible *)
+ fs[e_exec_sound, e_exec_def],
 
- (* x_e list: base case *)
- fs [x_e_l_exec_sound, l_sound],
+ (* Variable lookup *)
+ fs[e_exec_sound, e_exec_def] >>
+ rpt strip_tac >>
+ Cases_on `lookup_vexp2 scopes_stack g_scope_list v` >> (
+  fs[]
+ ) >>
+ rw[] >>
+ metis_tac[(valOf o find_clause_e_red) "e_lookup", clause_name_def],
 
- (* Bitvector slice *)
- fs [e_slice_exec_sound_red],
-
- (* Bitvector concatenation *)
- fs [e_concat_exec_sound_red],
-
- (* Binary operation *)
- fs [e_binop_exec_sound_red],
-
- (* Cast *)
- fs [e_cast_exec_sound_red],
+ (* TODO: List expression - not in exec sem yet *)
+ fs [e_exec_sound, e_exec_def],
 
  (* Field access *)
  fs [e_acc_exec_sound_red],
 
+ (* Unary operation *)
+ fs [e_unop_exec_sound_red],
+
+ (* Cast *)
+ fs [e_cast_exec_sound_red],
+
+ (* Binary operation *)
+ fs [e_binop_exec_sound_red],
+
+ (* Bitvector concatenation *)
+ fs [e_concat_exec_sound_red],
+
+ (* Bitvector slice *)
+ fs [e_slice_exec_sound_red],
+
+ (* Header stack element *)
+ fs [e_index_exec_sound_red] >>
+ rpt strip_tac >>
+ gvs[AllCaseEqs()],
+
+ (* Function/extern call *)
+ gen_tac >>
+ irule e_call_exec_sound_red >>
+ fs [] >>
+ rpt strip_tac >>
+ res_tac,
+
  (* Select expression *)
  fs [e_select_exec_sound_red],
 
- (* Unary operation *)
- fs [e_unop_exec_sound_red],
+ (* Struct *)
+ fs [e_struct_exec_sound_red],
+
+ (* TODO: Header expression - not in exec sem yet *)
+ fs [e_exec_sound, e_exec_def],
 
  (* Saved argument *)
  fs[e_exec_sound, e_exec_def] >>
@@ -794,17 +963,18 @@ rpt strip_tac >| [
  gvs[] >>
  metis_tac[(valOf o find_clause_e_red) "e_saved_v", clause_name_def],
 
- (* x_e *)
- fs [x_e_exec_sound],
+ (* e list: base case *)
+ fs [l_sound],
 
  (* e list: inductive step *)
- fs [l_sound_equiv, l_sound_exec],
+ fs [l_sound_equiv, l_sound_exec] >>
+ rpt strip_tac >> (
+  gvs[] >>
+  res_tac
+ ),
 
- (* TODO: List expression - not in exec sem yet *)
- fs [e_exec_sound, e_exec_def],
-
- (* Function/extern call *)
- fs [e_call_exec_sound_red],
+ (* x_e list: base case *)
+ fs [x_e_l_exec_sound, l_sound],
 
  (* x_e list: inductive case *)
  Cases_on ‘h’ >>
@@ -818,22 +988,7 @@ rpt strip_tac >| [
  ) >>
  metis_tac[l_sound_MEM],
 
- (* Struct *)
- fs [e_struct_exec_sound_red],
-
- (* TODO: Header expression - not in exec sem yet *)
- fs [e_exec_sound, e_exec_def],
-
- (* Constant value: Irreducible *)
- fs[e_exec_sound, e_exec_def],
-
- (* Variable lookup *)
- fs[e_exec_sound, e_exec_def] >>
- rpt strip_tac >>
- Cases_on `lookup_vexp2 scopes_stack g_scope_list v` >> (
-  fs[]
- ) >>
- rw[] >>
- metis_tac[(valOf o find_clause_e_red) "e_lookup", clause_name_def]
+ (* x_e *)
+ fs [x_e_exec_sound]
 ]
 QED

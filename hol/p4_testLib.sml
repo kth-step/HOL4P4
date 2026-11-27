@@ -307,32 +307,26 @@ fun the_final_state step_thm = optionSyntax.dest_some $ rhs $ concl step_thm
 
 fun final_state_is_none step_thm = optionSyntax.is_none $ rhs $ concl step_thm
 
-(* Stepwise evaluation *)
+(* A constant for the context (applied to its free variables), added to the EVAL compset *)
 local
-(* One step. Only the input block reads the input list (its head), and the output and next_copy
- * blocks only append to the output list, so their tail and whole are variables during evaluation *)
-fun eval_one actx astate =
+ val ctx_counter = ref 0
+in
+fun mk_ctx_def actx =
  let
-  val (aenv, g_scope_list, arch_frame_list, status) = dest_astate astate
-  val (i, inl, outl, ascope) = dest_aenv aenv
-  val (inl', inl_inst) =
-   if is_cons inl andalso is_cons (snd $ dest_cons inl)
-   then let val (h, t) = dest_cons inl val v = genvar (type_of t) in (mk_cons (h, v), [v |-> t]) end
-   else (inl, [])
-  val (outl', outl_inst) =
-   if is_cons outl
-   then let val v = genvar (type_of outl) in (v, [v |-> outl]) end
-   else (outl, [])
-  val step_thm = INST (inl_inst @ outl_inst) $ EVAL $ mk_arch_multi_exec (actx, mk_astate (mk_aenv (i, inl', outl', ascope), g_scope_list, arch_frame_list, status), 1)
-  val res = rhs $ concl step_thm
+  val n = !ctx_counter
+  val _ = ctx_counter := n + 1
+  val name = (current_theory ()) ^ "_ctx" ^ Int.toString n
+  val fvs = free_vars actx
+  val ctx_tm = list_mk_comb (mk_var (name, list_mk_fun (map type_of fvs, type_of actx)), fvs)
+  val ctx_def = SPEC_ALL (hd $ Defn.eqns_of $ Defn.mk_defn name (mk_eq (ctx_tm, actx)))
+  val _ = computeLib.add_funs [ctx_def]
  in
-  (* An output was appended to the restored output list *)
-  if is_some res andalso is_append (#3 $ dest_aenv $ #1 $ dest_astate $ dest_some res)
-  then CONV_RULE (RAND_CONV (RAND_CONV (LAND_CONV (RAND_CONV (RAND_CONV (LAND_CONV listLib.APPEND_CONV)))))) step_thm
-  else step_thm
+  ctx_def
  end
+end;
 
-(* From the theorems for n steps and for one more step, the theorem for n+1 steps *)
+(* Stepwise evaluation in chunks: the chunk doubles while the run continues and halves when the run ends inside it *)
+local
 fun compose comp_thm step_thm step_thm2 =
  let
   fun split4 s = let val (a, r) = dest_pair s val (g, r') = dest_pair r val (f, st) = dest_pair r' in [a, g, f, st] end
@@ -346,44 +340,45 @@ fun compose comp_thm step_thm step_thm2 =
    (MP (MP (SPECL ([n, m, actx, assl] @ split4 s0 @ split4 s1 @ split4 s2) comp_thm) step_thm) step_thm2)
  end
 
-fun eval_step' actx comp_thm step_thm 0 = step_thm
-  | eval_step' actx comp_thm step_thm fuel =
+val max_chunk = 1024
+
+(* fuel_opt bounds the total number of steps *)
+fun eval_chunks comp_thm actx acc_opt astate chunk fuel_opt =
  let
-  val step_thm2 = eval_one actx (the_final_state step_thm)
+  val chunk' = case fuel_opt of SOME fuel => Int.min (chunk, fuel) | NONE => chunk
  in
-  if final_state_is_none step_thm2
-  then step_thm
-  else eval_step' actx comp_thm (compose comp_thm step_thm step_thm2) (fuel-1)
- end
-in
-fun eval_step_fuel ascope_ty actx astate fuel =
- let
-  val step_thm = eval_one actx astate
-  val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
- in
-  if fuel = 1
-  then step_thm
-  else eval_step' actx comp_thm step_thm (fuel-1)
+  if chunk' = 0
+  then acc_opt
+  else
+   let
+    val thm = EVAL $ mk_arch_multi_exec (actx, astate, chunk')
+    val res = rhs $ concl thm
+   in
+    if is_some res
+    then
+     eval_chunks comp_thm actx (SOME (case acc_opt of SOME acc => compose comp_thm acc thm | NONE => thm))
+      (dest_some res) (Int.min (2 * chunk', max_chunk)) (Option.map (fn fuel => fuel - chunk') fuel_opt)
+    else if is_none res
+    then
+     if chunk' = 1 then acc_opt else eval_chunks comp_thm actx acc_opt astate (chunk' div 2) fuel_opt
+    else raise (mk_HOL_ERR "p4_testLib" "eval_chunks" ("evaluation stuck within " ^ Int.toString chunk' ^ " steps"))
+   end
  end
 
-(* WARNING: Not guaranteed to terminate! *)
-fun eval_step ascope_ty actx astate =
+fun eval_steps ascope_ty actx astate fuel_opt =
  let
-  val step_thm = eval_one actx astate
-  val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl;
-  fun loop step_thm =
-   let
-    val step_thm2 = eval_one actx (the_final_state step_thm)
-   in
-    if final_state_is_none step_thm2
-    then step_thm
-    else loop (compose comp_thm step_thm step_thm2)
-   end
+  val comp_thm = INST_TYPE [Type.alpha |-> ascope_ty] arch_multi_exec_comp_n_tl
  in
-  if final_state_is_none step_thm
-  then raise UNCHANGED
-  else loop step_thm
+  case eval_chunks comp_thm actx NONE astate 64 fuel_opt of
+    SOME thm => thm
+  | NONE => raise UNCHANGED
  end
+
+in
+fun eval_step_fuel ascope_ty actx astate fuel = eval_steps ascope_ty actx astate (SOME fuel)
+
+(* WARNING: Not guaranteed to terminate! *)
+fun eval_step ascope_ty actx astate = eval_steps ascope_ty actx astate NONE
 end;
 
 (* Proves the test theorem of an STF file, whose arch_multi_exec conjuncts are consecutive runs *)
@@ -395,10 +390,14 @@ fun p4_eval_test_tac ascope_ty (asl, goal) =
    (case strip_comb (lhs c) of
       (f, [_, _, _]) => is_const f andalso fst (dest_const f) = "arch_multi_exec"
     | _ => false)
-  fun phase (c, (theta, thms)) =
+  fun phase (c, (theta, thms, ctx_defs)) =
    let
     val c' = subst theta c
     val (_, [actx, astate, n]) = strip_comb (lhs c')
+    val (ctx_def, ctx_defs') =
+     case List.find (fn d => aconv (rhs $ concl d) actx) ctx_defs of
+       SOME d => (d, ctx_defs)
+     | NONE => let val d = mk_ctx_def actx in (d, ctx_defs @ [d]) end
     val (astate', upd_thms) =
      if is_the astate
      then
@@ -408,16 +407,17 @@ fun p4_eval_test_tac ascope_ty (asl, goal) =
        (rhs $ concl upd_thm, [upd_thm])
       end
      else (astate, [])
-    val step_thm = eval_step ascope_ty actx astate'
+    val step_thm = eval_step ascope_ty (lhs $ concl ctx_def) astate'
     val steps = rand $ lhs $ concl step_thm
     val (theta', _) = match_term (dest_some $ rhs c') (the_final_state step_thm)
    in
-    (theta @ [n |-> steps] @ theta', thms @ upd_thms @ [step_thm])
+    (theta @ [n |-> steps] @ theta', thms @ upd_thms @ [step_thm], ctx_defs')
    end
-  val (theta, thms) = foldl phase ([], []) (List.filter is_exec $ strip_conj body)
+  val (theta, thms, ctx_defs) = foldl phase ([], [], []) (List.filter is_exec $ strip_conj body)
   val witnesses = List.mapPartial (fn v => subst_assoc (term_eq v) theta) vars
  in
   ((foldr (fn (a, b) => a >> b) ALL_TAC (map exists_tac witnesses))
+   >> PURE_REWRITE_TAC (map GSYM ctx_defs)
    >> PURE_REWRITE_TAC thms
    >> fs []) (asl, goal)
  end

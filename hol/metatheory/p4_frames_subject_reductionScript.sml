@@ -1932,10 +1932,11 @@ QED
 
 Theorem lval_typ_any_order_f[local]:
 ∀ order order' funn funn'  delta l tau  tslg tsl h.
-lval_typ (tslg,tsl) ( order , funn   , delta ) l (t_tau tau) ⇒
+lval_typ (tslg,tsl) ( order , funn   , delta ) l (t_tau tau) ∧
+lval_unred_index l = NONE ⇒
 lval_typ (tslg,tsl) ( order' , funn' , delta ) l (t_tau tau)
 Proof
-Induct_on ‘l’ >> gvs[] >>
+Induct_on ‘l’ >> gvs[lval_unred_index_def] >>
 REPEAT STRIP_TAC >>
 SIMP_TAC list_ss [Once lval_typ_cases] >| [
   OPEN_LVAL_TYP_TAC “(lval_varname v)” >>
@@ -1950,6 +1951,16 @@ SIMP_TAC list_ss [Once lval_typ_cases] >| [
   METIS_TAC []
   ,
   OPEN_LVAL_TYP_TAC “(lval_slice l e0 e)” >> gvs[] >>
+  METIS_TAC []
+  ,
+  (* Header stack element *)
+  OPEN_LVAL_TYP_TAC “(lval_index l e)” >>
+  gvs[AllCaseEqs()] >>
+  Cases_on ‘e’ >> (
+   gvs[is_const_def]
+  ) >>
+  gvs[Once e_typ_cases] >>
+  simp[Once e_typ_cases] >>
   METIS_TAC []
   ,
   OPEN_LVAL_TYP_TAC “(lval_paren l)” >> gvs[] >>
@@ -2313,7 +2324,7 @@ Theorem co_none:
                    case lookup_map [LAST scope_list''] (varn_name x) of
                      NONE => NONE
                    | SOME (v5,NONE) => NONE
-                   | SOME (v5,SOME str) => assign ss_temp v5 str) NONE
+                   | SOME (v5,SOME str) => if lval_oob ss_temp str then SOME ss_temp else assign ss_temp v5 str) NONE
           (xdl) =
         SOME x)
 Proof        
@@ -2549,9 +2560,11 @@ type_scopes_list gscope tslg ∧
           
 (∀x t' lop.
           ALOOKUP (LAST h') x = SOME (t',SOME lop) ⇒
-          lval_typ (tslg,h) T_e  lop (t_tau t')) ∧
+          lval_typ (tslg,h) T_e  lop (t_tau t') ∧
+          lval_unred_index lop = NONE) ∧
 
-lookup_map [LAST curr_local] (varn_name x) = SOME (v,SOME lval)  ⇒
+lookup_map [LAST curr_local] (varn_name x) = SOME (v,SOME lval) ∧
+¬lval_oob (pre_local ⧺ gscope) lval ⇒
 
 ∃ assigned_sc scopest_sep gscope_sep.
                  assign (pre_local ⧺ gscope) v lval = SOME (assigned_sc) ∧
@@ -2626,7 +2639,7 @@ Theorem co_FOLDL_typed[local]:
                 case lookup_map [LAST curr_local] (varn_name x) of
                   NONE => NONE
                 | SOME (v5,NONE) => NONE
-                | SOME (v5,SOME str) => assign ss_temp v5 str)
+                | SOME (v5,SOME str) => if lval_oob ss_temp str then SOME ss_temp else assign ss_temp v5 str)
        (SOME (pre_local ⧺ gscope)) (xdl) =
      SOME x ∧ LENGTH x = SUC n ⇒
      type_scopes_list (THE (oDROP (SUC n − 2) x)) tslg ∧
@@ -2657,6 +2670,16 @@ Cases_on ‘is_d_none_in h1’ >> gvs[] >| [
       IMP_RES_TAC co_none
       ,
               
+      (* Out-of-bounds header stack element *)
+      Cases_on ‘lval_oob (pre_local ⧺ gscope) x'’ >> (
+        gvs[]
+      ) >- (
+        FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘h'’, ‘h''’, ‘T_e’, ‘tslg’, ‘n’, ‘x’, ‘curr_local’, ‘pre_local’, ‘gscope’ ])) >>
+        gvs[] >>
+        RES_TAC >>
+        gvs[]
+      ) >>
+
       subgoal ‘∃ assigned_sc scopest_sep gscope_sep.
                  assign (pre_local ⧺ gscope) x'0 x' = SOME (assigned_sc) ∧
                  (SOME gscope_sep,SOME scopest_sep) = separate (assigned_sc) ∧
@@ -2667,7 +2690,7 @@ Cases_on ‘is_d_none_in h1’ >> gvs[] >| [
                  LENGTH assigned_sc =  LENGTH pre_local + LENGTH gscope ’ >-(
         ASSUME_TAC copyout_assign_exists >> 
         FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘curr_local’, ‘pre_local’, ‘h''’,‘h'’, ‘T_e’, ‘h0’,‘x'0’, ‘x'’, ‘tslg’, ‘gscope’])) >>
-        gvs[] >> IMP_RES_TAC type_scopes_list_LENGTH >> gvs[] >> METIS_TAC []
+        gvs[] >> IMP_RES_TAC type_scopes_list_LENGTH >> gvs[] >> srw_tac [SatisfySimps.SATISFY_ss][]
         ) >>
       
       FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [ ‘h'’, ‘h''’, ‘T_e’, ‘tslg’, ‘n’,‘x’, ‘curr_local’, ‘scopest_sep’, ‘gscope_sep’])) >>

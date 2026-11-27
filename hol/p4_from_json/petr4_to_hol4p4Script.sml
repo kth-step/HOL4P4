@@ -550,6 +550,17 @@ Definition petr4_parse_ptype_def:
                   petr4_parse_compiletime_num gscope expr >>=
                   \n. SOME (p_tau_varbit n)
                  | _ => NONE));
+    ("header_stack", \json'.
+                      (case json_parse_obj ["tags"; "header"; "size"] json' of
+                       | SOME [tags; header; size] =>
+                        petr4_parse_type_name header >>=
+                        \name. petr4_parse_compiletime_num gscope size >>=
+                        \n.
+                         (case ALOOKUP tyenv name of
+                          | SOME (p_tau_xtl struct_ty_header f_t_list) =>
+                           if n = 0 then NONE else SOME (p_tau_stack (p_tau_xtl struct_ty_header f_t_list) n)
+                          | _ => NONE)
+                       | _ => NONE));
     ("bool", \json'. SOME p_tau_bool);
     ("error", \json'. SOME (p_tau_bit 32));
     ("void", \json'. SOME p_tau_bot);
@@ -739,6 +750,12 @@ Definition exp_to_p_tau_def:
     | SOME (p_tau_xtl struct_ty f_t_list) =>
      (FIND (\ (f, t). f = fld)  f_t_list) >>=
       \ (fld, res_tau). SOME res_tau
+    | SOME (p_tau_stack t n) =>
+     if fld = "size" \/ fld = "lastIndex" then SOME (p_tau_bit 32) else NONE
+    | _ => NONE)
+  | (e_index hs idx) =>
+   (case exp_to_p_tau (vtymap, ftymap) hs of
+    | SOME (p_tau_stack t n) => SOME t
     | _ => NONE)
   | (e_cast cast e') =>
    (case cast of
@@ -775,7 +792,7 @@ Definition exps_to_p_taus_def:
   \res. SOME (p_tau::res))
 End
 
-(* Struct, header and tuple operands, for which == and != have no semantics *)
+(* Struct, header, tuple and header stack operands *)
 Definition exp_is_composite_def:
  exp_is_composite (vtymap, ftymap) exp =
   case exp of
@@ -785,7 +802,65 @@ Definition exp_is_composite_def:
   | _ =>
    (case exp_to_p_tau (vtymap, ftymap) exp of
     | SOME (p_tau_xtl struct_ty f_t_list) => T
+    | SOME (p_tau_stack t n) => T
     | _ => F)
+End
+
+(* A header stack type, or a struct type with one *)
+Definition p_tau_has_stack_def:
+ (p_tau_has_stack (p_tau_stack t n) = T) /\
+ (p_tau_has_stack (p_tau_xtl struct_ty f_t_list) = x_p_taus_have_stack f_t_list) /\
+ (p_tau_has_stack _ = F) /\
+ (x_p_taus_have_stack [] = F) /\
+ (x_p_taus_have_stack ((x:x, t)::f_t_list) = (p_tau_has_stack t \/ x_p_taus_have_stack f_t_list))
+End
+
+Definition p4_e_has_stack_def:
+ p4_e_has_stack (vtymap, ftymap) e =
+  case e of
+  | e_struct x_e_l => EXISTS (\ (x, e'). p4_e_has_stack (vtymap, ftymap) e') x_e_l
+  | _ =>
+   (case exp_to_p_tau (vtymap, ftymap) e of
+    | SOME p_tau => p_tau_has_stack p_tau
+    | NONE => F)
+Termination
+WF_REL_TAC `measure (e_size o SND)` >>
+fs[e_size_def] >>
+rpt strip_tac >>
+IMP_RES_TAC e1_tuple_size_mem >>
+fs[]
+End
+
+(* The field names of a struct-valued operand of == or != *)
+Definition p4_eq_field_names_def:
+ p4_eq_field_names (vtymap, ftymap) e =
+  case e of
+  | e_struct x_e_l => SOME (MAP FST x_e_l)
+  | _ =>
+   (case exp_to_p_tau (vtymap, ftymap) e of
+    | SOME (p_tau_xtl struct_ty_struct f_t_list) => SOME (MAP FST f_t_list)
+    | _ => NONE)
+End
+
+(* A variable or a field of one *)
+Definition p4_is_var_path_def:
+ (p4_is_var_path (e_var x) = T) /\
+ (p4_is_var_path (e_acc e f) = p4_is_var_path e) /\
+ (p4_is_var_path _ = F)
+End
+
+(* hs.next is hs[i] with i from the extern method next_index of header stacks, hs.last likewise *)
+Definition p4_member_def:
+ p4_member (vtymap, ftymap) e mem_name =
+  case exp_to_p_tau (vtymap, ftymap) e of
+  | SOME (p_tau_stack t n) =>
+   if mem_name = "next" \/ mem_name = "last"
+   then
+    (if p4_is_var_path e
+     then SOME (e_index e (e_call (funn_ext "stack" (mem_name++"_index")) [e]))
+     else NONE)
+   else SOME (e_acc e mem_name)
+  | _ => SOME (e_acc e mem_name)
 End
 
 Definition p_tau_is_varbit_def:
@@ -801,6 +876,14 @@ Definition exp_is_varbit_def:
   case exp_to_p_tau (vtymap, ftymap) exp of
   | SOME p_tau => p_tau_is_varbit p_tau
   | NONE => F
+End
+
+(* hs.push_front and hs.pop_front are extern methods of header stacks *)
+Definition p4_stack_method_def:
+ p4_stack_method obj fun_name =
+  if fun_name = "push_front" \/ fun_name = "pop_front"
+  then SOME (SOME (funn_ext "stack" fun_name), SOME obj)
+  else NONE
 End
 
 Definition exp_to_funn_def:
@@ -833,8 +916,8 @@ Definition exp_to_funn_def:
       (case ALOOKUP vtymap (varn_name ext_name) of
        | SOME (p_tau_ext ext_tyname) =>
         SOME (SOME (funn_ext ext_tyname fun_name), SOME obj)
-       | _ => NONE)
-     | _ => NONE))
+       | _ => p4_stack_method obj fun_name)
+     | _ => p4_stack_method obj fun_name))
   | _ => NONE
 End
 
@@ -929,6 +1012,20 @@ Datatype:
   | SetExp s
 End
 
+(* A list expression compared with a struct takes the struct type of the other operand *)
+Definition petr4_eq_hint_def:
+ petr4_eq_hint (vtymap, ftymap) optype p_tau_opt res =
+  if MEM optype ["Eq"; "NotEq"]
+  then
+   (case res of
+    | Exp e =>
+     (case exp_to_p_tau (vtymap, ftymap) e of
+      | SOME (p_tau_xtl struct_ty_struct f_t_list) => SOME (p_tau_xtl struct_ty_struct f_t_list)
+      | _ => p_tau_opt)
+    | _ => p_tau_opt)
+  else p_tau_opt
+End
+
 Definition msg_opt_INL_def:
  (msg_opt_INL (SOME_msg (e:e)) = (SOME_msg ((INL e):(e + num)))) /\
  (msg_opt_INL (NONE_msg msg) = (NONE_msg msg))
@@ -947,17 +1044,20 @@ Definition incomplete_typeinf_def:
   | _ => F
 End
 
+Definition tau_has_varbit_def:
+ (tau_has_varbit (tau_varbit w) = T) /\
+ (tau_has_varbit (tau_xtl struct_ty x_tau_l) = EXISTS (\(x, tau). tau_has_varbit tau) x_tau_l) /\
+ (tau_has_varbit _ = F)
+End
+
 Definition get_typeinf_dummy_args_def:
  get_typeinf_dummy_args tyenv tyargs =
-  case
-   FOLDL ( \ args_opt tyarg.
-          case args_opt of
-          | SOME args =>
-           petr4_parse_type [] tyenv tyarg >>=
-           \type. SOME (args++[(e_v $ zero_val_from_tau type)])
-          | NONE => NONE) (SOME []) tyargs of
-   | SOME dummy_args => SOME_msg dummy_args
-   | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
+  case OPT_MMAP (petr4_parse_type [] tyenv) tyargs of
+  | SOME types =>
+   if EXISTS tau_has_varbit types
+   then get_error_msg "varbit type arguments unsupported: " (Array tyargs)
+   else SOME_msg (MAP (e_v o zero_val_from_tau) types)
+  | NONE => get_error_msg "could not transform extern function's type arguments to dummy arguments: " (Array tyargs)
 End
 
 Definition get_bitv_of_e_def:
@@ -1093,7 +1193,9 @@ Definition petr4_parse_expression_gen_def:
     | SOME_msg (Exp mem_nested_exp) =>
      (case petr4_parse_name name of
       | SOME mem_name =>
-       SOME_msg (Exp (e_acc mem_nested_exp mem_name))
+       (case p4_member (vtymap, ftymap) mem_nested_exp mem_name of
+        | SOME mem_exp => SOME_msg (Exp mem_exp)
+        | NONE => get_error_msg "next or last of a header stack that is not a variable or a field of one: " exp)
       | NONE => get_error_msg "could not parse name: " name)
     (* Nested apply expression allowed for struct field access (action_run, et.c.)*)
     | SOME_msg (InlineApp str_l e_app) =>
@@ -1103,6 +1205,26 @@ Definition petr4_parse_expression_gen_def:
       | NONE => get_error_msg "could not parse name: " name)
     | SOME_msg (Number n) => NONE_msg "cannot access field of constant"
     | NONE_msg mem_msg => NONE_msg mem_msg)
+  (* Header stack element; an integer literal index is 32 bits wide *)
+  | Array [String "array_access";
+     Object [("tags", tags);
+             ("array", arr);
+             ("index", idx)]] =>
+   (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (arr, NONE) of
+    | SOME_msg (Exp arr_exp) =>
+     (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (idx, NONE) of
+      | SOME_msg (Exp idx_exp) => SOME_msg (Exp (e_index arr_exp idx_exp))
+      | SOME_msg (Number k) =>
+       (case exp_to_p_tau (vtymap, ftymap) arr_exp of
+        | SOME (p_tau_stack t n) =>
+         if k < n
+         then SOME_msg (Exp (e_index arr_exp (e_v (v_bit (fixwidth 32 (n2v k), 32)))))
+         else get_error_msg "header stack index out of bounds: " exp
+        | _ => get_error_msg "could not infer the header stack type of: " arr)
+      | SOME_msg _ => get_error_msg "unsupported header stack index: " exp
+      | NONE_msg idx_msg => NONE_msg idx_msg)
+    | SOME_msg _ => get_error_msg "unsupported header stack expression: " arr
+    | NONE_msg arr_msg => NONE_msg arr_msg)
   (* Variable *)
   | Array [String "name";
            name] =>
@@ -1228,14 +1350,30 @@ Definition petr4_parse_expression_gen_def:
      let p_tau_opt_left = if MEM optype ["Plus"; "PlusSat"; "Minus"; "MinusSat"; "Mul"; "BitAnd"; "BitXor"; "BitOr"] then p_tau_opt else NONE in
      let p_tau_opt_right = if MEM optype ["Plus"; "PlusSat"; "Minus"; "MinusSat"; "Mul"; "BitAnd"; "BitXor"; "BitOr"] then p_tau_opt else NONE in
      (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op1, p_tau_opt_left) of
-      | SOME_msg res_op1 =>
-       (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op2, p_tau_opt_right) of
+      | SOME_msg res_op1_first =>
+       (case petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op2, petr4_eq_hint (vtymap, ftymap) optype p_tau_opt_right res_op1_first) of
         | SOME_msg res_op2 =>
+         (case (case (res_op1_first, petr4_eq_hint (vtymap, ftymap) optype NONE res_op2) of
+                | (Exp (e_struct x_e_l), SOME p_tau) => petr4_parse_expression_gen (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) (op1, SOME p_tau)
+                | _ => SOME_msg res_op1_first) of
+          | SOME_msg res_op1 =>
          (* TODO: Double-check this type inference works as intended in all cases *)
          (case (res_op1, res_op2) of
           | (Exp op1_exp, Exp op2_exp) =>
            if MEM optype ["Eq"; "NotEq"] /\ (exp_is_composite (vtymap, ftymap) op1_exp \/ exp_is_composite (vtymap, ftymap) op2_exp)
-           then get_error_msg "equality on structs, headers or tuples unsupported: " exp
+           then
+            (case (exp_to_p_tau (vtymap, ftymap) op1_exp, exp_to_p_tau (vtymap, ftymap) op2_exp) of
+             | (SOME p_tau1, SOME p_tau2) =>
+              if p_tau1 = p_tau2
+              then SOME_msg (Exp (mk_binop op1_exp op2_exp))
+              else get_error_msg "equality on operands of different types: " exp
+             | _ =>
+              (case (p4_eq_field_names (vtymap, ftymap) op1_exp, p4_eq_field_names (vtymap, ftymap) op2_exp) of
+               | (SOME names1, SOME names2) =>
+                if names1 = names2
+                then SOME_msg (Exp (mk_binop op1_exp op2_exp))
+                else get_error_msg "equality on operands with different fields: " exp
+               | _ => get_error_msg "equality of a list or structure-valued expression with a header or header stack unsupported: " exp))
            else if ~MEM optype ["Eq"; "NotEq"] /\ (exp_is_varbit (vtymap, ftymap) op1_exp \/ exp_is_varbit (vtymap, ftymap) op2_exp)
            then get_error_msg "operations on varbit other than == and != unsupported: " exp
            else SOME_msg (Exp (mk_binop op1_exp op2_exp))
@@ -1275,6 +1413,7 @@ Definition petr4_parse_expression_gen_def:
           | (InlineApp s_l app_exp, Exp op2_exp) =>
            SOME_msg (InlineApp s_l (mk_binop app_exp op2_exp))
           | _ => get_error_msg "expression contains apply exp or set exp: " exp)
+          | NONE_msg op1_msg => NONE_msg op1_msg)
         | NONE_msg op2_msg => NONE_msg op2_msg)
       | NONE_msg op1_msg => NONE_msg op1_msg)
     | NONE => NONE_msg ("unknown optype: "++optype)))
@@ -1781,27 +1920,41 @@ Definition petr4_mark_to_drop_args_def:
 End
 
 (* The two-argument extract is the extern method extract_varbit *)
+Definition petr4_extract_name_def:
+ petr4_extract_name (vtymap, ftymap) res_args =
+  case res_args of
+  | [hdr] =>
+   (case exp_to_p_tau (vtymap, ftymap) hdr of
+    | SOME (p_tau_xtl struct_ty_header f_t_list) =>
+     if EXISTS (p_tau_is_varbit o SND) f_t_list
+     then NONE_msg "extract of a header with a varbit field needs the size of the varbit field as second argument"
+     else SOME_msg "extract"
+    | _ => SOME_msg "extract")
+  | [hdr; size_arg] =>
+   (case exp_to_p_tau (vtymap, ftymap) hdr of
+    | SOME (p_tau_xtl struct_ty_header f_t_list) =>
+     if LENGTH (FILTER (p_tau_is_varbit o SND) f_t_list) = 1
+     then SOME_msg "extract_varbit"
+     else NONE_msg "the two-argument extract needs a header with exactly one varbit field"
+    | _ => NONE_msg "could not infer the header type of a two-argument (varbit) extract")
+  | _ => SOME_msg "extract"
+End
+
+(* An extract into hs.next is the extern method extract_next or extract_varbit_next on hs *)
 Definition petr4_extract_funn_def:
  petr4_extract_funn (vtymap, ftymap) ext_name extfun_name res_args =
   if ext_name = "packet_in" /\ extfun_name = "extract"
   then
-   (case res_args of
-    | [hdr] =>
-     (case exp_to_p_tau (vtymap, ftymap) hdr of
-      | SOME (p_tau_xtl struct_ty_header f_t_list) =>
-       if EXISTS (p_tau_is_varbit o SND) f_t_list
-       then NONE_msg "extract of a header with a varbit field needs the size of the varbit field as second argument"
-       else SOME_msg (funn_ext ext_name extfun_name)
-      | _ => SOME_msg (funn_ext ext_name extfun_name))
-    | [hdr; size_arg] =>
-     (case exp_to_p_tau (vtymap, ftymap) hdr of
-      | SOME (p_tau_xtl struct_ty_header f_t_list) =>
-       if LENGTH (FILTER (p_tau_is_varbit o SND) f_t_list) = 1
-       then SOME_msg (funn_ext ext_name "extract_varbit")
-       else NONE_msg "the two-argument extract needs a header with exactly one varbit field"
-      | _ => NONE_msg "could not infer the header type of a two-argument (varbit) extract")
-    | _ => SOME_msg (funn_ext ext_name extfun_name))
-  else SOME_msg (funn_ext ext_name extfun_name)
+   (case petr4_extract_name (vtymap, ftymap) res_args of
+    | SOME_msg name =>
+     (case res_args of
+      | (e_index hs (e_call funn [hs']))::size_args =>
+       if funn = funn_ext "stack" "next_index"
+       then SOME_msg (funn_ext ext_name (name++"_next"), hs::size_args)
+       else SOME_msg (funn_ext ext_name name, res_args)
+      | _ => SOME_msg (funn_ext ext_name name, res_args))
+    | NONE_msg msg => NONE_msg msg)
+  else SOME_msg (funn_ext ext_name extfun_name, res_args)
 End
 
 Definition p4_seq_append_stmt_def:
@@ -1932,6 +2085,8 @@ Definition p4_prefix_vars_funs_in_e_def:
    e_concat (p4_prefix_vars_funs_in_e gscope b_func_map prefix e') (p4_prefix_vars_funs_in_e gscope b_func_map prefix e'')
   | e_slice e' e'' e''' =>
    e_slice (p4_prefix_vars_funs_in_e gscope b_func_map prefix e') (p4_prefix_vars_funs_in_e gscope b_func_map prefix e'') (p4_prefix_vars_funs_in_e gscope b_func_map prefix e''')
+  | e_index e' e'' =>
+   e_index (p4_prefix_vars_funs_in_e gscope b_func_map prefix e') (p4_prefix_vars_funs_in_e gscope b_func_map prefix e'')
   | e_call funn el =>
    e_call (p4_prefix_funn b_func_map prefix funn) (MAP (p4_prefix_vars_funs_in_e gscope b_func_map prefix) el)
   | e_select e' s_l_x_l x =>
@@ -1969,6 +2124,8 @@ Definition p4_prefix_vars_in_lval_def:
   | lval_slice lval' e e' =>
    (* Note that L-values cannot contain function calls *)
    lval_slice (p4_prefix_vars_in_lval gscope prefix lval') (p4_prefix_vars_funs_in_e gscope ([]:b_func_map) prefix e) (p4_prefix_vars_funs_in_e gscope ([]:b_func_map) prefix e')
+  | lval_index lval' e =>
+   lval_index (p4_prefix_vars_in_lval gscope prefix lval') (p4_prefix_vars_funs_in_e gscope ([]:b_func_map) prefix e)
   | lval_paren lval' => p4_prefix_vars_in_lval gscope prefix lval'
   | _ => lval
 End
@@ -2052,6 +2209,7 @@ Definition p4_e_exists_def:
    | e_binop e' binop e'' => p4_e_exists P e' \/ p4_e_exists P e''
    | e_concat e' e'' => p4_e_exists P e' \/ p4_e_exists P e''
    | e_slice e' e'' e''' => p4_e_exists P e' \/ p4_e_exists P e'' \/ p4_e_exists P e'''
+   | e_index e' e'' => p4_e_exists P e' \/ p4_e_exists P e''
    | e_call funn el => EXISTS (p4_e_exists P) el
    | e_select e' s_l_x_l x => p4_e_exists P e'
    | e_struct x_e_l => EXISTS (\ (x,e). p4_e_exists P e) x_e_l
@@ -2075,6 +2233,12 @@ rpt strip_tac >| [
 ]
 End
 
+(* A header stack element whose index is not a value, such as hs[i] and hs.next *)
+Definition p4_e_has_runtime_index_def:
+ p4_e_has_runtime_index e =
+  p4_e_exists (\e'. case e' of e_index hs idx => ~is_const idx | _ => F) e
+End
+
 (* Renames the variable old to new in e *)
 Definition p4_rename_var_in_e_def:
  p4_rename_var_in_e old new e =
@@ -2090,6 +2254,8 @@ Definition p4_rename_var_in_e_def:
    e_concat (p4_rename_var_in_e old new e') (p4_rename_var_in_e old new e'')
   | e_slice e' e'' e''' =>
    e_slice (p4_rename_var_in_e old new e') (p4_rename_var_in_e old new e'') (p4_rename_var_in_e old new e''')
+  | e_index e' e'' =>
+   e_index (p4_rename_var_in_e old new e') (p4_rename_var_in_e old new e'')
   | e_call funn el =>
    e_call funn (MAP (p4_rename_var_in_e old new) el)
   | e_select e' s_l_x_l x =>
@@ -2126,6 +2292,8 @@ Definition p4_rename_var_in_lval_def:
    lval_field (p4_rename_var_in_lval old new lval') x
   | lval_slice lval' e e' =>
    lval_slice (p4_rename_var_in_lval old new lval') (p4_rename_var_in_e old new e) (p4_rename_var_in_e old new e')
+  | lval_index lval' e =>
+   lval_index (p4_rename_var_in_lval old new lval') (p4_rename_var_in_e old new e)
   | lval_paren lval' => lval_paren (p4_rename_var_in_lval old new lval')
   | _ => lval
 End
@@ -2196,6 +2364,7 @@ Definition p4_e_called_funs_def:
   | e_binop e' binop e'' => p4_e_called_funs e'++p4_e_called_funs e''
   | e_concat e' e'' => p4_e_called_funs e'++p4_e_called_funs e''
   | e_slice e' e'' e''' => p4_e_called_funs e'++p4_e_called_funs e''++p4_e_called_funs e'''
+  | e_index e' e'' => p4_e_called_funs e'++p4_e_called_funs e''
   | e_select e' s_l_x_l x => p4_e_called_funs e'
   | e_struct x_e_l => FLAT (MAP (\ (x,e). p4_e_called_funs e) x_e_l)
   | e_header b x_e_l => FLAT (MAP (\ (x,e). p4_e_called_funs e) x_e_l)
@@ -2328,6 +2497,8 @@ Definition petr4_inline_apply_def:
     | SOME ((name, (body, params')), b_func_map') =>
      if p4_stmt_contains_return body
      then NONE_msg ("nested control block "++(app_name++(" of type "++(block_type_name++" contains a return statement, which is unsupported by the inlining scheme"))))
+     else if EXISTS p4_e_has_runtime_index res_args
+     then NONE_msg ("header stack elements with an index that is not a value as arguments of nested control block "++(app_name++" unsupported"))
      else
       let gscope = p4_shadow_gscope gscope ((MAP (varn_name o FST) params)++(MAP FST decl_list)++petr4_value_ctor_params (petr4_tyenv_params tyenv block_type_name)) in
       (* Prefixing of variables, tables and functions in body happens here *)
@@ -2454,7 +2625,9 @@ Definition petr4_parse_subparser_call_def:
  petr4_parse_subparser_call ctxt inst param_types args =
   case petr4_parse_dontcare_args ctxt [] 0 (ZIP (args, parameterise_taus param_types)) of
   | SOME_msg (res_args, dontcare_decls) =>
-   SOME_msg (p4_dontcare_block dontcare_decls (stmt_ass lval_null (e_call (funn_ext inst "apply") res_args)))
+   if EXISTS p4_e_has_runtime_index res_args
+   then NONE_msg "header stack elements with an index that is not a value as arguments of a sub-parser unsupported"
+   else SOME_msg (p4_dontcare_block dontcare_decls (stmt_ass lval_null (e_call (funn_ext inst "apply") res_args)))
   | NONE_msg msg => NONE_msg ("could not parse sub-parser call: "++msg)
 End
 
@@ -2509,6 +2682,9 @@ Definition petr4_parse_method_call_def:
                | (funn_ext ext_name extfun_name) =>
                 if ext_name = ""
                 then
+                 if EXISTS (p4_e_has_stack (vtymap, ftymap)) res_args
+                 then get_error_msg "header stacks as arguments of extern functions unsupported: " (Array args)
+                 else
                  (case opt_msg_bind (petr4_mark_to_drop_args (tyenv, vtymap) extfun_name res_args) (petr4_verify_checksum_args (vtymap, ftymap) extfun_name) I of
                   | SOME_msg res_args' =>
                    (case petr4_postprocess_extern_method_call tyenv (funn_ext "" extfun_name) res_args' tyargs of
@@ -2519,8 +2695,11 @@ Definition petr4_parse_method_call_def:
                  (case obj_opt of
                   | SOME obj =>
                    (case petr4_extract_funn ((MAP (\ (varn, tau, lval_opt). (varn, parameterise_tau tau)) dontcare_decls)++vtymap, ftymap) ext_name extfun_name res_args of
-                    | SOME_msg funn' =>
-                     (case petr4_postprocess_extern_method_call tyenv funn' (obj::res_args) tyargs of
+                    | SOME_msg (funn', res_args') =>
+                     if EXISTS (p4_e_has_stack (vtymap, ftymap)) res_args' /\ ~MEM funn' [funn_ext "packet_out" "emit"; funn_ext "packet_in" "extract_next"; funn_ext "packet_in" "extract_varbit_next"]
+                     then get_error_msg "header stacks as arguments of extern methods other than emit unsupported: " (Array args)
+                     else
+                     (case petr4_postprocess_extern_method_call tyenv funn' (obj::res_args') tyargs of
                       | SOME_msg stmt => SOME_msg ([], [], [], [], [], p4_dontcare_block dontcare_decls stmt)
                       | NONE_msg postproc_ext_msg => NONE_msg postproc_ext_msg)
                     | NONE_msg extract_msg => NONE_msg extract_msg)
@@ -2639,6 +2818,14 @@ Definition exp_to_lval_def:
    (case exp_to_lval exp' of
     | SOME lval => SOME (lval_slice lval exp'' exp''')
     | NONE => NONE)
+  (* hs.last is not an l-value; an index that calls a function of the program is not supported in one *)
+  | (e_index exp' exp'') =>
+   if p4_e_called_funs exp'' <> [] \/ (case exp'' of e_call funn el => funn = funn_ext "stack" "last_index" | _ => F)
+   then NONE
+   else
+    (case exp_to_lval exp' of
+     | SOME lval => SOME (lval_index lval exp'')
+     | NONE => NONE)
   | _ => NONE
 End
 
@@ -2661,6 +2848,10 @@ Definition infer_rhs_type_def:
        SOME (p_tau_bit ((n - n') + 1))
       | NONE => NONE)
     | NONE => NONE)
+  | lval_index lval' exp =>
+   (case infer_rhs_type vtymap lval' of
+    | SOME (p_tau_stack t n) => SOME t
+    | _ => NONE)
   | _ => NONE
 End
 
@@ -3698,6 +3889,11 @@ Definition p4_e_path_name_def:
   case p4_e_path_name e of
   | SOME s => SOME (s++"."++f)
   | NONE => NONE) /\
+ (* The STF name of the stack element hs[k] is hs$k *)
+ (p4_e_path_name (e_index e (e_v (v_bit (bl, n)))) =
+  case p4_e_path_name e of
+  | SOME s => SOME (s++"$"++toString (v2n bl))
+  | NONE => NONE) /\
  (p4_e_path_name _ = NONE)
 End
 
@@ -3727,6 +3923,9 @@ Definition petr4_parse_keys_def:
         (case exp_to_p_tau (vtymap, ftymap) res_key of
          | SOME (p_tau_varbit w) => get_error_msg "varbit table keys unsupported: " h
          | SOME p_tau =>
+          if p_tau_has_stack p_tau
+          then get_error_msg "header stacks as table keys unsupported: " h
+          else
           (case deparameterise_tau p_tau of
            | SOME res_tau =>
             (case petr4_parse_keys (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) t of
@@ -4375,6 +4574,8 @@ Definition petr4_parse_trans_def:
        | SOME p_taus =>
         if EXISTS p_tau_is_varbit p_taus
         then get_error_msg "select on varbit unsupported: " (Array exps)
+        else if EXISTS p_tau_has_stack p_taus
+        then get_error_msg "select on header stacks unsupported: " (Array exps)
         else
         (case petr4_parse_cases (tyenv, enummap, vtymap, ftymap, gscope, extfun_list) p_taus cases of
          | SOME_msg cases_res =>
@@ -5273,7 +5474,7 @@ Definition petr4_parse_elements_def:
  petr4_parse_elements json_list arch_pkg_opt =
   FOLDL ( \ res_opt json. case res_opt of
                      | SOME_dbg res => petr4_parse_element res json
-                     | NONE_dbg data msg => NONE_dbg data msg) (SOME_dbg ([("bit", p_tau_bit 1)],core_error_enummap,[],[(funn_ext "header" "isValid",[],p_tau_bool); (funn_ext "header" "setValid",[],p_tau_bot); (funn_ext "header" "setInvalid",[],p_tau_bot)],[],[],[],[],[((^apply_result_placeholder_varn), (v_bot, NONE))],[],[],arch_pkg_opt,[],[],[],[],stmt_empty)) json_list
+                     | NONE_dbg data msg => NONE_dbg data msg) (SOME_dbg ([("bit", p_tau_bit 1)],core_error_enummap,[],[(funn_ext "header" "isValid",[],p_tau_bool); (funn_ext "header" "setValid",[],p_tau_bot); (funn_ext "header" "setInvalid",[],p_tau_bot); (funn_ext "stack" "next_index",[],p_tau_bit 32); (funn_ext "stack" "last_index",[],p_tau_bit 32); (funn_ext "stack" "push_front",[p_tau_bit 32],p_tau_bot); (funn_ext "stack" "pop_front",[p_tau_bit 32],p_tau_bot)],[],[],[],[],[((^apply_result_placeholder_varn), (v_bot, NONE))],[],[],arch_pkg_opt,[],[],[],[],stmt_empty)) json_list
 End
 
 (* Qualifies the tables of every block with the block name, as in MyIngress.t *)

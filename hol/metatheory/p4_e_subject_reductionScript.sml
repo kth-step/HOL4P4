@@ -1784,6 +1784,17 @@ gvs[]
 
 )
 
+>~ [`is_e_lval (e_index e e')`] >-
+(
+OPEN_EXP_TYP_TAC ``(e_index e e')`` >>
+gs[] >>
+`is_e_lval e` by RES_TAC >>
+FULL_SIMP_TAC list_ss [is_e_lval_def, get_lval_of_e_def] >>
+Cases_on `get_lval_of_e e` >> (
+ gvs[]
+)
+)
+
 >~ [`is_e_lval (e_saved e v)`] >-
 (
 OPEN_EXP_TYP_TAC ``(e_saved e v)`` >>
@@ -3037,6 +3048,11 @@ init_out_sv_tup_typed  (tup : (string#v) ) (ty:'a itself) =
   init_out_v_typed ((SND tup)) (ty:'a itself)
 End
 
+Definition init_out_vl_typed_def:
+init_out_vl_typed (vl: v list) (ty:'a itself) =
+   !(v:v). MEM v vl ==> init_out_v_typed (v) (ty:'a itself)
+End
+
 
 Theorem FOLDL_init_out_v_SNOC[local]:
 !t t' random_oracle h' r.
@@ -3258,11 +3274,38 @@ Cases_on ‘l2’ >> gs[] >>
 Cases_on ‘l3’ >> gs[]
 QED
 
+Theorem FOLDL_init_out_v_stack_typed[local]:
+!l acc i random_oracle tau (ty:'a itself).
+ init_out_vl_typed l ty ==>
+ EVERY (\v. v_typ v (t_tau tau) F) l ==>
+ EVERY (\v. v_typ v (t_tau tau) F) acc ==>
+ ?acc' i'.
+  FOLDL (\(v_l', i'') v. let (v', i''') = init_out_v random_oracle i'' v in (v'::v_l', i''')) (acc, i) l = (acc', i') /\
+  LENGTH acc' = LENGTH acc + LENGTH l /\
+  EVERY (\v. v_typ v (t_tau tau) F) acc'
+Proof
+Induct >> (
+ gs[init_out_vl_typed_def]
+) >>
+rpt strip_tac >>
+Cases_on ‘init_out_v random_oracle i h’ >>
+gs[] >>
+‘v_typ q (t_tau tau) F’ by (
+ gs[init_out_v_typed_def, DISJ_IMP_THM, FORALL_AND_THM] >>
+ metis_tac[FST]
+) >>
+first_x_assum (qspecl_then [‘q::acc’, ‘r’, ‘random_oracle’, ‘tau’, ‘ty’] mp_tac) >>
+gs[] >>
+strip_tac >>
+gs[ADD1]
+QED
+
 Theorem init_typed[local]:
 (! (ty:'a itself).
 (! v  . init_out_v_typed v ty) /\
 (! svl. init_out_svl_typed svl ty) /\
-(! sv . init_out_sv_tup_typed sv ty))
+(! sv . init_out_sv_tup_typed sv ty) /\
+(! vl . init_out_vl_typed vl ty))
 Proof
 strip_tac >>
 Mutual.MUTUAL_INDUCT_TAC v_mutual_induction >> (
@@ -3454,6 +3497,17 @@ Mutual.MUTUAL_INDUCT_TAC v_mutual_induction >> (
  ‘MAP (FST ∘ SND) (ZIP (x_list,ZIP (v_list,tau_list))) = v_list’ by metis_tac[MAP_FST_o_SND] >>
  metis_tac[]
 ) >- (
+ (* v_stack *)
+ drule FOLDL_init_out_v_stack_typed >>
+ disch_then (qspecl_then [‘[]’, ‘i’, ‘random_oracle’, ‘tau'’] mp_tac) >>
+ impl_tac >- (
+  gs[EVERY_EL]
+ ) >>
+ strip_tac >>
+ gs[EVERY_EL] >>
+ rpt strip_tac >>
+ gs[EL_REVERSE]
+) >- (
  (* empty list *)
  gs[init_out_svl_typed_def]
 ) >- (
@@ -3495,7 +3549,44 @@ Mutual.MUTUAL_INDUCT_TAC v_mutual_induction >> (
  ) >>
  Cases_on `tau` >> fs[Once v_typ_cases] >>
  fs[Once v_typ_cases]
+) >- (
+ (* empty value list *)
+ gs[init_out_vl_typed_def]
+) >- (
+ (* value list *)
+ fs[init_out_vl_typed_def, init_out_v_typed_def] >>
+ rpt strip_tac >> (
+  gvs[]
+ ) >>
+ OPEN_V_TYP_TAC ``v`` >>
+ metis_tac[]
 )
+QED
+
+
+
+(* The unspecified value of an out-of-bounds stack element has the type of the elements *)
+Theorem undef_v_typed[local]:
+!v tau random_oracle i v' i'.
+v_typ v (t_tau tau) F /\
+undef_v random_oracle i v = (v', i') ==>
+v_typ v' (t_tau tau) F
+Proof
+rpt strip_tac >>
+assume_tac init_typed >>
+fs[init_out_v_typed_def] >>
+res_tac >>
+first_x_assum (qspecl_then [‘random_oracle’, ‘i + 1’] assume_tac) >>
+Cases_on ‘init_out_v random_oracle (i + 1) v’ >>
+Cases_on ‘q’ >> (
+ gvs[undef_v_def]
+) >>
+OPEN_V_TYP_TAC ``(v_header b l)`` >>
+gvs[] >>
+simp[Once v_typ_cases] >>
+qexists_tac ‘x_v_tau_list’ >>
+gvs[clause_name_def] >>
+simp[Once v_typ_cases, clause_name_def]
 QED
 
 
@@ -3684,6 +3775,20 @@ gvs[] >| [
  (* acc *)
 
  Cases_on `get_lval_of_e e` >> fs[] >>
+ (* Header stack member *)
+ ‘!tau' w' b'. ~e_typ (t_g,t_sl) T_e e (t_tau (tau_stack tau' w')) b'’ by (
+  rpt strip_tac >>
+  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+  [`(tau_stack tau' w')`,
+   `T_e`,
+   `gscope`,
+   `t_g`,
+   `scopest`,
+   `t_sl` , `b'`, `d`])) >>
+  gvs[lookup_lval_def, AllCaseEqs()] >>
+  OPEN_V_TYP_TAC ``v'`` >>
+  gvs[acc_f_def]
+ ) >>
  OPEN_EXP_TYP_TAC ``(e_acc e s)`` >> fs[] >>
 
  LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
@@ -3739,6 +3844,36 @@ gvs[] >| [
  gvs[slice_def, bs_width_def, bitv_bitslice_def, vec_to_const_def]
  ,
 
+ (* Header stack element *)
+
+ Cases_on `get_lval_of_e e` >> (
+  fs[]
+ ) >>
+ OPEN_EXP_TYP_TAC ``(e_index e e')`` >>
+ fs[] >>
+ gvs[] >>
+
+ fs[lookup_lval_def] >>
+ Cases_on `lookup_lval (scopest ⧺ gscope) x` >> (
+  fs[]
+ ) >>
+ Cases_on `x'` >> (
+  fs[]
+ ) >>
+
+ LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL
+ [`(tau_stack tau w')`,
+  `T_e`,
+  `gscope`,
+  `t_g`,
+  `scopest`,
+  `t_sl` , `b`, `d`])) >>
+ gvs[] >>
+
+ OPEN_V_TYP_TAC ``(v_stack l n)`` >>
+ gvs[AllCaseEqs(), oEL_THM]
+ ,
+
  (* saved *)
  OPEN_EXP_TYP_TAC ``(e_saved e v)`` >> fs[] >>
  qpat_x_assum ‘!tau' T_e'. _’ (qspecl_then [‘tau’, ‘T_e’, ‘gscope’, ‘t_g’, ‘scopest’, ‘t_sl’, ‘T’, ‘d’] mp_tac) >>
@@ -3778,6 +3913,89 @@ gvs[wf_arg_lookup_def, wf_arg_def] >>
 metis_tac[]
 QED
 
+
+
+
+
+(* The value read from a typed l-value, also through an out-of-bounds stack index, is typed *)
+Theorem read_lval_typed:
+! e tau lval T_e gscope t_g scopest t_sl b i random_oracle v i'.
+type_scopes_list gscope t_g /\
+type_scopes_list scopest t_sl /\
+star_not_in_sl scopest /\
+get_lval_of_e e = SOME lval /\
+read_lval (scopest ⧺ gscope) lval i random_oracle = SOME (v, i') /\
+e_typ (t_g,t_sl) T_e e (t_tau tau) b ==>
+v_typ v (t_tau tau) F
+Proof
+Induct >> (
+ rpt strip_tac >>
+ fs[get_lval_of_e_def] >>
+ gvs[AllCaseEqs(), read_lval_def]
+) >| [
+
+ (* variables case *)
+ qspecl_then [‘e_var v’, ‘tau’, ‘lval_varname v’, ‘T_e’, ‘gscope’, ‘t_g’, ‘scopest’, ‘t_sl’, ‘b’, ‘d_out’, ‘""’] mp_tac out_dir_lookup_typed_lookup >>
+ gvs[wf_arg_lookup_def, is_d_out_def, get_lval_of_e_def, lookup_lval_def]
+ ,
+
+ (* acc *)
+ OPEN_EXP_TYP_TAC ``(e_acc e s)`` >>
+ gvs[] >> (
+  first_x_assum drule_all >>
+  strip_tac
+ ) >- (
+  imp_res_tac acc_struct_val_typed
+ ) >> (
+  OPEN_V_TYP_TAC ``v'`` >>
+  gvs[acc_f_def]
+ )
+ ,
+
+ (* slice *)
+ OPEN_EXP_TYP_TAC ``(e_slice e e' e'')`` >>
+ gvs[] >>
+ last_x_assum drule_all >>
+ strip_tac >>
+ fs[slice_lval_def] >>
+ PairCases_on `bitv` >>
+ PairCases_on `bitv'` >>
+ PairCases_on `bitv''` >>
+ gvs[slice_lval_def] >>
+ fs[Once v_typ_cases] >>
+ gvs[slice_def, bs_width_def, bitv_bitslice_def, vec_to_const_def]
+ ,
+
+ (* Header stack element, out of bounds *)
+ OPEN_EXP_TYP_TAC ``(e_index e (e_v (v_bit (bl,n))))`` >>
+ gvs[] >>
+ last_x_assum drule_all >>
+ strip_tac >>
+ OPEN_V_TYP_TAC ``(v_stack v_l i)`` >>
+ gvs[stack_el_oob_def, AllCaseEqs()] >>
+ first_x_assum (qspec_then ‘0’ mp_tac) >>
+ simp[] >>
+ strip_tac >>
+ drule_all undef_v_typed >>
+ simp[]
+ ,
+
+ (* Header stack element *)
+ OPEN_EXP_TYP_TAC ``(e_index e (e_v (v_bit (bl,n))))`` >>
+ gvs[] >>
+ last_x_assum drule_all >>
+ strip_tac >>
+ OPEN_V_TYP_TAC ``(v_stack v_l i)`` >>
+ gvs[oEL_THM]
+ ,
+
+ (* saved *)
+ OPEN_EXP_TYP_TAC ``(e_saved e v)`` >>
+ gvs[] >>
+ first_x_assum drule_all >>
+ simp[]
+]
+QED
 
 
 
@@ -4384,6 +4602,19 @@ gvs[get_lval_of_e_def, is_e_lval_def] >| [
   METIS_TAC[]
  ,
 
+ (* Header stack element *)
+ BasicProvers.FULL_CASE_TAC >> (
+  gvs[]
+ ) >>
+ SIMP_TAC list_ss [Once lval_typ_cases] >>
+ gvs[clause_name_def] >>
+
+ Q.PAT_X_ASSUM `e_typ (gtsl,tsl) T_e (e_index e e') (t_tau t) T`
+   ( STRIP_ASSUME_TAC o SIMP_RULE (srw_ss()) [Once e_typ_cases] ) >>
+ gvs[] >>
+  METIS_TAC[]
+ ,
+
  Q.PAT_X_ASSUM `e_typ (gtsl,tsl) T_e (e_saved e v) (t_tau t) T`
    ( STRIP_ASSUME_TAC o SIMP_RULE (srw_ss()) [Once e_typ_cases] ) >>
  gvs[] >>
@@ -4482,6 +4713,131 @@ QED
 
 
 
+(* The l-value of an expression has the same first stack index that is not a value *)
+Theorem get_lval_of_e_unred_index:
+!e lval.
+get_lval_of_e e = SOME lval ==>
+lval_unred_index lval = e_unred_index e
+Proof
+recInduct e_unred_index_ind >> (
+ rw[e_unred_index_def, get_lval_of_e_def] >>
+ gvs[AllCaseEqs(), lval_unred_index_def]
+) >> (
+ Cases_on ‘e_unred_index e’ >> (
+  simp[]
+ )
+)
+QED
+
+(* The stack indices of an l-value that has a value are values *)
+Theorem lookup_lval_unred_index[local]:
+!lval ss v.
+lookup_lval ss lval = SOME v ==>
+lval_unred_index lval = NONE
+Proof
+Induct >> (
+ rw[lval_unred_index_def, lookup_lval_def] >>
+ gvs[AllCaseEqs(), is_const_def] >>
+ res_tac
+)
+QED
+
+Theorem read_lval_unred_index[local]:
+!lval ss i random_oracle v i'.
+read_lval ss lval i random_oracle = SOME (v, i') ==>
+lval_unred_index lval = NONE
+Proof
+Induct >> (
+ rw[lval_unred_index_def, read_lval_def] >>
+ gvs[AllCaseEqs(), is_const_def] >>
+ res_tac
+)
+QED
+
+(* The l-value of a well-formed argument has no stack index that is not a value *)
+Theorem wf_arg_imp_lval_unred_index[local]:
+∀ d b x e ss tslg tsl T_e tau lop.
+wf_arg d x e ss ∧
+e_typ (tslg,tsl) T_e e (t_tau tau) b ∧
+get_lval_of_e e = SOME lop ⇒
+lval_unred_index lop = NONE
+Proof
+rpt strip_tac >>
+gvs[wf_arg_def] >>
+Cases_on ‘is_d_out d’ >> (
+ gvs[]
+) >| [
+ Cases_on ‘?e' v'. e = e_saved e' v'’ >| [
+  gvs[get_lval_of_e_def] >>
+  OPEN_EXP_TYP_TAC ``(e_saved e' v')`` >>
+  gvs[] >>
+  imp_res_tac get_lval_of_e_unred_index >>
+  gvs[]
+  ,
+  ‘arg_lval_v ss lop e = lookup_lval ss lop’ by (
+   Cases_on ‘e’ >> (
+    gvs[arg_lval_v_def]
+   )
+  ) >>
+  gvs[] >>
+  imp_res_tac lookup_lval_unred_index
+ ]
+ ,
+ Cases_on ‘e’ >> (
+  gvs[v_of_e_def, get_lval_of_e_def]
+ )
+]
+QED
+
+Theorem wf_arg_imp_lval_unred_index_list[local]:
+∀ exdl tbl t lop T_e tslg tsl ss x.
+LENGTH exdl = LENGTH tbl ∧
+wf_arg_list (MAP (λ(e,x,d). d) exdl) (MAP (λ(e,x,d). x) exdl) (MAP (λ(e,x,d). e) exdl) (ss) ∧
+(∀i. i < LENGTH tbl ⇒
+            e_typ (tslg,tsl) T_e
+                     (EL i (MAP (λ(e,x,d). e) exdl))
+              (t_tau (EL i (MAP (λ(t,b). t) tbl)))
+                     (EL i (MAP (λ(t,b). b) tbl)))  ∧
+
+ALOOKUP (ZIP (mk_varn (MAP (λ(e,x,d). x) exdl),
+              ZIP (MAP (λ(t,b). t) tbl, MAP (λ(e,x,d). get_lval_of_e e) exdl))) x = SOME (t,SOME lop) ⇒
+lval_unred_index lop = NONE
+Proof
+Induct >>
+Cases_on ‘tbl’ >> (
+ gvs[]
+) >>
+rpt strip_tac >- (
+ gvs[mk_varn_def]
+) >>
+PairCases_on ‘h'’ >>
+PairCases_on ‘h’ >>
+gvs[] >>
+IMP_RES_TAC wf_arg_normalization >>
+gvs[ALOOKUP_def, mk_varn_lemma2] >>
+Cases_on ‘varn_name h'1 = x’ >> (
+ gvs[]
+) >| [
+ FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘0’])) >>
+ gvs[] >>
+ IMP_RES_TAC wf_arg_imp_lval_unred_index
+ ,
+ LAST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘t’, ‘t'’, ‘lop’, ‘T_e’, ‘tslg’, ‘tsl’, ‘ss’, ‘x’])) >>
+ gvs[] >>
+ subgoal ‘(∀i. i < LENGTH t ⇒
+         e_typ (tslg,tsl) T_e (EL i (MAP (λ(e,x,d). e) exdl))
+               (t_tau (EL i (MAP (λ(t,b). t) t))) (EL i (MAP (λ(t,b). b) t)))’ >- (
+  rpt strip_tac >>
+  FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘i+1’])) >>
+  gvs[ADD1, EL_CONS] >>
+  gvs[PRE_SUB1]
+ ) >>
+ gvs[]
+]
+QED
+
+
+
 Theorem bv_casting_length1:
 ∀ n' v n.  n' = bs_width (bitv_cast n' (v,n))
 Proof               
@@ -4538,6 +4894,72 @@ QED
 
 
 
+(* e_mutual_induction with induction hypotheses for the unreduced stack indices of call arguments *)
+Theorem e_unred_index_mutual_induction:
+!P Q0 Q1 Q2.
+ (!v. P (e_v v)) /\ (!v. P (e_var v)) /\ (!l. Q0 l ==> P (e_list l)) /\
+ (!e. P e ==> !s. P (e_acc e s)) /\ (!e. P e ==> !u. P (e_unop u e)) /\
+ (!e. P e ==> !c. P (e_cast c e)) /\
+ (!e e0. P e /\ P e0 ==> !b. P (e_binop e b e0)) /\
+ (!e e0. P e /\ P e0 ==> P (e_concat e e0)) /\
+ (!e e0 e1. P e /\ P e0 /\ P e1 ==> P (e_slice e e0 e1)) /\
+ (!e e0. P e /\ P e0 ==> P (e_index e e0)) /\
+ (!l. (!e e'. MEM e l /\ e_unred_index e = SOME e' ==> P e') /\ Q0 l ==> !f. P (e_call f l)) /\
+ (!e. P e ==> !s l. P (e_select e l s)) /\
+ (!l. Q1 l ==> P (e_struct l)) /\ (!l. Q1 l ==> !b. P (e_header b l)) /\
+ (!e. P e ==> !v. P (e_saved e v)) /\ Q0 [] /\
+ (!t h. P h /\ Q0 t ==> Q0 (h::t)) /\ Q1 [] /\
+ (!t h. Q2 h /\ Q1 t ==> Q1 (h::t)) /\ (!p_1 p_2. P p_2 ==> Q2 (p_1,p_2)) ==>
+ (!e. P e) /\ (!l. Q0 l) /\ (!l. Q1 l) /\ !p. Q2 p
+Proof
+rpt gen_tac >>
+strip_tac >>
+‘(!e. P e /\ (!e'. e_unred_index e = SOME e' ==> P e')) /\
+ (!l. Q0 l /\ (!e e'. MEM e l /\ e_unred_index e = SOME e' ==> P e')) /\
+ (!l. Q1 l) /\ (!p. Q2 p)’ suffices_by (
+ simp[]
+) >>
+Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >> (
+ rpt strip_tac >>
+ gvs[e_unred_index_def, AllCaseEqs()] >>
+ res_tac >>
+ metis_tac[]
+)
+QED
+
+(* Replacing the unreduced stack index of an l-value expression preserves the type *)
+Theorem e_update_index_typed:
+!e e'' t_scopes_tup T_e t b.
+e_unred_index e = SOME e'' /\
+e_typ t_scopes_tup T_e e t b ==>
+?w b''. e_typ t_scopes_tup T_e e'' (t_tau (tau_bit w)) b'' /\
+ !e''' b'''. e_typ t_scopes_tup T_e e''' (t_tau (tau_bit w)) b''' ==>
+  e_typ t_scopes_tup T_e (e_update_index e e''') t b
+Proof
+recInduct e_unred_index_ind >> (
+ rpt strip_tac >>
+ gvs[e_unred_index_def]
+) >> (
+ qpat_x_assum ‘e_typ _ _ _ _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once e_typ_cases]) >>
+ gvs[AllCaseEqs(), e_update_index_def]
+) >- (
+ first_assum $ irule_at Any >>
+ simp[] >>
+ rpt strip_tac >>
+ simp[Once e_typ_cases] >>
+ metis_tac[]
+) >> (
+ first_x_assum drule >>
+ strip_tac >>
+ first_assum $ irule_at Any >>
+ simp[] >>
+ rpt strip_tac >>
+ simp[Once e_typ_cases] >>
+ metis_tac[]
+)
+QED
+
+
 (****************)
 (****************)
 (*  E SR        *)
@@ -4553,7 +4975,7 @@ Theorem SR_e:
 Proof
 
 STRIP_TAC >>
-Mutual.MUTUAL_INDUCT_TAC e_mutual_induction >| [
+Mutual.MUTUAL_INDUCT_TAC e_unred_index_mutual_induction >| [
 
 (*****************)
 (*    values     *)
@@ -4708,6 +5130,39 @@ FULL_SIMP_TAC list_ss [lemma_v_red_forall] >> rw[] >|[
  IMP_RES_TAC correct_field_index_lemma >>
  Q.EXISTS_TAC `F` >>
  rfs[]
+ ,
+
+ (*e_stack_size*)
+ OPEN_EXP_TYP_TAC ``(e_acc (e_v (v_stack v_list i)) s)`` >>
+ gvs[] >- (
+  fs[Once e_typ_cases] >>
+  fs[Once v_typ_cases]
+ ) >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
+ fs[clause_name_def, bs_width_def]
+ ,
+
+ (*e_stack_last_index*)
+ OPEN_EXP_TYP_TAC ``(e_acc (e_v (v_stack v_list i)) s)`` >>
+ gvs[] >- (
+  fs[Once e_typ_cases] >>
+  fs[Once v_typ_cases]
+ ) >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
+ fs[clause_name_def, bs_width_def]
+ ,
+
+ (*e_stack_last_index_undef*)
+ OPEN_EXP_TYP_TAC ``(e_acc (e_v (v_stack v_list i)) s)`` >>
+ gvs[] >- (
+  fs[Once e_typ_cases] >>
+  fs[Once v_typ_cases]
+ ) >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ SIMP_TAC (srw_ss()) [Once v_typ_cases] >>
+ fs[clause_name_def, bs_width_def]
  ,
 
  (*frame creation must be also well-typed*)
@@ -5076,6 +5531,76 @@ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
 ,
 
 (****************)
+(*   index      *)
+(****************)
+
+(* Header stack element *)
+SIMP_TAC std_ss [sr_exp_def] >>
+rpt strip_tac >|[
+
+OPEN_EXP_RED_TAC ``(e_index e e')`` >>
+REV_FULL_SIMP_TAC (srw_ss()) [] >| [
+
+ (*e_index_arg1*)
+ gvs[] >>
+ OPEN_EXP_TYP_TAC ``(e_index e e')`` >>
+ rw[] >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ gvs[] >>
+ fs[sr_exp_def] >>
+ METIS_TAC []
+ ,
+
+ (*e_index_arg2*)
+ gvs[] >>
+ OPEN_EXP_TYP_TAC ``(e_index (e_v v) e')`` >>
+ rw[] >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ gvs[] >>
+ fs[sr_exp_def] >>
+ METIS_TAC []
+ ,
+
+ (*e_index_v*)
+ gvs[] >>
+ OPEN_EXP_TYP_TAC ``(e_index (e_v (v_stack v_list i)) (e_v (v_bit bitv)))`` >>
+ gvs[] >>
+ qpat_x_assum ‘e_typ _ _ (e_v (v_stack _ _)) _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once e_typ_cases]) >>
+ OPEN_V_TYP_TAC ``(v_stack v_list i)`` >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ gvs[oEL_THM, clause_name_def] >>
+ Q.EXISTS_TAC `F` >>
+ gvs[]
+ ,
+
+ (*e_index_oob*)
+ gvs[] >>
+ OPEN_EXP_TYP_TAC ``(e_index (e_v (v_stack v_list i)) (e_v (v_bit bitv)))`` >>
+ gvs[] >>
+ qpat_x_assum ‘e_typ _ _ (e_v (v_stack _ _)) _ _’ (strip_assume_tac o SIMP_RULE (srw_ss()) [Once e_typ_cases]) >>
+ OPEN_V_TYP_TAC ``(v_stack v_list i)`` >>
+ SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+ gvs[stack_el_oob_def, AllCaseEqs(), clause_name_def] >>
+ first_x_assum (qspec_then ‘0’ mp_tac) >>
+ simp[] >>
+ strip_tac >>
+ drule_all undef_v_typed >>
+ strip_tac >>
+ Q.EXISTS_TAC `F` >>
+ gvs[]
+ ]
+,
+
+ fs[] >>
+ OPEN_EXP_RED_TAC ``(e_index e e')`` >>
+ OPEN_EXP_TYP_TAC ``(e_index e e')`` >>
+ rfs[] >>
+ srw_tac [SatisfySimps.SATISFY_ss][e_resulted_frame_is_WT]
+]
+
+,
+
+(****************)
 (*  call        *)
 (****************)
 
@@ -5279,6 +5804,10 @@ rpt strip_tac >| [
    gvs[] >>
    qpat_x_assum ‘save_arg _ _ _ = _’ (fn thm => assume_tac (SIMP_RULE (srw_ss()) [save_arg_def, AllCaseEqs()] thm)) >>
    gvs[] >>
+   (* the stack indices of a looked-up l-value are values *)
+   imp_res_tac lookup_lval_unred_index >>
+   imp_res_tac get_lval_of_e_unred_index >>
+   gvs[] >>
    (* an out-directed argument is typed as an l-value *)
    subgoal ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)’ >- (
     fs[out_is_lval_def] >>
@@ -5300,6 +5829,136 @@ rpt strip_tac >| [
    ) >>
    strip_tac >>
    gvs[]
+   ,
+
+   (* reduction (call f el -> call f el') of a stack index of an out- or inout-directed argument *)
+   rw[] >>
+   fs[clause_name_def] >>
+   rw[] >>
+   SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+   fs[clause_name_def] >>
+   rw[] >>
+   subgoal `i < LENGTH e_e'_x_d_list` >- (
+    IMP_RES_TAC unred_arg_index_in_range >>
+    METIS_TAC[LENGTH_MAP] ) >>
+   OPEN_EXP_TYP_TAC `` (e_call f (MAP (λ(e_,e'_,x_,d_). e_) e_e'_x_d_list))`` >>
+   fs[] >>
+   gvs[] >>
+   subgoal `i < LENGTH e_tau_x_d_b_list` >- (
+    IMP_RES_TAC unred_arg_index_in_range >>
+    METIS_TAC[LENGTH_MAP] ) >>
+   (* the index is typed, and the argument keeps its type when the index is replaced *)
+   qspecl_then [‘EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)’, ‘e''’, ‘(t_scope_list_g,t_scope_list)’, ‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘t_tau (EL i (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list))’, ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)’] mp_tac e_update_index_typed >>
+   impl_tac >- (
+    gvs[]
+   ) >>
+   strip_tac >>
+   (* the reduction of the index preserves its type *)
+   qpat_x_assum ‘!e e'. MEM e _ /\ _ ==> _’ (qspecl_then [‘EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)’, ‘e''’] mp_tac) >>
+   impl_tac >- (
+    gvs[EL_MEM]
+   ) >>
+   disch_then (qspecl_then [‘e'''’, ‘gscope’, ‘scopest’, ‘framel’, ‘i_opt’, ‘t_scope_list’, ‘t_scope_list_g’, ‘t_tau (tau_bit w)’, ‘b''’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f'’, ‘f_called’, ‘stmt_called’, ‘copied_in_scope’, ‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘oracle_index’, ‘random_oracle’] mp_tac) >>
+   impl_tac >- (
+    gvs[]
+   ) >>
+   strip_tac >>
+   first_x_assum drule >>
+   strip_tac >>
+   Q.EXISTS_TAC `
+   ZIP ( LUPDATE (e_update_index (EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)) e''') i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
+         ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list),
+         ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). x_) e_tau_x_d_b_list) ,
+        ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list) ,
+     (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list))))) ` >>
+   rw[map_distrub_penta] >>
+   IMP_RES_TAC lemma_MAP8 >>
+   fs[] >- (
+    FULL_SIMP_TAC std_ss [map_rw5_3]
+   ) >>
+   Cases_on ‘i = i'’ >> (
+    fs[EL_LUPDATE]
+   )
+   ,
+
+   (* reduction (call f el -> call f el') saving an argument with an out-of-bounds stack index *)
+   rw[] >>
+   fs[clause_name_def] >>
+   rw[] >>
+   SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+   fs[clause_name_def] >>
+   rw[] >>
+   subgoal `i < LENGTH e_e'_x_d_list` >- (
+    IMP_RES_TAC unred_arg_index_in_range >>
+    METIS_TAC[LENGTH_MAP] ) >>
+   OPEN_EXP_TYP_TAC `` (e_call f (MAP (λ(e_,e'_,x_,d_). e_) e_e'_x_d_list))`` >>
+   fs[] >>
+   gvs[] >>
+   subgoal `i < LENGTH e_tau_x_d_b_list` >- (
+    IMP_RES_TAC unred_arg_index_in_range >>
+    METIS_TAC[LENGTH_MAP] ) >>
+   (* the arguments keep their types, the saved one stays an l-value *)
+   Q.EXISTS_TAC `
+   ZIP ( LUPDATE e'' i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list) ,
+         ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list),
+         ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). x_) e_tau_x_d_b_list) ,
+        ZIP ( (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list) ,
+     (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list))))) ` >>
+   rw[map_distrub_penta] >>
+   IMP_RES_TAC lemma_MAP8 >>
+   fs[] >- (
+    FULL_SIMP_TAC std_ss [map_rw5_3]
+   ) >>
+   (* the direction lists are the same *)
+   subgoal ` (MAP (λ(e_,e'_,x_,d_). d_) e_e'_x_d_list) =
+             (MAP (λ(e_,tau_,x_,d_,b_). d_) e_tau_x_d_b_list)` >- (
+    ‘WT_c
+          (apply_table_f,ext_map,func_map,b_func_map,pars_map,tbl_map,
+           get_oracle_index,set_oracle_index,random_oracle) order
+          t_scope_list_g delta_g delta_b delta_x delta_t Prs_n’ by (
+     metis_tac[WT_c_ec]
+    ) >>
+    ASSUME_TAC dir_fun_delta_same >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [
+      `(MAP (λ(e_,e'_,x_,d_). (x_,d_)) (e_e'_x_d_list : (e # e # string # d) list)) `,
+      `(MAP (λ(e_,tau_,x_,d_,b_). (tau_,x_,d_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list))`,
+      `tau'`, `f`, `func_map`, `b_func_map`, `ext_map`,
+      `delta_g`, `delta_b`, `delta_x`, `apply_table_f`,
+      `order`, `t_scope_list_g`, `pars_map`, `tbl_map`, ‘get_oracle_index’, ‘set_oracle_index’, ‘random_oracle’, ‘delta_t’, ‘Prs_n’])) >>
+    gvs[] >>
+    IMP_RES_TAC map_simp_1 >>
+    gvs[MAP_MAP_txd] >>
+    gvs[MAP_FST_3_2] >>
+    gvs[MAP_SND_4_2]
+   ) >>
+   Cases_on ‘i = i'’ >> (
+    fs[EL_LUPDATE] >>
+    gvs[]
+   ) >>
+   qpat_x_assum ‘save_arg_oob _ _ _ _ _ = _’ (fn thm => assume_tac (SIMP_RULE (srw_ss()) [save_arg_oob_def, AllCaseEqs()] thm)) >>
+   gvs[] >>
+   (* the stack indices of a read l-value are values *)
+   imp_res_tac read_lval_unred_index >>
+   imp_res_tac get_lval_of_e_unred_index >>
+   gvs[] >>
+   (* an out-directed argument is typed as an l-value *)
+   subgoal ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)’ >- (
+    fs[out_is_lval_def] >>
+    qpat_x_assum ‘!i'. _’ (qspec_then ‘i’ mp_tac) >>
+    gvs[]
+   ) >>
+   SIMP_TAC (srw_ss()) [Once e_typ_cases] >>
+   fs[clause_name_def] >>
+   conj_tac >- (
+    qpat_x_assum ‘!i. i < LENGTH e_tau_x_d_b_list ==> _’ (qspec_then ‘i’ mp_tac) >>
+    gvs[]
+   ) >>
+   (* the unspecified value has the type of the l-value *)
+   irule read_lval_typed >>
+   qpat_x_assum ‘!i. i < LENGTH e_tau_x_d_b_list ==> _’ (qspec_then ‘i’ mp_tac) >>
+   gvs[] >>
+   strip_tac >>
+   rpt (goal_assum $ drule_at Any)
  ]
  ,
 
@@ -5462,6 +6121,15 @@ rpt strip_tac >| [
           MAP (λ(e_,tau_,x_,d_,b_). (b_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list)    )’,
     ‘t’, ‘lop’,‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘t_scope_list_g’, ‘t_scope_list’,
      ‘(scopest ⧺ gscope)’, ‘x’])) >> gvs[] >>
+    gvs[map_rw_doub] >>
+    (* the stored l-values have no stack index that is not a value *)
+    ASSUME_TAC wf_arg_imp_lval_unred_index_list >>
+    FIRST_X_ASSUM (STRIP_ASSUME_TAC o (Q.SPECL [‘e_x_d_list’,
+    ‘ZIP (MAP (λ(e_,tau_,x_,d_,b_). (tau_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list) ,
+          MAP (λ(e_,tau_,x_,d_,b_). (b_)) (e_tau_x_d_b_list : (e # tau # string # d # bool) list)    )’,
+    ‘t’, ‘lop’,‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘t_scope_list_g’, ‘t_scope_list’,
+     ‘(scopest ⧺ gscope)’, ‘x’])) >>
+    gvs[] >>
     gvs[map_rw_doub]
     ,
     
@@ -5539,6 +6207,37 @@ rpt strip_tac >| [
   `t_tau (EL i (MAP (λ(e_,tau_,x_,d_,b_). tau_) (e_tau_x_d_b_list : (e # tau # string #  d # bool) list ) ))`
   ])) >>
  gvs[]
+ ,
+
+
+ (*third subgoal of frame creation part *)
+ (* the frame is created by the reduction of a stack index *)
+
+ subgoal `i < LENGTH e_e'_x_d_list` >- (
+ IMP_RES_TAC unred_arg_index_in_range >>
+ METIS_TAC[LENGTH_MAP] ) >>
+
+
+ subgoal `i < LENGTH e_tau_x_d_b_list` >- (
+ IMP_RES_TAC unred_arg_index_in_range >>
+ METIS_TAC[LENGTH_MAP] ) >>
+
+ qspecl_then [‘EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)’, ‘e''’, ‘(t_scope_list_g,t_scope_list)’, ‘(order,f',delta_g,delta_b,delta_x,delta_t)’, ‘t_tau (EL i (MAP (λ(e_,tau_,x_,d_,b_). tau_) e_tau_x_d_b_list))’, ‘EL i (MAP (λ(e_,tau_,x_,d_,b_). b_) e_tau_x_d_b_list)’] mp_tac e_update_index_typed >>
+ impl_tac >- (
+  gvs[]
+ ) >>
+ strip_tac >>
+ qpat_x_assum ‘!e e'. MEM e _ /\ _ ==> _’ (qspecl_then [‘EL i (MAP (λ(e_,tau_,x_,d_,b_). e_) e_tau_x_d_b_list)’, ‘e''’] mp_tac) >>
+ impl_tac >- (
+  gvs[EL_MEM]
+ ) >>
+ disch_then (qspecl_then [‘e'''’, ‘gscope’, ‘scopest’, ‘[(f_called,[stmt_called],copied_in_scope)]’, ‘i_opt’, ‘t_scope_list’, ‘t_scope_list_g’, ‘t_tau (tau_bit w)’, ‘b''’, ‘order’, ‘delta_g’, ‘delta_b’, ‘delta_t’, ‘delta_x’, ‘f'’, ‘f_called’, ‘stmt_called’, ‘copied_in_scope’, ‘Prs_n’, ‘apply_table_f’, ‘ext_map’, ‘func_map’, ‘b_func_map’, ‘pars_map’, ‘tbl_map’, ‘oracle_index’, ‘random_oracle’] mp_tac) >>
+ impl_tac >- (
+  gvs[]
+ ) >>
+ strip_tac >>
+ gvs[] >>
+ srw_tac [SatisfySimps.SATISFY_ss][]
  ] 
 ]
 

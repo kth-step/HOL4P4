@@ -167,6 +167,25 @@ star_not_in_ts (s:t_scope) =
   ! f . (ALOOKUP s (varn_star f) = NONE)
 `;
 
+(* No header stack of size 0 in the type *)
+Definition tau_wf_def:
+ (tau_wf (tau_stack tau n) = (0 < n /\ tau_wf tau)) /\
+ (tau_wf (tau_xtl struct_ty x_tau_l) = EVERY tau_wf (MAP SND x_tau_l)) /\
+ (tau_wf _ = T)
+Termination
+WF_REL_TAC ‘measure tau_size’ >>
+rw[] >>
+gvs[listTheory.MEM_MAP] >>
+Cases_on ‘y’ >>
+imp_res_tac tau1_size_mem >>
+gs[]
+End
+
+val t_scope_wf_def = Define `
+t_scope_wf (s:t_scope) =
+  EVERY (\x. tau_wf (FST (SND x))) s
+`;
+
 val Err_not_in_ts_def = Define `
 Err_not_in_ts (s:t_scope) =
    (ALOOKUP s (varn_name "parseError") = NONE)
@@ -402,6 +421,13 @@ is_eq_op (oper:binop) =
 (oper = binop_neq))
 End
 
+(* Struct, header or header stack type *)
+Definition tau_composite_def:
+ (tau_composite (tau_xtl struct_ty x_tau_l) = T) /\
+ (tau_composite (tau_stack tau n) = T) /\
+ (tau_composite _ = F)
+End
+
 (* returns true if the operation is conducted between two bools and returns bool*)
 val is_bool_op_def = Define `
 is_bool_op (oper:binop) =
@@ -496,6 +522,12 @@ by
 
 ----------------------------------- :: ext_ref
  ext_ref i : ( ext , false)
+
+
+ v1 , .. , vm :' ( tau , false  )
+ stack_wf ( [ v1 , .. , vm ] , i , w )
+----------------------------------- :: stack
+ stack [ v1 , .. , vm ] i : ( stack tau w , false  )
 
 defns
 s_typ :: '' ::=
@@ -670,6 +702,19 @@ correct_field_type ( [ x1 tau1 , .. , xn taun ] , x , tau )
 t_scopes_tup T_e |- e . x : ( tau , b )
 
 
+t_scopes_tup T_e |- e : ( stack tau w' , b )
+positive ( w' )
+t_scopes_tup T_e |- e' : ( bs w , b' )
+----------------------------------- :: index
+t_scopes_tup T_e |- e [ e' ] : ( tau , b )
+
+
+t_scopes_tup T_e |- e : ( stack tau w' , b )
+stack_member x
+----------------------------------- :: stack_acc
+t_scopes_tup T_e |- e . x : ( bs 32 , false )
+
+
 t_scopes_tup T_e |- e : ( bs w1 , b )
 t_scopes_tup T_e |- e' : ( bs w2 , b' )
 ----------------------------------- :: concat
@@ -740,6 +785,14 @@ is_eq_op binop
 t_scopes_tup T_e |-  e binop e' : ( bool , false  )
 
 
+t_scopes_tup T_e |-  e   : ( tau , b )
+t_scopes_tup T_e |-  e'  : ( tau , b' )
+is_eq_op binop
+tau_composite ( tau )
+------------------------------------ :: binop_composite_bool
+t_scopes_tup T_e |-  e binop e' : ( bool , false  )
+
+
 width_in_range n
 exists_tau_bool t_scopes_tup T_e |-  e  : ( tau , b )
 ------------------------------------ :: cast_bool
@@ -752,6 +805,7 @@ t_scopes_tup T_e |-  ( bool ) e : ( bool , false )
 
 
 t_scopes_tup T_e |-  e  : ( t , true )
+e_lval_red ( e )
 v : ( t , false )
 ------------------------------------ :: saved
 t_scopes_tup T_e |-  saved ( e , v ) : ( t , true )
@@ -783,6 +837,13 @@ t_scopes_tup T_e |-l lval : ( bs w , true )
 bits_length_check ( w , w1 , w2 )
 ----------------------------------- :: slice
 t_scopes_tup T_e |-l lval [ bitv : bitv' ] : ( bs ( ( w1 - w2 ) + 1 ) , true )
+
+
+t_scopes_tup T_e |-l lval : ( stack tau w' , true )
+positive ( w' )
+t_scopes_tup T_e |- e : ( bs w , b )
+----------------------------------- :: index
+t_scopes_tup T_e |-l lval [ e ] : ( tau , true )
 
 
 
@@ -824,6 +885,7 @@ t_scopes_tup T_e Prs_n |- if e then stmt1 else stmt2
 
 lvalop_not_none t_scope
 star_not_in_ts t_scope
+t_scope_wf t_scope
 ( t_scope_list_g , [ t_scope ] ++ t_scope_list ) T_e Prs_n |- stmt
 --------------------------------------- :: decl
 ( t_scope_list_g , t_scope_list ) T_e Prs_n |- begin t_scope stmt end 
@@ -937,7 +999,8 @@ val sig_tscope_consistent_def = Define ‘
 val t_scopes_consistent_def = Define ‘
     t_scopes_consistent T_e (t_scope_list_caller:t_scope_list) (t_scope_list_g: t_scope_list_g) (t_scope_list_called: t_scope_list) =
     ∀ x t lop. ALOOKUP (LAST t_scope_list_called) x = SOME (t, SOME lop) ⇒
-                       lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t)
+                       lval_typ (t_scope_list_g,t_scope_list_caller) T_e lop (t_tau t) ∧
+                       lval_unred_index lop = NONE
 ’;
 
 

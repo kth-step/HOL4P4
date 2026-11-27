@@ -9,6 +9,10 @@ val approx_packet_in_extract :
    int -> term -> term -> term -> (thm * int list)
 val approx_packet_in_extract_varbit :
    int -> term -> term -> term -> (thm * int list)
+val approx_packet_in_extract_next :
+   int -> term -> term -> term -> (thm * int list) option
+val approx_packet_in_extract_varbit_next :
+   int -> term -> term -> term -> (thm * int list) option
 val approx_packet_in_lookahead :
    int -> term -> term -> term -> (thm * int list)
 val approx_packet_in_advance :
